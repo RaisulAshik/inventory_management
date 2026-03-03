@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="UTF-8">
+  <title>ivnmng — Controllers List</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    /* ── Page layout ── */
+    body {
+      font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      color: #1a1a2e;
+      margin: 0;
+      padding: 40px 60px;
+      background: #ffffff;
+      line-height: 1.6;
+    }
+
+    /* ── Cover / Title ── */
+    .cover {
+      text-align: center;
+      padding: 60px 0 40px;
+      border-bottom: 3px solid #2c3e8c;
+      margin-bottom: 40px;
+    }
+    .cover h1 {
+      font-size: 28pt;
+      color: #2c3e8c;
+      margin: 0 0 8px;
+      letter-spacing: 1px;
+    }
+    .cover h2 {
+      font-size: 16pt;
+      color: #4a5568;
+      font-weight: 400;
+      margin: 0 0 24px;
+    }
+    .cover .meta {
+      font-size: 10pt;
+      color: #718096;
+    }
+    .cover .badge {
+      display: inline-block;
+      background: #2c3e8c;
+      color: #ffffff;
+      border-radius: 20px;
+      padding: 4px 16px;
+      font-size: 10pt;
+      margin: 4px;
+    }
+
+    /* ── Section headings ── */
+    h2.section {
+      font-size: 14pt;
+      color: #ffffff;
+      background: #2c3e8c;
+      padding: 8px 16px;
+      border-radius: 4px;
+      margin: 32px 0 12px;
+      page-break-after: avoid;
+    }
+    h3.sub {
+      font-size: 11pt;
+      color: #2c3e8c;
+      margin: 20px 0 6px;
+      border-left: 4px solid #2c3e8c;
+      padding-left: 10px;
+    }
+
+    /* ── Summary box ── */
+    .summary-box {
+      background: #f0f4ff;
+      border: 1px solid #b8c6f5;
+      border-radius: 6px;
+      padding: 16px 24px;
+      margin: 24px 0;
+    }
+    .summary-box h3 {
+      margin: 0 0 12px;
+      color: #2c3e8c;
+      font-size: 12pt;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .summary-card {
+      background: #ffffff;
+      border: 1px solid #d0daf7;
+      border-radius: 4px;
+      padding: 12px;
+      text-align: center;
+    }
+    .summary-card .num {
+      font-size: 22pt;
+      font-weight: 700;
+      color: #2c3e8c;
+    }
+    .summary-card .label {
+      font-size: 9pt;
+      color: #718096;
+    }
+
+    /* ── Controller table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 20px;
+      font-size: 10.5pt;
+    }
+    thead tr {
+      background: #2c3e8c;
+      color: #ffffff;
+    }
+    thead th {
+      padding: 9px 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+    tbody tr:nth-child(even) {
+      background: #f7f9ff;
+    }
+    tbody tr:hover {
+      background: #e8eeff;
+    }
+    tbody td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    td.num-col {
+      color: #718096;
+      font-size: 9.5pt;
+      width: 36px;
+      text-align: center;
+    }
+    td.path-col {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 9.5pt;
+      color: #2d3748;
+      word-break: break-all;
+    }
+    td.db-col {
+      width: 110px;
+    }
+
+    /* ── DB badges ── */
+    .db-master {
+      display: inline-block;
+      background: #e53e3e;
+      color: #fff;
+      border-radius: 3px;
+      padding: 2px 8px;
+      font-size: 8.5pt;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .db-tenant {
+      display: inline-block;
+      background: #2f855a;
+      color: #fff;
+      border-radius: 3px;
+      padding: 2px 8px;
+      font-size: 8.5pt;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex;
+      gap: 20px;
+      margin: 16px 0 24px;
+      font-size: 10pt;
+      align-items: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Notes box ── */
+    .note {
+      background: #fffbeb;
+      border-left: 4px solid #d97706;
+      padding: 12px 16px;
+      border-radius: 0 4px 4px 0;
+      margin: 20px 0;
+      font-size: 10pt;
+      color: #744210;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      margin-top: 50px;
+      padding-top: 16px;
+      border-top: 2px solid #e2e8f0;
+      text-align: center;
+      font-size: 9pt;
+      color: #a0aec0;
+    }
+
+    /* ── Page break ── */
+    .page-break { page-break-before: always; }
+
+    @media print {
+      body { padding: 20px 40px; }
+      h2.section { page-break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════ COVER ══ -->
+  <div class="cover">
+    <h1>ivnmng</h1>
+    <h2>Complete Controllers Reference</h2>
+    <div class="meta">
+      <span class="badge">NestJS 11</span>
+      <span class="badge">TypeScript 5.7</span>
+      <span class="badge">MySQL 8</span>
+      <span class="badge">TypeORM 0.3.17</span>
+      <span class="badge">Multi-Tenant ERP</span>
+    </div>
+    <p style="margin-top:20px; color:#718096; font-size:10pt;">
+      Generated: February 2026 &nbsp;|&nbsp; API Base: <code>/api/v1</code>
+    </p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ SUMMARY ══ -->
+  <div class="summary-box">
+    <h3>Project Summary</h3>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="num">48</div>
+        <div class="label">Total Controllers</div>
+      </div>
+      <div class="summary-card">
+        <div class="num">13</div>
+        <div class="label">Feature Modules</div>
+      </div>
+      <div class="summary-card">
+        <div class="num">2</div>
+        <div class="label">Database Contexts</div>
+      </div>
+      <div class="summary-card">
+        <div class="num">4</div>
+        <div class="label">Master DB Controllers (groups)</div>
+      </div>
+      <div class="summary-card">
+        <div class="num">44</div>
+        <div class="label">Tenant DB Controllers</div>
+      </div>
+      <div class="summary-card">
+        <div class="num">128</div>
+        <div class="label">Tenant Entities</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <strong>DB Legend:</strong>
+    <div class="legend-item"><span class="db-master">MASTER</span> Uses Master DB — admin/SaaS management, no tenant header needed</div>
+    <div class="legend-item"><span class="db-tenant">TENANT</span> Uses Tenant DB — requires <code>X-Tenant-ID</code> header + JWT</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ MODULE 1: APP ROOT ══ -->
+  <h2 class="section">1 — App Root</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller</th>
+        <th>DB</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">1</td>
+        <td class="path-col">src/app.controller.ts</td>
+        <td class="db-col">—</td>
+        <td>Health check endpoint <code>GET /health</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 2: ADMIN AUTH ══ -->
+  <h2 class="section">2 — Admin Auth Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/admin/auth</code> — No <code>X-Tenant-ID</code> required</p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller</th>
+        <th>DB</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">2</td>
+        <td class="path-col">src/modules/admin-auth/admin-auth.controller.ts</td>
+        <td class="db-col"><span class="db-master">MASTER</span></td>
+        <td>Super-admin login, refresh, logout, profile</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 3: MASTER ══ -->
+  <h2 class="section">3 — Master Module (SaaS Administration)</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/master/...</code> — No <code>X-Tenant-ID</code> required</p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Manages</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">3</td>
+        <td class="path-col">src/modules/master/plans/plans.controller.ts</td>
+        <td class="db-col"><span class="db-master">MASTER</span></td>
+        <td>Subscription plans, features, pricing</td>
+      </tr>
+      <tr>
+        <td class="num-col">4</td>
+        <td class="path-col">src/modules/master/subcriptions/subscriptions.controller.ts</td>
+        <td class="db-col"><span class="db-master">MASTER</span></td>
+        <td>Tenant subscriptions, billing, status</td>
+      </tr>
+      <tr>
+        <td class="num-col">5</td>
+        <td class="path-col">src/modules/master/system-settings/system-settings.controller.ts</td>
+        <td class="db-col"><span class="db-master">MASTER</span></td>
+        <td>Global system configuration settings</td>
+      </tr>
+      <tr>
+        <td class="num-col">6</td>
+        <td class="path-col">src/modules/master/tenants/tenants.controller.ts</td>
+        <td class="db-col"><span class="db-master">MASTER</span></td>
+        <td>Tenant CRUD, provisioning, activation</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 4: AUTH ══ -->
+  <div class="page-break"></div>
+  <h2 class="section">4 — Auth Module (Tenant Authentication)</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/auth/...</code> — Login/Register public, others require JWT + <code>X-Tenant-ID</code></p>
+  <div class="note">
+    <strong>Note:</strong> <code>POST /auth/login</code> and <code>POST /auth/register</code> are excluded from TenantMiddleware — they do NOT require <code>X-Tenant-ID</code> header. All other auth endpoints do.
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Handles</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">7</td>
+        <td class="path-col">src/modules/auth/auth.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Login, register, refresh token, forgot-password, reset-password, logout, profile</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 5: USERS ══ -->
+  <h2 class="section">5 — Users Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/users</code></p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Manages</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">8</td>
+        <td class="path-col">src/modules/users/users.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>User CRUD, roles assignment, permissions, profile update</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 6: INVENTORY ══ -->
+  <h2 class="section">6 — Inventory Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/inventory/...</code></p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Manages</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">9</td>
+        <td class="path-col">src/modules/inventory/inventory.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Inventory overview, stats, bulk operations</td>
+      </tr>
+      <tr>
+        <td class="num-col">10</td>
+        <td class="path-col">src/modules/inventory/brands/brands.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Brand CRUD</td>
+      </tr>
+      <tr>
+        <td class="num-col">11</td>
+        <td class="path-col">src/modules/inventory/categories/categories.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Product category CRUD, tree structure</td>
+      </tr>
+      <tr>
+        <td class="num-col">12</td>
+        <td class="path-col">src/modules/inventory/price-lists/price-lists.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Price list CRUD, pricing rules</td>
+      </tr>
+      <tr>
+        <td class="num-col">13</td>
+        <td class="path-col">src/modules/inventory/products/products.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Product CRUD, variants, images, stock levels</td>
+      </tr>
+      <tr>
+        <td class="num-col">14</td>
+        <td class="path-col">src/modules/inventory/suppliers/suppliers.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Supplier CRUD, contact, terms</td>
+      </tr>
+      <tr>
+        <td class="num-col">15</td>
+        <td class="path-col">src/modules/inventory/tax/tax.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Tax category CRUD, rates</td>
+      </tr>
+      <tr>
+        <td class="num-col">16</td>
+        <td class="path-col">src/modules/inventory/units/units.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Unit of measure CRUD, conversions</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 7: WAREHOUSE ══ -->
+  <div class="page-break"></div>
+  <h2 class="section">7 — Warehouse Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/warehouse/...</code></p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Manages</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">17</td>
+        <td class="path-col">src/modules/warehouse/warehouses/warehouses.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Warehouse CRUD, capacity, zones</td>
+      </tr>
+      <tr>
+        <td class="num-col">18</td>
+        <td class="path-col">src/modules/warehouse/locations/locations.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Warehouse location (bin/rack) CRUD</td>
+      </tr>
+      <tr>
+        <td class="num-col">19</td>
+        <td class="path-col">src/modules/warehouse/stock/stock.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Stock levels, movements, batch tracking, inventory valuation</td>
+      </tr>
+      <tr>
+        <td class="num-col">20</td>
+        <td class="path-col">src/modules/warehouse/adjustments/adjustments.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Stock adjustment CRUD, approve, complete</td>
+      </tr>
+      <tr>
+        <td class="num-col">21</td>
+        <td class="path-col">src/modules/warehouse/transfers/transfers.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Inter-warehouse transfer CRUD, ship, receive, cancel</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 8: SALES ══ -->
+  <h2 class="section">8 — Sales Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/sales/...</code></p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Manages</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">22</td>
+        <td class="path-col">src/modules/sales/customers/customers.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Customer CRUD, balance, history, credit limit</td>
+      </tr>
+      <tr>
+        <td class="num-col">23</td>
+        <td class="path-col">src/modules/sales/orders/orders.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Sales order CRUD, confirm, ship, deliver, cancel, payments</td>
+      </tr>
+      <tr>
+        <td class="num-col">24</td>
+        <td class="path-col">src/modules/sales/returns/returns.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Sales return CRUD, approve, process refund</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 9: PURCHASING ══ -->
+  <h2 class="section">9 — Purchasing Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/purchasing/...</code></p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Manages</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">25</td>
+        <td class="path-col">src/modules/purchasing/purchase-orders/purchase-orders.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Purchase order CRUD, submit, approve, reject, cancel</td>
+      </tr>
+      <tr>
+        <td class="num-col">26</td>
+        <td class="path-col">src/modules/purchasing/grn/grn.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Goods Received Note CRUD, receive items, quality check</td>
+      </tr>
+      <tr>
+        <td class="num-col">27</td>
+        <td class="path-col">src/modules/purchasing/purchase-returns/purchase-returns.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Purchase return CRUD, approve, ship back</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 10: DASHBOARD ══ -->
+  <div class="page-break"></div>
+  <h2 class="section">10 — Dashboard Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/dashboard/...</code></p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Provides</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">28</td>
+        <td class="path-col">src/modules/dashboard/dashboard.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>KPIs, sales summary, inventory alerts, revenue charts, recent activity</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 11: CUSTOMER GROUPS ══ -->
+  <h2 class="section">11 — Customer Groups Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/customer-groups/...</code></p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Manages</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">29</td>
+        <td class="path-col">src/modules/customer-group/customer-groups.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Customer group CRUD, pricing tier assignment</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 12: QUOTATIONS ══ -->
+  <h2 class="section">12 — Quotations Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/quotations/...</code></p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Manages</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">30</td>
+        <td class="path-col">src/modules/quotations/quotations.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Quotation CRUD, send, convert to order, expire</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 13: ACCOUNTING ══ -->
+  <h2 class="section">13 — Accounting Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/accounting/...</code> — 11 controllers total</p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Manages</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">31</td>
+        <td class="path-col">src/modules/accounting/controller/chart-of-accounts.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>CoA CRUD, account hierarchy, activation</td>
+      </tr>
+      <tr>
+        <td class="num-col">32</td>
+        <td class="path-col">src/modules/accounting/controller/bank-accounts.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Bank account CRUD, balance, activate/deactivate</td>
+      </tr>
+      <tr>
+        <td class="num-col">33</td>
+        <td class="path-col">src/modules/accounting/controller/cost-centers.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Cost center CRUD, hierarchy</td>
+      </tr>
+      <tr>
+        <td class="num-col">34</td>
+        <td class="path-col">src/modules/accounting/controller/fiscal-years.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Fiscal year CRUD, open/close, activate</td>
+      </tr>
+      <tr>
+        <td class="num-col">35</td>
+        <td class="path-col">src/modules/accounting/controller/fiscal-periods.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Fiscal period CRUD, open/close</td>
+      </tr>
+      <tr>
+        <td class="num-col">36</td>
+        <td class="path-col">src/modules/accounting/controller/general-ledger.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>GL entries, account balance, trial balance</td>
+      </tr>
+      <tr>
+        <td class="num-col">37</td>
+        <td class="path-col">src/modules/accounting/controller/bank-transactions.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Bank transaction CRUD, reconcile, void</td>
+      </tr>
+      <tr>
+        <td class="num-col">38</td>
+        <td class="path-col">src/modules/accounting/controller/bank-reconciliations.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Bank reconciliation CRUD, match transactions, complete</td>
+      </tr>
+      <tr>
+        <td class="num-col">39</td>
+        <td class="path-col">src/modules/accounting/controller/budgets.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Budget CRUD, line items, submit, approve, activate, budget vs actual</td>
+      </tr>
+      <tr>
+        <td class="num-col">40</td>
+        <td class="path-col">src/modules/accounting/controller/financial-reports.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Balance sheet, income statement, cash flow, trial balance, aged receivables</td>
+      </tr>
+      <tr>
+        <td class="num-col">41</td>
+        <td class="path-col">src/modules/accounting/controller/journal-entries.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Journal entry CRUD, post, reverse, attachment</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ MODULE 14: DUE MANAGEMENT ══ -->
+  <div class="page-break"></div>
+  <h2 class="section">14 — Due Management / Financial Module</h2>
+  <p style="font-size:10pt; color:#4a5568;">Routes: <code>/api/v1/financial/...</code> — 7 controllers total</p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Controller File</th>
+        <th>DB</th>
+        <th>Manages</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num-col">42</td>
+        <td class="path-col">src/modules/due-management/customer-dues/customer-dues.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Customer due tracking, aging, overdue alerts</td>
+      </tr>
+      <tr>
+        <td class="num-col">43</td>
+        <td class="path-col">src/modules/due-management/collections/collections.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Customer due collections / payments received</td>
+      </tr>
+      <tr>
+        <td class="num-col">44</td>
+        <td class="path-col">src/modules/due-management/credit-notes/credit-notes.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Credit note CRUD, apply to invoices</td>
+      </tr>
+      <tr>
+        <td class="num-col">45</td>
+        <td class="path-col">src/modules/due-management/payment-reminders/payment-reminders.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Payment reminder CRUD, send, schedule</td>
+      </tr>
+      <tr>
+        <td class="num-col">46</td>
+        <td class="path-col">src/modules/due-management/supplier-dues/supplier-dues.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Supplier payable tracking, aging</td>
+      </tr>
+      <tr>
+        <td class="num-col">47</td>
+        <td class="path-col">src/modules/due-management/supplier-payments/supplier-payments.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Supplier payment CRUD, process, reconcile</td>
+      </tr>
+      <tr>
+        <td class="num-col">48</td>
+        <td class="path-col">src/modules/due-management/debit-notes/debit-notes.controller.ts</td>
+        <td class="db-col"><span class="db-tenant">TENANT</span></td>
+        <td>Debit note CRUD, apply to payables</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ COMPLETE INDEX ══ -->
+  <div class="page-break"></div>
+  <h2 class="section">Complete Alphabetical Index — All 48 Controllers</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>File Path</th>
+        <th>Module</th>
+        <th>DB</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="num-col">1</td><td class="path-col">src/app.controller.ts</td><td>App Root</td><td class="db-col">—</td></tr>
+      <tr><td class="num-col">2</td><td class="path-col">src/modules/accounting/controller/bank-accounts.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">3</td><td class="path-col">src/modules/accounting/controller/bank-reconciliations.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">4</td><td class="path-col">src/modules/accounting/controller/bank-transactions.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">5</td><td class="path-col">src/modules/accounting/controller/budgets.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">6</td><td class="path-col">src/modules/accounting/controller/chart-of-accounts.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">7</td><td class="path-col">src/modules/accounting/controller/cost-centers.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">8</td><td class="path-col">src/modules/accounting/controller/financial-reports.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">9</td><td class="path-col">src/modules/accounting/controller/fiscal-periods.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">10</td><td class="path-col">src/modules/accounting/controller/fiscal-years.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">11</td><td class="path-col">src/modules/accounting/controller/general-ledger.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">12</td><td class="path-col">src/modules/accounting/controller/journal-entries.controller.ts</td><td>Accounting</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">13</td><td class="path-col">src/modules/admin-auth/admin-auth.controller.ts</td><td>Admin Auth</td><td class="db-col"><span class="db-master">MASTER</span></td></tr>
+      <tr><td class="num-col">14</td><td class="path-col">src/modules/auth/auth.controller.ts</td><td>Auth</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">15</td><td class="path-col">src/modules/customer-group/customer-groups.controller.ts</td><td>Customer Groups</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">16</td><td class="path-col">src/modules/dashboard/dashboard.controller.ts</td><td>Dashboard</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">17</td><td class="path-col">src/modules/due-management/collections/collections.controller.ts</td><td>Due Management</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">18</td><td class="path-col">src/modules/due-management/credit-notes/credit-notes.controller.ts</td><td>Due Management</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">19</td><td class="path-col">src/modules/due-management/customer-dues/customer-dues.controller.ts</td><td>Due Management</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">20</td><td class="path-col">src/modules/due-management/debit-notes/debit-notes.controller.ts</td><td>Due Management</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">21</td><td class="path-col">src/modules/due-management/payment-reminders/payment-reminders.controller.ts</td><td>Due Management</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">22</td><td class="path-col">src/modules/due-management/supplier-dues/supplier-dues.controller.ts</td><td>Due Management</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">23</td><td class="path-col">src/modules/due-management/supplier-payments/supplier-payments.controller.ts</td><td>Due Management</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">24</td><td class="path-col">src/modules/inventory/brands/brands.controller.ts</td><td>Inventory</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">25</td><td class="path-col">src/modules/inventory/categories/categories.controller.ts</td><td>Inventory</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">26</td><td class="path-col">src/modules/inventory/inventory.controller.ts</td><td>Inventory</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">27</td><td class="path-col">src/modules/inventory/price-lists/price-lists.controller.ts</td><td>Inventory</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">28</td><td class="path-col">src/modules/inventory/products/products.controller.ts</td><td>Inventory</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">29</td><td class="path-col">src/modules/inventory/suppliers/suppliers.controller.ts</td><td>Inventory</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">30</td><td class="path-col">src/modules/inventory/tax/tax.controller.ts</td><td>Inventory</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">31</td><td class="path-col">src/modules/inventory/units/units.controller.ts</td><td>Inventory</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">32</td><td class="path-col">src/modules/master/plans/plans.controller.ts</td><td>Master</td><td class="db-col"><span class="db-master">MASTER</span></td></tr>
+      <tr><td class="num-col">33</td><td class="path-col">src/modules/master/subcriptions/subscriptions.controller.ts</td><td>Master</td><td class="db-col"><span class="db-master">MASTER</span></td></tr>
+      <tr><td class="num-col">34</td><td class="path-col">src/modules/master/system-settings/system-settings.controller.ts</td><td>Master</td><td class="db-col"><span class="db-master">MASTER</span></td></tr>
+      <tr><td class="num-col">35</td><td class="path-col">src/modules/master/tenants/tenants.controller.ts</td><td>Master</td><td class="db-col"><span class="db-master">MASTER</span></td></tr>
+      <tr><td class="num-col">36</td><td class="path-col">src/modules/purchasing/grn/grn.controller.ts</td><td>Purchasing</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">37</td><td class="path-col">src/modules/purchasing/purchase-orders/purchase-orders.controller.ts</td><td>Purchasing</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">38</td><td class="path-col">src/modules/purchasing/purchase-returns/purchase-returns.controller.ts</td><td>Purchasing</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">39</td><td class="path-col">src/modules/quotations/quotations.controller.ts</td><td>Quotations</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">40</td><td class="path-col">src/modules/sales/customers/customers.controller.ts</td><td>Sales</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">41</td><td class="path-col">src/modules/sales/orders/orders.controller.ts</td><td>Sales</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">42</td><td class="path-col">src/modules/sales/returns/returns.controller.ts</td><td>Sales</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">43</td><td class="path-col">src/modules/users/users.controller.ts</td><td>Users</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">44</td><td class="path-col">src/modules/warehouse/adjustments/adjustments.controller.ts</td><td>Warehouse</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">45</td><td class="path-col">src/modules/warehouse/locations/locations.controller.ts</td><td>Warehouse</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">46</td><td class="path-col">src/modules/warehouse/stock/stock.controller.ts</td><td>Warehouse</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">47</td><td class="path-col">src/modules/warehouse/transfers/transfers.controller.ts</td><td>Warehouse</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+      <tr><td class="num-col">48</td><td class="path-col">src/modules/warehouse/warehouses/warehouses.controller.ts</td><td>Warehouse</td><td class="db-col"><span class="db-tenant">TENANT</span></td></tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════ FOOTER ══ -->
+  <div class="footer">
+    <p><strong>ivnmng</strong> — Multi-Tenant ERP/SaaS &nbsp;|&nbsp; NestJS 11 + TypeScript 5.7 + MySQL 8 + TypeORM 0.3.17</p>
+    <p>48 Controllers &nbsp;·&nbsp; 13 Feature Modules &nbsp;·&nbsp; Generated February 2026</p>
+    <p style="margin-top:8px; font-style:italic;">
+      To open in Word: right-click this file → Open With → Microsoft Word → Save As .docx
+    </p>
+  </div>
+
+</body>
+</html>

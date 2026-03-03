@@ -1,0 +1,35 @@
+import { ChartOfAccounts } from './chart-of-accounts.entity';
+import { FiscalYear } from './fiscal-year.entity';
+import { FiscalPeriod } from './fiscal-period.entity';
+import { CostCenter } from './cost-center.entity';
+import { JournalEntry } from './journal-entry.entity';
+export declare class GeneralLedger {
+    id: string;
+    accountId: string;
+    fiscalYearId: string;
+    fiscalPeriodId: string;
+    transactionDate: Date;
+    journalEntryId: string;
+    journalEntryLineId: string;
+    description: string;
+    debitAmount: number;
+    creditAmount: number;
+    runningBalance: number;
+    currency: string;
+    exchangeRate: number;
+    baseDebitAmount: number;
+    baseCreditAmount: number;
+    costCenterId: string;
+    referenceType: string;
+    referenceId: string;
+    referenceNumber: string;
+    partyType: string;
+    partyId: string;
+    createdAt: Date;
+    account: ChartOfAccounts;
+    fiscalYear: FiscalYear;
+    fiscalPeriod: FiscalPeriod;
+    journalEntry: JournalEntry;
+    costCenter: CostCenter;
+    get netAmount(): number;
+}

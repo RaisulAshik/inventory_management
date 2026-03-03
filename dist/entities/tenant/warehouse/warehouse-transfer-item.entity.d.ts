@@ -1,0 +1,34 @@
+import { WarehouseTransfer } from './warehouse-transfer.entity';
+import { WarehouseLocation } from './warehouse-location.entity';
+import { InventoryBatch } from './inventory-batch.entity';
+import { Product } from '../inventory/product.entity';
+import { ProductVariant } from '../inventory/product-variant.entity';
+import { UnitOfMeasure } from '../inventory/unit-of-measure.entity';
+export declare class WarehouseTransferItem {
+    id: string;
+    warehouseTransferId: string;
+    productId: string;
+    variantId: string;
+    fromLocationId: string;
+    toLocationId: string;
+    batchId: string;
+    quantityRequested: number;
+    quantityShipped: number;
+    quantityReceived: number;
+    quantityDamaged: number;
+    uomId: string;
+    unitCost: number;
+    lineValue: number;
+    notes: string;
+    createdAt: Date;
+    updatedAt: Date;
+    warehouseTransfer: WarehouseTransfer;
+    product: Product;
+    variant: ProductVariant;
+    fromLocation: WarehouseLocation;
+    toLocation: WarehouseLocation;
+    batch: InventoryBatch;
+    uom: UnitOfMeasure;
+    get quantityPending(): number;
+    get quantityShortage(): number;
+}

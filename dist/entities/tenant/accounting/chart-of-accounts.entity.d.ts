@@ -1,0 +1,32 @@
+import { AccountType, NormalBalance } from '@common/enums';
+import { JournalEntryLine } from './journal-entry-line.entity';
+export declare class ChartOfAccounts {
+    id: string;
+    accountCode: string;
+    accountName: string;
+    accountType: AccountType;
+    accountSubtype: string;
+    parentId: string;
+    level: number;
+    path: string;
+    normalBalance: NormalBalance;
+    isHeader: boolean;
+    isSystem: boolean;
+    isActive: boolean;
+    isBankAccount: boolean;
+    isCashAccount: boolean;
+    isReceivable: boolean;
+    isPayable: boolean;
+    currency: string;
+    openingBalanceDebit: number;
+    openingBalanceCredit: number;
+    currentBalance: number;
+    description: string;
+    createdAt: Date;
+    updatedAt: Date;
+    parent: ChartOfAccounts;
+    children: ChartOfAccounts[];
+    journalEntryLines: JournalEntryLine[];
+    get openingBalance(): number;
+    get isDebitBalance(): boolean;
+}

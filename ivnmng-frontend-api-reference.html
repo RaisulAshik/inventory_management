@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ivnmng — Frontend API Reference</title>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #222; margin: 40px; line-height: 1.5; }
+  h1 { font-size: 26pt; color: #1a3a5c; border-bottom: 3px solid #1a3a5c; padding-bottom: 8px; }
+  h2 { font-size: 18pt; color: #1a3a5c; border-bottom: 2px solid #c8d8e8; padding-bottom: 4px; margin-top: 30px; }
+  h3 { font-size: 14pt; color: #2e6da4; margin-top: 20px; }
+  h4 { font-size: 12pt; color: #444; margin-top: 14px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0 20px 0; font-size: 10pt; }
+  th { background: #1a3a5c; color: #fff; padding: 7px 10px; text-align: left; }
+  td { border: 1px solid #c8d8e8; padding: 6px 10px; vertical-align: top; }
+  tr:nth-child(even) { background: #f4f8fc; }
+  .method-get    { background:#2e7d32; color:#fff; padding:2px 8px; border-radius:3px; font-weight:bold; font-size:9pt; }
+  .method-post   { background:#1565c0; color:#fff; padding:2px 8px; border-radius:3px; font-weight:bold; font-size:9pt; }
+  .method-patch  { background:#f57f17; color:#fff; padding:2px 8px; border-radius:3px; font-weight:bold; font-size:9pt; }
+  .method-put    { background:#6a1b9a; color:#fff; padding:2px 8px; border-radius:3px; font-weight:bold; font-size:9pt; }
+  .method-delete { background:#c62828; color:#fff; padding:2px 8px; border-radius:3px; font-weight:bold; font-size:9pt; }
+  code { background:#f0f4f8; border:1px solid #c8d8e8; padding:1px 5px; border-radius:3px; font-family:Consolas,monospace; font-size:10pt; }
+  pre  { background:#f0f4f8; border:1px solid #c8d8e8; padding:12px; border-radius:4px; font-family:Consolas,monospace; font-size:9.5pt; overflow-x:auto; white-space:pre-wrap; }
+  .note  { background:#fff8e1; border-left:4px solid #f9a825; padding:8px 14px; margin:10px 0; }
+  .warn  { background:#fce4ec; border-left:4px solid #c62828; padding:8px 14px; margin:10px 0; }
+  .info  { background:#e3f2fd; border-left:4px solid #1565c0; padding:8px 14px; margin:10px 0; }
+  .toc { background:#f4f8fc; border:1px solid #c8d8e8; padding:16px 24px; margin:20px 0; }
+  .toc a { color:#1a3a5c; text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .toc li { margin:3px 0; }
+  .page-break { page-break-before: always; }
+  .tag { background:#e3f2fd; color:#1565c0; padding:1px 6px; border-radius:10px; font-size:9pt; margin-right:4px; }
+  .required { color:#c62828; font-weight:bold; }
+  .optional { color:#777; }
+  .endpoint-row td:first-child { font-family:Consolas,monospace; font-size:9.5pt; }
+</style>
+</head>
+<body>
+
+<h1>ivnmng ERP — Frontend API Reference</h1>
+<p><strong>Version:</strong> 1.0 &nbsp;|&nbsp; <strong>Base URL:</strong> <code>http://localhost:3000/api/v1</code> &nbsp;|&nbsp; <strong>Swagger UI:</strong> <code>http://localhost:3000/docs</code></p>
+<p><em>Generated: 2026-02-27 &nbsp;|&nbsp; Stack: NestJS 11 · TypeScript · MySQL · TypeORM · JWT</em></p>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <strong>Table of Contents</strong>
+  <ol>
+    <li><a href="#setup">Setup &amp; Configuration</a></li>
+    <li><a href="#auth-flow">Authentication Flow</a></li>
+    <li><a href="#headers">Required Request Headers</a></li>
+    <li><a href="#response-format">Standard Response Format</a></li>
+    <li><a href="#errors">Error Handling</a></li>
+    <li><a href="#admin-auth">Admin Authentication API</a></li>
+    <li><a href="#auth">Tenant Authentication API</a></li>
+    <li><a href="#users">Users API</a></li>
+    <li><a href="#inventory">Inventory API</a>
+      <ul>
+        <li><a href="#products">Products</a></li>
+        <li><a href="#categories">Categories</a></li>
+        <li><a href="#brands">Brands</a></li>
+        <li><a href="#suppliers">Suppliers</a></li>
+        <li><a href="#units">Units of Measure</a></li>
+        <li><a href="#tax">Tax</a></li>
+        <li><a href="#pricelists">Price Lists</a></li>
+      </ul>
+    </li>
+    <li><a href="#warehouse">Warehouse API</a></li>
+    <li><a href="#sales">Sales API</a></li>
+    <li><a href="#purchasing">Purchasing API</a></li>
+    <li><a href="#accounting">Accounting API</a></li>
+    <li><a href="#due-management">Due Management API</a></li>
+    <li><a href="#dashboard">Dashboard API</a></li>
+    <li><a href="#quotations">Quotations API</a></li>
+    <li><a href="#customer-groups">Customer Groups API</a></li>
+    <li><a href="#master">Master / SaaS Admin API</a></li>
+    <li><a href="#models">Core Data Models</a></li>
+    <li><a href="#enums">Enums &amp; Constants</a></li>
+    <li><a href="#permissions">Permissions Reference</a></li>
+  </ol>
+</div>
+
+<!-- ===== SECTION 1: SETUP ===== -->
+<h2 id="setup">1. Setup &amp; Configuration</h2>
+
+<h3>Environment</h3>
+<table>
+  <tr><th>Variable</th><th>Value (Dev)</th><th>Description</th></tr>
+  <tr><td>API Base URL</td><td><code>http://localhost:3000/api/v1</code></td><td>All tenant API calls</td></tr>
+  <tr><td>Admin Base URL</td><td><code>http://localhost:3000/api/v1/admin</code></td><td>SaaS admin calls (master DB)</td></tr>
+  <tr><td>Swagger Docs</td><td><code>http://localhost:3000/docs</code></td><td>Interactive API explorer (dev only)</td></tr>
+  <tr><td>Health Check</td><td><code>GET http://localhost:3000/health</code></td><td>No auth required</td></tr>
+</table>
+
+<h3>Axios Base Setup (Frontend)</h3>
+<pre>
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:3000/api/v1',
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// Request interceptor — attach token + tenant ID
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('accessToken');
+  const tenantId = localStorage.getItem('tenantId');
+  if (token)    config.headers['Authorization'] = `Bearer ${token}`;
+  if (tenantId) config.headers['X-Tenant-ID'] = tenantId;
+  return config;
+});
+
+// Response interceptor — auto-refresh token on 401
+api.interceptors.response.use(
+  (res) => res,
+  async (err) => {
+    if (err.response?.status === 401) {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        const { data } = await axios.post('/api/v1/auth/refresh', { refreshToken });
+        localStorage.setItem('accessToken', data.data.accessToken);
+        err.config.headers['Authorization'] = `Bearer ${data.data.accessToken}`;
+        return api(err.config);
+      }
+      // Redirect to login
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
+</pre>
+
+<!-- ===== SECTION 2: AUTH FLOW ===== -->
+<h2 id="auth-flow">2. Authentication Flow</h2>
+
+<h3>Tenant User Flow</h3>
+<pre>
+1. POST /api/v1/auth/login  →  { accessToken, refreshToken, user, tenantId }
+2. Store:  localStorage.setItem('accessToken', accessToken)
+           localStorage.setItem('refreshToken', refreshToken)
+           localStorage.setItem('tenantId', user.tenantId)
+3. All subsequent requests must include:
+   - Header: Authorization: Bearer {accessToken}
+   - Header: X-Tenant-ID: {tenantId}
+4. On 401 → POST /api/v1/auth/refresh  →  new tokens
+5. POST /api/v1/auth/logout  →  clear localStorage
+</pre>
+
+<h3>Admin (SaaS) Flow</h3>
+<pre>
+1. POST /api/v1/admin/auth/login  →  { accessToken, refreshToken, admin }
+2. Store:  localStorage.setItem('adminToken', accessToken)
+3. All admin requests:
+   - Header: Authorization: Bearer {adminToken}
+   - NO X-Tenant-ID needed for admin routes
+</pre>
+
+<!-- ===== SECTION 3: HEADERS ===== -->
+<h2 id="headers">3. Required Request Headers</h2>
+<table>
+  <tr><th>Header</th><th>Value</th><th>Required For</th></tr>
+  <tr><td><code>Authorization</code></td><td><code>Bearer {accessToken}</code></td><td>All protected routes</td></tr>
+  <tr><td><code>X-Tenant-ID</code></td><td><code>{tenantId}</code> (UUID)</td><td>All tenant routes (NOT admin/master)</td></tr>
+  <tr><td><code>Content-Type</code></td><td><code>application/json</code></td><td>POST / PATCH / PUT requests</td></tr>
+</table>
+<div class="note">
+  <strong>Note:</strong> Admin routes (<code>/admin/*</code>) and master routes (<code>/master/*</code>) do NOT require <code>X-Tenant-ID</code>.
+  Public routes (<code>/auth/login</code>, <code>/auth/register</code>, <code>/health</code>) do not require Authorization.
+</div>
+
+<!-- ===== SECTION 4: RESPONSE FORMAT ===== -->
+<h2 id="response-format">4. Standard Response Format</h2>
+<h3>Success Response</h3>
+<pre>
+{
+  "success": true,
+  "statusCode": 200,
+  "data": { ... }  // or array [...] or paginated object
+}
+</pre>
+
+<h3>Paginated Response</h3>
+<pre>
+{
+  "success": true,
+  "statusCode": 200,
+  "data": {
+    "data": [ ... ],   // array of items
+    "total": 150,      // total record count
+    "page": 1,
+    "limit": 20
+  }
+}
+</pre>
+
+<h3>Common Query Parameters for Lists</h3>
+<table>
+  <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+  <tr><td><code>page</code></td><td>number</td><td>1</td><td>Page number</td></tr>
+  <tr><td><code>limit</code></td><td>number</td><td>20</td><td>Items per page (max 100)</td></tr>
+  <tr><td><code>search</code></td><td>string</td><td>—</td><td>Search keyword</td></tr>
+  <tr><td><code>sortBy</code></td><td>string</td><td>createdAt</td><td>Field to sort by</td></tr>
+  <tr><td><code>sortOrder</code></td><td>ASC|DESC</td><td>DESC</td><td>Sort direction</td></tr>
+</table>
+
+<!-- ===== SECTION 5: ERRORS ===== -->
+<h2 id="errors">5. Error Handling</h2>
+<pre>
+{
+  "success": false,
+  "statusCode": 400,
+  "message": "Validation failed",
+  "errors": [
+    { "field": "email", "message": "email must be a valid email" }
+  ]
+}
+</pre>
+<table>
+  <tr><th>Status Code</th><th>Meaning</th><th>Frontend Action</th></tr>
+  <tr><td>400</td><td>Bad Request / Validation Error</td><td>Show field errors to user</td></tr>
+  <tr><td>401</td><td>Unauthorized (invalid/expired token)</td><td>Refresh token or redirect to login</td></tr>
+  <tr><td>403</td><td>Forbidden (no permission)</td><td>Show "Access Denied" message</td></tr>
+  <tr><td>404</td><td>Resource Not Found</td><td>Show "Not Found" message</td></tr>
+  <tr><td>409</td><td>Conflict (duplicate record)</td><td>Show conflict message</td></tr>
+  <tr><td>422</td><td>Unprocessable Entity</td><td>Show business rule violation</td></tr>
+  <tr><td>429</td><td>Too Many Requests (rate limit)</td><td>Show "Please wait" / retry after delay</td></tr>
+  <tr><td>500</td><td>Internal Server Error</td><td>Show generic error, log to monitoring</td></tr>
+</table>
+
+<!-- ===== SECTION 6: ADMIN AUTH ===== -->
+<div class="page-break"></div>
+<h2 id="admin-auth">6. Admin Authentication API</h2>
+<p><span class="tag">Base: /api/v1/admin/auth</span> <span class="tag">No X-Tenant-ID needed</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/login</td><td>Admin login</td><td>Public</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/register</td><td>Register new admin</td><td>Public</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/refresh</td><td>Refresh admin token</td><td>Public</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/profile</td><td>Get admin profile</td><td>Admin JWT</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/change-password</td><td>Change admin password</td><td>Admin JWT</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/forgot-password</td><td>Request password reset email</td><td>Public</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/reset-password</td><td>Reset password with token</td><td>Public</td></tr>
+</table>
+<h4>POST /admin/auth/login — Request Body</h4>
+<pre>{ "email": "admin@example.com", "password": "password123" }</pre>
+<h4>Response</h4>
+<pre>
+{
+  "accessToken": "eyJhbGciOi...",
+  "refreshToken": "eyJhbGciOi...",
+  "admin": { "id": "uuid", "email": "admin@example.com", "name": "Admin" }
+}
+</pre>
+
+<!-- ===== SECTION 7: TENANT AUTH ===== -->
+<h2 id="auth">7. Tenant Authentication API</h2>
+<p><span class="tag">Base: /api/v1/auth</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/login</td><td>User login</td><td>Public</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/register</td><td>Register new user</td><td>Public</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/refresh</td><td>Refresh access token</td><td>Public</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/logout</td><td>Logout current session</td><td>JWT</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/logout-all</td><td>Logout all sessions</td><td>JWT</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/change-password</td><td>Change own password</td><td>JWT</td></tr>
+</table>
+<h4>POST /auth/login — Request Body</h4>
+<pre>{ "email": "user@tenant.com", "password": "password123", "tenantId": "uuid-of-tenant" }</pre>
+<h4>Response</h4>
+<pre>
+{
+  "accessToken": "eyJhbGciOi...",
+  "refreshToken": "eyJhbGciOi...",
+  "user": {
+    "id": "uuid", "email": "user@tenant.com", "firstName": "John",
+    "lastName": "Doe", "tenantId": "uuid", "roles": ["ADMIN"]
+  }
+}
+</pre>
+<div class="info">After login, store <code>tenantId</code> from user object and send as <code>X-Tenant-ID</code> header on every subsequent request.</div>
+
+<!-- ===== SECTION 8: USERS ===== -->
+<h2 id="users">8. Users API</h2>
+<p><span class="tag">Base: /api/v1/users</span> <span class="tag">Requires X-Tenant-ID</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create new user</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>Get all users (paginated)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get user by ID</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update user</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Soft delete user</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/roles</td><td>Assign roles to user</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/roles</td><td>Get user roles</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/permissions</td><td>Get user permissions</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/activate</td><td>Activate user</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/deactivate</td><td>Deactivate user</td></tr>
+</table>
+
+<!-- ===== SECTION 9: INVENTORY ===== -->
+<div class="page-break"></div>
+<h2 id="inventory">9. Inventory API</h2>
+
+<h3 id="products">9.1 Products</h3>
+<p><span class="tag">Base: /api/v1/inventory/products</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Key Query Params</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create product</td><td>—</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List products</td><td>search, categoryId, brandId, isActive, page, limit</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/low-stock</td><td>Low stock products</td><td>warehouseId</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/search/sku/:sku</td><td>Find by SKU</td><td>—</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/search/barcode/:barcode</td><td>Find by barcode</td><td>—</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get product detail</td><td>—</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/stock</td><td>Stock across warehouses</td><td>—</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update product</td><td>—</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete product</td><td>—</td></tr>
+</table>
+
+<h3 id="categories">9.2 Categories</h3>
+<p><span class="tag">Base: /api/v1/inventory/categories</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create category</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List categories (paginated)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/tree</td><td>Hierarchical category tree</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/active</td><td>All active categories (for dropdowns)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get category by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/children</td><td>Get child categories</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update category</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete category</td></tr>
+</table>
+
+<h3 id="brands">9.3 Brands</h3>
+<p><span class="tag">Base: /api/v1/inventory/brands</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create brand</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List brands</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/active</td><td>Active brands (for dropdowns)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get brand by ID</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update brand</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete brand</td></tr>
+</table>
+
+<h3 id="suppliers">9.4 Suppliers</h3>
+<p><span class="tag">Base: /api/v1/inventory/suppliers</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create supplier</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List suppliers</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/active</td><td>Active suppliers (for dropdowns)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get supplier by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/balance</td><td>Outstanding balance</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/products</td><td>Supplier product catalog</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update supplier</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete supplier</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/contacts</td><td>Add contact person</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/contacts/:contactId</td><td>Update contact</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/contacts/:contactId</td><td>Remove contact</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/products</td><td>Add product to catalog</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/products/:productId</td><td>Update catalog item</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/products/:productId</td><td>Remove from catalog</td></tr>
+</table>
+
+<h3 id="units">9.5 Units of Measure</h3>
+<p><span class="tag">Base: /api/v1/inventory/units</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create unit</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List units</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/active</td><td>Active units (for dropdowns)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/type/:type</td><td>Units by type (WEIGHT, LENGTH, etc.)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/convert</td><td>Convert quantity (?from=&amp;to=&amp;qty=)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get unit by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/conversions</td><td>Get conversion rules</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update unit</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete unit</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/conversions</td><td>Create conversion rule</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/conversions/:id</td><td>Update conversion rule</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/conversions/:id</td><td>Delete conversion rule</td></tr>
+</table>
+
+<h3 id="tax">9.6 Tax</h3>
+<p><span class="tag">Base: /api/v1/inventory/tax</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/categories</td><td>All tax categories</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/categories/:code</td><td>Tax category by code</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/rates</td><td>Add tax rate</td></tr>
+</table>
+
+<h3 id="pricelists">9.7 Price Lists</h3>
+<p><span class="tag">Base: /api/v1/inventory/price-lists</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create price list</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List price lists</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/active</td><td>Active price lists</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/type/:type</td><td>By type (SALES/PURCHASE)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/default/:type</td><td>Default price list for type</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/price</td><td>Get price (?priceListId=&amp;productId=&amp;variantId=&amp;qty=)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get price list by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/items</td><td>Get price list items</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update price list</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete price list</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/copy</td><td>Duplicate price list</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/items</td><td>Add item to price list</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/items/bulk</td><td>Bulk add items</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/items/:itemId</td><td>Update price list item</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/items/:itemId</td><td>Remove item</td></tr>
+</table>
+
+<!-- ===== SECTION 10: WAREHOUSE ===== -->
+<div class="page-break"></div>
+<h2 id="warehouse">10. Warehouse API</h2>
+
+<h3>10.1 Warehouses</h3>
+<p><span class="tag">Base: /api/v1/warehouse/warehouses</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create warehouse</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List warehouses</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/active</td><td>Active warehouses (for dropdowns)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/default</td><td>Default warehouse</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get warehouse by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/zones</td><td>Get warehouse zones</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/stock-summary</td><td>Stock summary for warehouse</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update warehouse</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete warehouse</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/zones</td><td>Add zone</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/zones/:zoneId</td><td>Update zone</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/zones/:zoneId</td><td>Delete zone</td></tr>
+</table>
+
+<h3>10.2 Locations</h3>
+<p><span class="tag">Base: /api/v1/warehouse/locations</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create location</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/bulk</td><td>Bulk create locations</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List locations (filter: warehouseId, zoneId)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/warehouse/:warehouseId</td><td>Locations by warehouse</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/zone/:zoneId</td><td>Locations by zone</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/available/:warehouseId</td><td>Available locations for putaway</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/barcode/:barcode</td><td>Find by barcode</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get location by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/inventory</td><td>Inventory at this location</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/utilization</td><td>Location utilization stats</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update location</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id/status</td><td>Update location status</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete location</td></tr>
+</table>
+
+<h3>10.3 Stock</h3>
+<p><span class="tag">Base: /api/v1/warehouse/stock</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>All stock (filter: warehouseId, productId, categoryId)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/low-stock</td><td>Products below reorder point</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/valuation</td><td>Stock valuation by warehouse</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/movements</td><td>Stock movement history</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/product/:productId</td><td>Stock for specific product</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/warehouse/:warehouseId</td><td>All stock in warehouse</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/warehouse/:warehouseId/locations</td><td>Location-wise inventory</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/available/:productId/:warehouseId</td><td>Available quantity</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/movement</td><td>Record stock movement</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/reserve</td><td>Reserve stock for order</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/release</td><td>Release reserved stock</td></tr>
+</table>
+
+<h3>10.4 Transfers</h3>
+<p><span class="tag">Base: /api/v1/warehouse/transfers</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create transfer</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List transfers</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get transfer by ID</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update transfer</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/submit</td><td>Submit for approval</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/approve</td><td>Approve transfer</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/reject</td><td>Reject transfer</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/ship</td><td>Ship transfer</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/receive</td><td>Receive transfer</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/cancel</td><td>Cancel transfer</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/items</td><td>Add item to transfer</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/items/:itemId</td><td>Update transfer item</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/items/:itemId</td><td>Remove transfer item</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete transfer</td></tr>
+</table>
+
+<h3>10.5 Stock Adjustments</h3>
+<p><span class="tag">Base: /api/v1/warehouse/adjustments</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create adjustment</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List adjustments</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get adjustment by ID</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update adjustment</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/submit</td><td>Submit for approval</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/approve</td><td>Approve (updates stock)</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/reject</td><td>Reject adjustment</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/cancel</td><td>Cancel adjustment</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/items</td><td>Add item</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/items/:itemId</td><td>Update item</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/items/:itemId</td><td>Remove item</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete adjustment</td></tr>
+</table>
+
+<!-- ===== SECTION 11: SALES ===== -->
+<div class="page-break"></div>
+<h2 id="sales">11. Sales API</h2>
+
+<h3>11.1 Customers</h3>
+<p><span class="tag">Base: /api/v1/sales/customers</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create customer</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List customers (filter: groupId, isActive)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/search/email/:email</td><td>Find by email</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/search/code/:code</td><td>Find by customer code</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get customer by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/balance</td><td>Outstanding balance</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/dues</td><td>Customer dues</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/orders</td><td>Order history</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/addresses</td><td>Customer addresses</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/check-credit</td><td>Check credit limit (?amount=)</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update customer</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id/credit-limit</td><td>Update credit limit</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete customer</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/addresses</td><td>Add address</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/addresses/:addressId</td><td>Update address</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/addresses/:addressId</td><td>Remove address</td></tr>
+</table>
+
+<h3>11.2 Sales Orders</h3>
+<p><span class="tag">Base: /api/v1/sales/orders</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create sales order</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List orders (filter: customerId, status, dateFrom, dateTo)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/statistics</td><td>Order statistics</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/search/number/:orderNumber</td><td>Find by order number</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get order by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/payments</td><td>Order payment history</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update order</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/confirm</td><td>Confirm order</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/process</td><td>Mark as processing</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/ship</td><td>Ship order</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/deliver</td><td>Mark as delivered</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/complete</td><td>Complete order</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/cancel</td><td>Cancel order</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/payments</td><td>Add payment</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete draft order</td></tr>
+</table>
+
+<h4>Sales Order Status Flow</h4>
+<pre>DRAFT → CONFIRMED → PROCESSING → SHIPPED → DELIVERED → COMPLETED
+                                                    ↓
+                                                CANCELLED (from any state except COMPLETED)</pre>
+
+<h3>11.3 Sales Returns</h3>
+<p><span class="tag">Base: /api/v1/sales/returns</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create return request</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List returns</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get return by ID</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update return</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/approve</td><td>Approve return</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/receive</td><td>Receive returned items</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/refund</td><td>Process refund</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/complete</td><td>Complete return</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/reject</td><td>Reject return</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/cancel</td><td>Cancel return</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete return</td></tr>
+</table>
+
+<!-- ===== SECTION 12: PURCHASING ===== -->
+<h2 id="purchasing">12. Purchasing API</h2>
+
+<h3>12.1 Purchase Orders</h3>
+<p><span class="tag">Base: /api/v1/purchasing/purchase-orders</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create purchase order</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List POs (filter: supplierId, status)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/overdue</td><td>Overdue POs</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/supplier/:supplierId/pending</td><td>Pending POs for supplier</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/search/number/:poNumber</td><td>Find by PO number</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get PO by ID</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update PO</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/submit</td><td>Submit for approval</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/approve</td><td>Approve PO</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/reject</td><td>Reject PO</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/send</td><td>Send to supplier</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/acknowledge</td><td>Mark as acknowledged</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/close</td><td>Close PO</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/cancel</td><td>Cancel PO</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete draft PO</td></tr>
+</table>
+
+<h3>12.2 Goods Receipt Notes (GRN)</h3>
+<p><span class="tag">Base: /api/v1/purchasing/grn</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create GRN</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List GRNs</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/purchase-order/:poId</td><td>GRNs for a PO</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get GRN by ID</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update GRN</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/submit</td><td>Submit for QC</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/complete-qc</td><td>Complete quality check</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/approve</td><td>Approve (updates stock)</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/cancel</td><td>Cancel GRN</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete draft GRN</td></tr>
+</table>
+
+<h3>12.3 Purchase Returns</h3>
+<p><span class="tag">Base: /api/v1/purchasing/purchase-returns</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create purchase return</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List purchase returns</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get return by ID</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update return</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/submit</td><td>Submit for approval</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/approve</td><td>Approve return</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/reject</td><td>Reject return</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/ship</td><td>Ship to supplier</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/confirm-receipt</td><td>Confirm supplier received</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/credit-note</td><td>Process credit note from supplier</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/complete</td><td>Complete return</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/cancel</td><td>Cancel return</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete draft return</td></tr>
+</table>
+
+<!-- ===== SECTION 13: ACCOUNTING ===== -->
+<div class="page-break"></div>
+<h2 id="accounting">13. Accounting API</h2>
+<p><span class="tag">Base: /api/v1/accounting</span> <span class="tag">Requires X-Tenant-ID</span></p>
+
+<h3>13.1 Chart of Accounts</h3>
+<p><span class="tag">Base: /api/v1/accounting/accounts</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create account</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List accounts (filter: accountType, isActive)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/tree</td><td>Account hierarchy tree</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/by-code/:code</td><td>Find by account code</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get account by ID</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/:id</td><td>Update account</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete account</td></tr>
+</table>
+
+<h3>13.2 Fiscal Years</h3>
+<p><span class="tag">Base: /api/v1/accounting/fiscal-years</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create fiscal year</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List fiscal years</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/current</td><td>Get current fiscal year</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get by ID</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/:id</td><td>Update fiscal year</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/close</td><td>Close fiscal year</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete fiscal year</td></tr>
+</table>
+
+<h3>13.3 Fiscal Periods</h3>
+<p><span class="tag">Base: /api/v1/accounting/fiscal-periods</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create fiscal period</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List periods (filter: fiscalYearId, status)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get by ID</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/:id</td><td>Update period</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/close</td><td>Close period</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/reopen</td><td>Reopen period</td></tr>
+</table>
+
+<h3>13.4 Journal Entries</h3>
+<p><span class="tag">Base: /api/v1/accounting/journal-entries</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create journal entry (DRAFT)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List entries (filter: status, entryType, fiscalYearId)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get entry by ID</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/:id</td><td>Update draft entry</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/post</td><td>Post entry (DRAFT → POSTED)</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/reverse</td><td>Reverse posted entry</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete draft entry</td></tr>
+</table>
+
+<h3>13.5 Bank Accounts</h3>
+<p><span class="tag">Base: /api/v1/accounting/bank-accounts</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create bank account</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List bank accounts</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get by ID</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/:id</td><td>Update bank account</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete bank account</td></tr>
+</table>
+
+<h3>13.6 Bank Transactions</h3>
+<p><span class="tag">Base: /api/v1/accounting/bank-transactions</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create bank transaction</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List transactions (filter: bankAccountId, type)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/unreconciled/:bankAccountId</td><td>Unreconciled transactions</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get by ID</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/:id</td><td>Update transaction</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/clear</td><td>Mark as cleared</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/bounce</td><td>Mark as bounced</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete transaction</td></tr>
+</table>
+
+<h3>13.7 Bank Reconciliation</h3>
+<p><span class="tag">Base: /api/v1/accounting/bank-reconciliations</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create reconciliation</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List reconciliations</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/summary</td><td>Reconciliation summary</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/:id</td><td>Update reconciliation</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/start</td><td>Start reconciliation</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/complete</td><td>Complete reconciliation</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/cancel</td><td>Cancel reconciliation</td></tr>
+</table>
+
+<h3>13.8 Budgets</h3>
+<p><span class="tag">Base: /api/v1/accounting/budgets</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create budget</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List budgets</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get budget by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/vs-actual</td><td>Budget vs actual spending</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/:id</td><td>Update budget</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/lines</td><td>Add budget line</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/lines/:lineId</td><td>Update budget line</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/lines/:lineId</td><td>Delete budget line</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/submit</td><td>Submit for approval</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/approve</td><td>Approve budget</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/reject</td><td>Reject budget</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/activate</td><td>Activate budget</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/close</td><td>Close budget</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete draft budget</td></tr>
+</table>
+
+<h3>13.9 Cost Centers</h3>
+<p><span class="tag">Base: /api/v1/accounting/cost-centers</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create cost center</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List cost centers</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/tree</td><td>Cost center hierarchy</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get by ID</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/:id</td><td>Update cost center</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete cost center</td></tr>
+</table>
+
+<h3>13.10 Financial Reports</h3>
+<p><span class="tag">Base: /api/v1/accounting/financial-reports</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Query Params</th></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>reportType, fiscalYearId, asOfDate, startDate, endDate</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/balance-sheet</td><td>asOfDate, fiscalYearId, includeZeroBalances</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/income-statement</td><td>startDate, endDate, fiscalYearId</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/cash-flow</td><td>startDate, endDate, fiscalYearId</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/bank-summary</td><td>—</td></tr>
+</table>
+<p>Report types: <code>BALANCE_SHEET</code>, <code>INCOME_STATEMENT</code>, <code>TRIAL_BALANCE</code>, <code>CASH_FLOW</code>, <code>GENERAL_LEDGER_REPORT</code>, <code>BUDGET_VS_ACTUAL</code>, <code>BANK_SUMMARY</code></p>
+
+<h3>13.11 General Ledger</h3>
+<p><span class="tag">Base: /api/v1/accounting/general-ledger</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>All GL entries</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/account/:accountId</td><td>Account ledger (with running balance)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/trial-balance/:fiscalYearId</td><td>Trial balance for fiscal year</td></tr>
+</table>
+
+<!-- ===== SECTION 14: DUE MANAGEMENT ===== -->
+<div class="page-break"></div>
+<h2 id="due-management">14. Due Management API</h2>
+<p><span class="tag">Base: /api/v1/due-management</span></p>
+
+<h3>14.1 Customer Dues (Receivables)</h3>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/customer-dues</td><td>List customer dues (filter: customerId, status, isOverdue)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/customer-dues/overdue</td><td>All overdue dues</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/customer-dues/dashboard</td><td>Aging buckets summary (0-30, 31-60, 61-90, 90+ days)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/customer-dues/customer/:customerId</td><td>All dues for a customer</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/customer-dues/customer/:customerId/statement</td><td>Customer statement (?startDate=&amp;endDate=)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/customer-dues/:id</td><td>Get due by ID</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/customer-dues/opening-balance</td><td>Create opening balance</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/customer-dues/:id/adjust</td><td>Adjust due amount</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/customer-dues/:id/write-off</td><td>Write off bad debt</td></tr>
+</table>
+
+<h3>14.2 Collections</h3>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/collections</td><td>Create collection (payment received)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/collections</td><td>List collections</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/collections/:id</td><td>Get collection by ID</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/collections/:id/confirm</td><td>Confirm collection</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/collections/:id/deposit</td><td>Deposit cheque to bank</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/collections/:id/bounce</td><td>Cheque bounce</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/collections/:id/allocate</td><td>Allocate to dues</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/collections/:id/cancel</td><td>Cancel collection</td></tr>
+</table>
+
+<h3>14.3 Supplier Dues (Payables)</h3>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/supplier-dues</td><td>List supplier dues</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/supplier-dues/dashboard</td><td>Payables aging summary</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/supplier-dues/upcoming</td><td>Dues due soon</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/supplier-dues/supplier/:supplierId</td><td>Dues by supplier</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/supplier-dues/:id</td><td>Get due by ID</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/supplier-dues/opening-balance</td><td>Create opening balance</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/supplier-dues/:id/adjust</td><td>Adjust supplier due</td></tr>
+</table>
+
+<h3>14.4 Supplier Payments</h3>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/supplier-payments</td><td>Create supplier payment</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/supplier-payments</td><td>List payments</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/supplier-payments/:id</td><td>Get payment by ID</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/supplier-payments/:id/submit</td><td>Submit for approval</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/supplier-payments/:id/approve</td><td>Approve payment</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/supplier-payments/:id/process</td><td>Process payment</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/supplier-payments/:id/complete</td><td>Mark complete</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/supplier-payments/:id/allocate</td><td>Allocate to dues</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/supplier-payments/:id/cancel</td><td>Cancel payment</td></tr>
+</table>
+
+<h3>14.5 Credit Notes</h3>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/credit-notes</td><td>Create credit note</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/credit-notes</td><td>List credit notes</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/credit-notes/customer/:customerId</td><td>Customer credit notes</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/credit-notes/customer/:customerId/usable</td><td>Usable credit notes</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/credit-notes/:id</td><td>Get by ID</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/credit-notes/:id/submit</td><td>Submit for approval</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/credit-notes/:id/approve</td><td>Approve credit note</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/credit-notes/:id/apply</td><td>Apply against due</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/credit-notes/:id/cancel</td><td>Cancel credit note</td></tr>
+</table>
+
+<h3>14.6 Debit Notes</h3>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/debit-notes</td><td>Create debit note</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/debit-notes</td><td>List debit notes</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/debit-notes/supplier/:supplierId</td><td>Supplier debit notes</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/debit-notes/:id</td><td>Get by ID</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/debit-notes/:id/submit</td><td>Submit for approval</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/debit-notes/:id/approve</td><td>Approve debit note</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/debit-notes/:id/send</td><td>Send to supplier</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/debit-notes/:id/acknowledge</td><td>Record acknowledgement</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/debit-notes/:id/apply</td><td>Apply against supplier due</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/debit-notes/:id/cancel</td><td>Cancel debit note</td></tr>
+</table>
+
+<h3>14.7 Payment Reminders</h3>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/payment-reminders</td><td>List reminders</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/payment-reminders/follow-ups-today</td><td>Follow-ups due today</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/payment-reminders/broken-promises</td><td>Broken promise-to-pay</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/payment-reminders/due/:dueId</td><td>Reminders for a due</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/payment-reminders/:id</td><td>Get by ID</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/payment-reminders</td><td>Create manual reminder</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/payment-reminders/:id/send</td><td>Mark as sent</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/payment-reminders/:id/response</td><td>Record customer response</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/payment-reminders/:id/cancel</td><td>Cancel reminder</td></tr>
+</table>
+
+<!-- ===== SECTION 15: DASHBOARD ===== -->
+<h2 id="dashboard">15. Dashboard API</h2>
+<p><span class="tag">Base: /api/v1/dashboard</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Key Params</th></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/overview</td><td>KPI overview (revenue, orders, stock value, etc.)</td><td>dateFrom, dateTo</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/sales-trend</td><td>Sales trend data for charts</td><td>period (DAILY/WEEKLY/MONTHLY)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/top-products</td><td>Top selling products</td><td>limit, dateFrom, dateTo</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/top-customers</td><td>Top customers by revenue</td><td>limit, dateFrom, dateTo</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/low-stock</td><td>Products below reorder point</td><td>warehouseId</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/recent-orders</td><td>Recent sales orders</td><td>limit</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/pending-purchase-orders</td><td>Pending purchase orders</td><td>—</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/stock-valuation</td><td>Stock value by warehouse</td><td>—</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/receivables</td><td>Receivables aging summary</td><td>—</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/payables</td><td>Payables aging summary</td><td>—</td></tr>
+</table>
+
+<!-- ===== SECTION 16: QUOTATIONS ===== -->
+<h2 id="quotations">16. Quotations API</h2>
+<p><span class="tag">Base: /api/v1/quotations</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create quotation</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List quotations</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/search/number/:quotationNumber</td><td>Find by number</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get quotation by ID</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update quotation</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete quotation</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/send</td><td>Send to customer</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/accept</td><td>Mark as accepted</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/reject</td><td>Mark as rejected</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/cancel</td><td>Cancel quotation</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/convert-to-sales-order</td><td>Convert to sales order</td></tr>
+</table>
+
+<!-- ===== SECTION 17: CUSTOMER GROUPS ===== -->
+<h2 id="customer-groups">17. Customer Groups API</h2>
+<p><span class="tag">Base: /api/v1/customer-groups</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create customer group</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List groups (paginated)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/list</td><td>All active groups (for dropdowns)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/statistics</td><td>Group statistics</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/default</td><td>Default customer group</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get group by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/code/:code</td><td>Get group by code</td></tr>
+  <tr><td><span class="method-put">PUT</span></td><td>/:id</td><td>Update group</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete group</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/customers</td><td>Customers in group</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/customers/count</td><td>Customer count</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/customers</td><td>Assign customers to group</td></tr>
+</table>
+
+<!-- ===== SECTION 18: MASTER / SAAS ADMIN ===== -->
+<div class="page-break"></div>
+<h2 id="master">18. Master / SaaS Admin API</h2>
+<div class="warn"><strong>These endpoints do NOT require X-Tenant-ID. They require admin JWT token.</strong></div>
+
+<h3>18.1 Tenants</h3>
+<p><span class="tag">Base: /api/v1/master/tenants</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create tenant</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List tenants</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/statistics</td><td>Tenant statistics</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/search/code/:code</td><td>Find by tenant code</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get tenant by ID</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id/users</td><td>Tenant users</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update tenant</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/provision</td><td>Provision tenant database</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/activate</td><td>Activate tenant</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/suspend</td><td>Suspend tenant</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/reactivate</td><td>Reactivate tenant</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/users</td><td>Add user to tenant</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete tenant</td></tr>
+</table>
+
+<h3>18.2 Subscription Plans</h3>
+<p><span class="tag">Base: /api/v1/master/plans</span></p>
+<table class="endpoint-row">
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/</td><td>Create plan</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/</td><td>List all plans</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/active</td><td>Active plans (public — for sign-up page)</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/compare</td><td>Plan comparison</td></tr>
+  <tr><td><span class="method-get">GET</span></td><td>/:id</td><td>Get plan by ID</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/:id</td><td>Update plan</td></tr>
+  <tr><td><span class="method-post">POST</span></td><td>/:id/features</td><td>Add feature to plan</td></tr>
+  <tr><td><span class="method-patch">PATCH</span></td><td>/features/:featureId</td><td>Update feature</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/features/:featureId</td><td>Remove feature</td></tr>
+  <tr><td><span class="method-delete">DELETE</span></td><td>/:id</td><td>Delete plan</td></tr>
+</table>
+
+<!-- ===== SECTION 19: DATA MODELS ===== -->
+<div class="page-break"></div>
+<h2 id="models">19. Core Data Models</h2>
+
+<h3>User</h3>
+<pre>
+{
+  id: string (UUID),
+  tenantId: string,
+  email: string,
+  firstName: string,
+  lastName: string,
+  phone?: string,
+  isActive: boolean,
+  roles: Role[],
+  permissions: string[],
+  createdAt: Date,
+  updatedAt: Date
+}
+</pre>
+
+<h3>Product</h3>
+<pre>
+{
+  id: string (UUID),
+  productCode: string,
+  productName: string,
+  description?: string,
+  sku: string,
+  barcode?: string,
+  categoryId: string,
+  brandId?: string,
+  unitOfMeasureId: string,
+  taxCategoryId?: string,
+  costPrice: number,
+  sellingPrice: number,
+  mrp?: number,
+  minStockLevel?: number,
+  maxStockLevel?: number,
+  reorderPoint?: number,
+  reorderQty?: number,
+  isActive: boolean,
+  trackInventory: boolean,
+  hasVariants: boolean,
+  variants?: ProductVariant[],
+  images?: ProductImage[],
+  createdAt: Date
+}
+</pre>
+
+<h3>SalesOrder</h3>
+<pre>
+{
+  id: string (UUID),
+  orderNumber: string,
+  orderDate: Date,
+  customerId: string,
+  customer?: Customer,
+  status: OrderStatus,
+  paymentStatus: PaymentStatus,
+  subtotal: number,
+  taxAmount: number,
+  discountAmount: number,
+  shippingAmount: number,
+  totalAmount: number,
+  paidAmount: number,
+  balanceAmount: number,
+  currency: string,
+  notes?: string,
+  items: SalesOrderItem[],
+  payments?: OrderPayment[],
+  createdBy?: string,
+  createdAt: Date
+}
+</pre>
+
+<h3>SalesOrderItem</h3>
+<pre>
+{
+  id: string,
+  productId: string,
+  product?: Product,
+  variantId?: string,
+  quantity: number,
+  unitPrice: number,
+  discountPercent?: number,
+  discountAmount?: number,
+  taxPercent?: number,
+  taxAmount?: number,
+  lineTotal: number
+}
+</pre>
+
+<h3>PurchaseOrder</h3>
+<pre>
+{
+  id: string,
+  poNumber: string,
+  orderDate: Date,
+  supplierId: string,
+  supplier?: Supplier,
+  status: POStatus,
+  expectedDeliveryDate?: Date,
+  subtotal: number,
+  taxAmount: number,
+  totalAmount: number,
+  currency: string,
+  items: PurchaseOrderItem[],
+  createdAt: Date
+}
+</pre>
+
+<h3>JournalEntry</h3>
+<pre>
+{
+  id: string,
+  entryNumber: string,        // e.g. JE-2025-000001
+  entryDate: Date,
+  fiscalYearId: string,
+  fiscalPeriodId: string,
+  entryType: JournalEntryType,
+  description: string,
+  totalDebit: number,
+  totalCredit: number,
+  status: JournalEntryStatus, // DRAFT | POSTED | REVERSED
+  referenceType?: string,
+  referenceId?: string,
+  lines: JournalEntryLine[]
+}
+</pre>
+
+<h3>JournalEntryLine</h3>
+<pre>
+{
+  id: string,
+  lineNumber: number,
+  accountId: string,
+  account?: ChartOfAccounts,
+  costCenterId?: string,
+  description?: string,
+  debitAmount: number,
+  creditAmount: number,
+  currency: string,
+  exchangeRate: number
+}
+</pre>
+
+<h3>CustomerDue</h3>
+<pre>
+{
+  id: string,
+  customerId: string,
+  referenceType: string,      // INVOICE | OPENING_BALANCE
+  referenceId?: string,
+  referenceNumber?: string,
+  invoiceDate: Date,
+  dueDate: Date,
+  totalAmount: number,
+  paidAmount: number,
+  adjustedAmount: number,
+  balanceAmount: number,      // computed
+  isOverdue: boolean,         // computed
+  daysOverdue: number,        // computed
+  currency: string
+}
+</pre>
+
+<h3>Warehouse</h3>
+<pre>
+{
+  id: string,
+  warehouseCode: string,
+  warehouseName: string,
+  address?: string,
+  city?: string,
+  isActive: boolean,
+  isDefault: boolean,
+  zones?: WarehouseZone[],
+  createdAt: Date
+}
+</pre>
+
+<!-- ===== SECTION 20: ENUMS ===== -->
+<h2 id="enums">20. Enums &amp; Constants</h2>
+
+<h3>Order Status</h3>
+<table>
+  <tr><th>Value</th><th>Description</th><th>Transitions To</th></tr>
+  <tr><td><code>DRAFT</code></td><td>Order created but not confirmed</td><td>CONFIRMED, CANCELLED</td></tr>
+  <tr><td><code>CONFIRMED</code></td><td>Order confirmed</td><td>PROCESSING, CANCELLED</td></tr>
+  <tr><td><code>PROCESSING</code></td><td>Being prepared</td><td>SHIPPED, CANCELLED</td></tr>
+  <tr><td><code>SHIPPED</code></td><td>Dispatched to customer</td><td>DELIVERED</td></tr>
+  <tr><td><code>DELIVERED</code></td><td>Received by customer</td><td>COMPLETED</td></tr>
+  <tr><td><code>COMPLETED</code></td><td>Fully completed</td><td>— (terminal)</td></tr>
+  <tr><td><code>CANCELLED</code></td><td>Cancelled</td><td>— (terminal)</td></tr>
+</table>
+
+<h3>Payment Status</h3>
+<table>
+  <tr><th>Value</th><th>Description</th></tr>
+  <tr><td><code>UNPAID</code></td><td>No payment received</td></tr>
+  <tr><td><code>PARTIAL</code></td><td>Partial payment received</td></tr>
+  <tr><td><code>PAID</code></td><td>Fully paid</td></tr>
+  <tr><td><code>OVERPAID</code></td><td>Excess payment received</td></tr>
+  <tr><td><code>REFUNDED</code></td><td>Payment refunded</td></tr>
+</table>
+
+<h3>Account Types (Chart of Accounts)</h3>
+<table>
+  <tr><th>Value</th><th>Normal Balance</th><th>Description</th></tr>
+  <tr><td><code>ASSET</code></td><td>DEBIT</td><td>Assets (cash, receivables, inventory, fixed assets)</td></tr>
+  <tr><td><code>LIABILITY</code></td><td>CREDIT</td><td>Liabilities (payables, loans)</td></tr>
+  <tr><td><code>EQUITY</code></td><td>CREDIT</td><td>Owner's equity, retained earnings</td></tr>
+  <tr><td><code>REVENUE</code></td><td>CREDIT</td><td>Sales, income</td></tr>
+  <tr><td><code>EXPENSE</code></td><td>DEBIT</td><td>Operating expenses, COGS</td></tr>
+</table>
+
+<h3>Budget Status</h3>
+<table>
+  <tr><th>Value</th><th>Next States</th></tr>
+  <tr><td><code>DRAFT</code></td><td>PENDING_APPROVAL</td></tr>
+  <tr><td><code>PENDING_APPROVAL</code></td><td>APPROVED, REJECTED</td></tr>
+  <tr><td><code>APPROVED</code></td><td>ACTIVE, REJECTED</td></tr>
+  <tr><td><code>ACTIVE</code></td><td>CLOSED</td></tr>
+  <tr><td><code>REJECTED</code></td><td>DRAFT</td></tr>
+  <tr><td><code>CLOSED</code></td><td>— (terminal)</td></tr>
+</table>
+
+<h3>Journal Entry Status</h3>
+<table>
+  <tr><th>Value</th><th>Description</th></tr>
+  <tr><td><code>DRAFT</code></td><td>Editable, not posted to GL</td></tr>
+  <tr><td><code>POSTED</code></td><td>Posted to General Ledger (immutable)</td></tr>
+  <tr><td><code>REVERSED</code></td><td>Has been reversed by another entry</td></tr>
+</table>
+
+<h3>Fiscal Period Status</h3>
+<table>
+  <tr><th>Value</th><th>Description</th></tr>
+  <tr><td><code>OPEN</code></td><td>Can post journal entries</td></tr>
+  <tr><td><code>CLOSED</code></td><td>Cannot post — requires reopening</td></tr>
+</table>
+
+<h3>Purchase Order Status</h3>
+<pre>DRAFT → SUBMITTED → APPROVED → SENT → ACKNOWLEDGED → PARTIALLY_RECEIVED → RECEIVED → CLOSED
+                  ↓ REJECTED → DRAFT
+                  CANCELLED (from any state before RECEIVED)</pre>
+
+<h3>GRN Status</h3>
+<pre>DRAFT → SUBMITTED → QC_PENDING → APPROVED (updates stock) | CANCELLED</pre>
+
+<h3>Transfer Status</h3>
+<pre>DRAFT → SUBMITTED → APPROVED → IN_TRANSIT → RECEIVED → COMPLETED | REJECTED | CANCELLED</pre>
+
+<h3>Adjustment Status</h3>
+<pre>DRAFT → SUBMITTED → APPROVED (updates stock) | REJECTED | CANCELLED</pre>
+
+<!-- ===== SECTION 21: PERMISSIONS ===== -->
+<h2 id="permissions">21. Permissions Reference</h2>
+<p>Permissions follow the pattern: <code>MODULE:ACTION</code></p>
+<table>
+  <tr><th>Module</th><th>Permissions</th></tr>
+  <tr><td>Products</td><td>product:create, product:read, product:update, product:delete</td></tr>
+  <tr><td>Inventory</td><td>inventory:read, inventory:adjust, inventory:transfer</td></tr>
+  <tr><td>Sales Orders</td><td>sales:create, sales:read, sales:update, sales:approve, sales:delete</td></tr>
+  <tr><td>Purchase Orders</td><td>purchase:create, purchase:read, purchase:update, purchase:approve, purchase:delete</td></tr>
+  <tr><td>Customers</td><td>customer:create, customer:read, customer:update, customer:delete</td></tr>
+  <tr><td>Suppliers</td><td>supplier:create, supplier:read, supplier:update, supplier:delete</td></tr>
+  <tr><td>Accounting</td><td>accounting:read, accounting:create, accounting:post, accounting:approve</td></tr>
+  <tr><td>Reports</td><td>report:read, report:financial, report:inventory, report:sales</td></tr>
+  <tr><td>Users</td><td>user:create, user:read, user:update, user:delete, user:manage-roles</td></tr>
+  <tr><td>Warehouse</td><td>warehouse:create, warehouse:read, warehouse:update, warehouse:delete</td></tr>
+</table>
+
+<div class="info">
+  <strong>Frontend Tip:</strong> After login, store the user's <code>permissions</code> array and check before rendering action buttons.<br>
+  Example: <code>permissions.includes('sales:approve')</code> before showing "Approve" button.
+</div>
+
+<!-- ===== FOOTER ===== -->
+<hr>
+<p style="text-align:center; color:#777; font-size:9pt;">
+  ivnmng ERP — Frontend API Reference &nbsp;|&nbsp; Generated 2026-02-27<br>
+  For interactive exploration visit <strong>http://localhost:3000/docs</strong> (Swagger UI — dev mode only)<br>
+  Backend: NestJS 11 · TypeORM · MySQL &nbsp;|&nbsp; Multi-tenant SaaS Architecture
+</p>
+
+</body>
+</html>

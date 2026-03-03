@@ -1,0 +1,38 @@
+import { TenantStatus } from '@common/enums';
+import { TenantDatabase } from './tenant-database.entity';
+import { TenantUser } from './tenant-user.entity';
+import { Subscription } from './subscription.entity';
+export declare class Tenant {
+    id: string;
+    tenantCode: string;
+    companyName: string;
+    legalName: string;
+    taxId: string;
+    email: string;
+    phone: string;
+    website: string;
+    logoUrl: string;
+    addressLine1: string;
+    addressLine2: string;
+    city: string;
+    state: string;
+    country: string;
+    postalCode: string;
+    industry: string;
+    timezone: string;
+    defaultCurrency: string;
+    dateFormat: string;
+    fiscalYearStartMonth: number;
+    employeeCount: number;
+    status: TenantStatus;
+    activatedAt: Date;
+    suspendedAt: Date;
+    suspendedReason: string;
+    terminatedAt: Date;
+    deletedAt: Date;
+    createdAt: Date;
+    updatedAt: Date;
+    database: TenantDatabase;
+    subscriptions: Subscription[];
+    users: TenantUser[];
+}

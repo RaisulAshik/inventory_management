@@ -1,0 +1,32 @@
+import { TenantConnectionManager } from '@database/tenant-connection.manager';
+import { PaginationDto } from '@common/dto/pagination.dto';
+import { PaginatedResult } from '@common/interfaces';
+import { PurchaseOrdersService } from '../purchase-orders/purchase-orders.service';
+import { GoodsReceivedNote } from '@entities/tenant';
+import { CreateGrnDto } from './dto/create-grn.dto';
+import { GrnFilterDto } from './dto/grn-filter.dto';
+import { UpdateGrnDto } from './dto/update-grn.dto';
+import { SupplierDuesService } from '@/modules/due-management';
+import { StockService } from '@/modules/warehouse/stock/stock.service';
+export declare class GrnService {
+    private readonly tenantConnectionManager;
+    private readonly purchaseOrdersService;
+    private readonly supplierDuesService;
+    private readonly stockService;
+    constructor(tenantConnectionManager: TenantConnectionManager, purchaseOrdersService: PurchaseOrdersService, supplierDuesService: SupplierDuesService, stockService: StockService);
+    private getGrnRepository;
+    create(createDto: CreateGrnDto, createdBy: string): Promise<GoodsReceivedNote>;
+    private validateGrnItems;
+    private calculateGrnTotals;
+    private createGrnItems;
+    findAll(paginationDto: PaginationDto, filterDto: GrnFilterDto): Promise<PaginatedResult<GoodsReceivedNote>>;
+    findById(id: string): Promise<GoodsReceivedNote>;
+    update(id: string, updateDto: UpdateGrnDto): Promise<GoodsReceivedNote>;
+    submitForApproval(id: string): Promise<GoodsReceivedNote>;
+    completeQc(id: string, qcBy: string): Promise<GoodsReceivedNote>;
+    approve(id: string, userId: string): Promise<GoodsReceivedNote>;
+    private updatePurchaseOrderReceived;
+    cancel(id: string, cancelledBy: string, reason: string): Promise<GoodsReceivedNote>;
+    remove(id: string): Promise<void>;
+    getGrnsForPurchaseOrder(purchaseOrderId: string): Promise<GoodsReceivedNote[]>;
+}

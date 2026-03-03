@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ivnmng — Complete API Reference</title>
+<style>
+body{font-family:Calibri,sans-serif;font-size:11pt;margin:2cm;color:#1a1a1a}
+h1{font-size:22pt;color:#1e3a5f;border-bottom:3px solid #1e3a5f;padding-bottom:8px}
+h2{font-size:15pt;color:#1e3a5f;background:#eef3f9;padding:8px 12px;border-left:5px solid #1e3a5f;margin-top:28px}
+h3{font-size:12pt;color:#2c5282;margin:16px 0 6px 0;border-bottom:1px solid #bee3f8;padding-bottom:3px}
+table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:10pt}
+th{background:#1e3a5f;color:#fff;padding:7px 10px;text-align:left;font-size:10pt}
+td{padding:6px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top}
+tr:nth-child(even) td{background:#f7fafc}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:9pt;color:#fff;min-width:60px;text-align:center}
+.GET{background:#38a169}.POST{background:#3182ce}.PATCH{background:#d97706}.PUT{background:#7b2d8b}.DELETE{background:#e53e3e}
+.perm{font-size:9pt;color:#666;font-style:italic}
+.public{background:#d4edda;color:#155724;padding:2px 8px;border-radius:4px;font-size:9pt;font-weight:bold}
+.note{background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;border-radius:4px;margin:8px 0;font-size:10pt}
+.meta{color:#666;font-size:10pt;margin-bottom:20px}
+.toc{background:#f8f9fa;border:1px solid #dee2e6;padding:16px 20px;margin-bottom:28px;border-radius:4px}
+.toc h3{margin-top:0;color:#1e3a5f;border:none}
+.toc a{color:#2c5282;text-decoration:none;font-size:10pt}
+.toc ul{margin:0;padding-left:20px;columns:2}
+.toc li{margin:3px 0}
+</style>
+</head>
+<body>
+
+<h1>ivnmng — Complete API Reference</h1>
+<p class="meta">NestJS 11 Multi-Tenant ERP/SaaS &nbsp;|&nbsp; Base URL: <strong>/api/v1</strong> &nbsp;|&nbsp; All endpoints require Bearer token unless marked <span class="public">PUBLIC</span></p>
+
+<div class="toc">
+<h3>Table of Contents</h3>
+<ul>
+<li><a href="#app">App Root</a></li>
+<li><a href="#admin-auth">Admin Auth</a></li>
+<li><a href="#master-plans">Master — Plans</a></li>
+<li><a href="#master-subscriptions">Master — Subscriptions</a></li>
+<li><a href="#master-settings">Master — System Settings</a></li>
+<li><a href="#master-tenants">Master — Tenants</a></li>
+<li><a href="#auth">Auth</a></li>
+<li><a href="#users">Users</a></li>
+<li><a href="#brands">Brands</a></li>
+<li><a href="#categories">Categories</a></li>
+<li><a href="#products">Products</a></li>
+<li><a href="#suppliers">Suppliers</a></li>
+<li><a href="#tax">Tax</a></li>
+<li><a href="#units">Units</a></li>
+<li><a href="#price-lists">Price Lists</a></li>
+<li><a href="#warehouses">Warehouses</a></li>
+<li><a href="#locations">Locations</a></li>
+<li><a href="#stock">Stock</a></li>
+<li><a href="#adjustments">Stock Adjustments</a></li>
+<li><a href="#transfers">Warehouse Transfers</a></li>
+<li><a href="#customers">Customers</a></li>
+<li><a href="#orders">Sales Orders</a></li>
+<li><a href="#returns">Sales Returns</a></li>
+<li><a href="#purchase-orders">Purchase Orders</a></li>
+<li><a href="#grn">GRN</a></li>
+<li><a href="#purchase-returns">Purchase Returns</a></li>
+<li><a href="#dashboard">Dashboard</a></li>
+<li><a href="#customer-groups">Customer Groups</a></li>
+<li><a href="#quotations">Quotations</a></li>
+<li><a href="#acc-coa">Accounting — Chart of Accounts</a></li>
+<li><a href="#acc-bank">Accounting — Bank Accounts</a></li>
+<li><a href="#acc-cost">Accounting — Cost Centers</a></li>
+<li><a href="#acc-fy">Accounting — Fiscal Years</a></li>
+<li><a href="#acc-fp">Accounting — Fiscal Periods</a></li>
+<li><a href="#acc-gl">Accounting — General Ledger</a></li>
+<li><a href="#acc-bt">Accounting — Bank Transactions</a></li>
+<li><a href="#acc-br">Accounting — Bank Reconciliations</a></li>
+<li><a href="#acc-bud">Accounting — Budgets</a></li>
+<li><a href="#acc-rep">Accounting — Financial Reports</a></li>
+<li><a href="#acc-je">Accounting — Journal Entries</a></li>
+<li><a href="#customer-dues">Customer Dues</a></li>
+<li><a href="#collections">Collections</a></li>
+<li><a href="#credit-notes">Credit Notes</a></li>
+<li><a href="#payment-reminders">Payment Reminders</a></li>
+<li><a href="#supplier-dues">Supplier Dues</a></li>
+<li><a href="#supplier-payments">Supplier Payments</a></li>
+<li><a href="#debit-notes">Debit Notes</a></li>
+</ul>
+</div>
+
+<!-- ==================== APP ROOT ==================== -->
+<h2 id="app">App Root</h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1</td><td>Health check / app info</td><td><span class="public">PUBLIC</span></td></tr>
+</table>
+
+<!-- ==================== ADMIN AUTH ==================== -->
+<h2 id="admin-auth">Admin Auth <small style="font-size:11pt;color:#666">— MASTER DB &nbsp;|&nbsp; Base: /api/v1/admin/auth</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/admin/auth/login</td><td>Admin login</td><td><span class="public">PUBLIC</span></td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/admin/auth/register</td><td>Admin register</td><td><span class="public">PUBLIC</span></td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/admin/auth/refresh</td><td>Refresh access token</td><td>Authenticated</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/admin/auth/profile</td><td>Get admin profile</td><td>Authenticated</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/admin/auth/user-details</td><td>Get admin user details</td><td>Authenticated</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/admin/auth/change-password</td><td>Change admin password</td><td>Authenticated</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/admin/auth/forgot-password</td><td>Forgot password (send reset email)</td><td><span class="public">PUBLIC</span></td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/admin/auth/reset-password</td><td>Reset password with token</td><td><span class="public">PUBLIC</span></td></tr>
+</table>
+
+<!-- ==================== MASTER PLANS ==================== -->
+<h2 id="master-plans">Master — Plans <small style="font-size:11pt;color:#666">— MASTER DB &nbsp;|&nbsp; Base: /api/v1/master/plans</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/plans</td><td>Create a new plan</td><td>plans.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/plans</td><td>Get all plans with pagination</td><td>plans.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/plans/active</td><td>Get all active plans</td><td><span class="public">PUBLIC</span></td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/plans/compare</td><td>Compare plans by IDs</td><td><span class="public">PUBLIC</span></td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/plans/:id</td><td>Get plan by ID</td><td>plans.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/master/plans/:id</td><td>Update plan</td><td>plans.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/master/plans/:id</td><td>Delete plan</td><td>plans.delete</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/plans/:id/features</td><td>Add feature to plan</td><td>plans.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/master/plans/features/:featureId</td><td>Update plan feature</td><td>plans.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/master/plans/features/:featureId</td><td>Delete plan feature</td><td>plans.update</td></tr>
+</table>
+
+<!-- ==================== MASTER SUBSCRIPTIONS ==================== -->
+<h2 id="master-subscriptions">Master — Subscriptions <small style="font-size:11pt;color:#666">— MASTER DB &nbsp;|&nbsp; Base: /api/v1/master/subscriptions</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/subscriptions</td><td>Create a new subscription</td><td>subscriptions.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/subscriptions</td><td>Get all subscriptions</td><td>subscriptions.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/subscriptions/tenant/:tenantId</td><td>Get subscriptions by tenant</td><td>subscriptions.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/subscriptions/tenant/:tenantId/billing</td><td>Get tenant billing history</td><td>subscriptions.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/subscriptions/:id</td><td>Get subscription by ID</td><td>subscriptions.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/master/subscriptions/:id</td><td>Update subscription</td><td>subscriptions.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/master/subscriptions/:id/change-plan</td><td>Change subscription plan</td><td>subscriptions.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/subscriptions/:id/cancel</td><td>Cancel subscription</td><td>subscriptions.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/subscriptions/:id/reactivate</td><td>Reactivate subscription</td><td>subscriptions.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/subscriptions/:id/renew</td><td>Renew subscription</td><td>subscriptions.update</td></tr>
+</table>
+
+<!-- ==================== MASTER SYSTEM SETTINGS ==================== -->
+<h2 id="master-settings">Master — System Settings <small style="font-size:11pt;color:#666">— MASTER DB &nbsp;|&nbsp; Base: /api/v1/master/settings</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/settings</td><td>Get all system settings</td><td>settings.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/settings/public</td><td>Get public settings</td><td><span class="public">PUBLIC</span></td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/settings/grouped</td><td>Get settings grouped by category</td><td>settings.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/settings/:key</td><td>Get setting by key</td><td>settings.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/settings</td><td>Create/upsert a setting</td><td>settings.write</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/settings/bulk</td><td>Bulk upsert settings</td><td>settings.write</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/master/settings/:key</td><td>Delete setting by key</td><td>settings.write</td></tr>
+</table>
+
+<!-- ==================== MASTER TENANTS ==================== -->
+<h2 id="master-tenants">Master — Tenants <small style="font-size:11pt;color:#666">— MASTER DB &nbsp;|&nbsp; Base: /api/v1/master/tenants</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/tenants</td><td>Create a new tenant</td><td>tenants.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/tenants</td><td>Get all tenants</td><td>tenants.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/tenants/statistics</td><td>Get tenant statistics</td><td>tenants.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/tenants/search/code/:code</td><td>Find tenant by code</td><td>tenants.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/tenants/:id</td><td>Get tenant by ID</td><td>tenants.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/master/tenants/:id/users</td><td>Get tenant users</td><td>tenants.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/master/tenants/:id</td><td>Update tenant</td><td>tenants.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/tenants/:id/provision</td><td>Provision tenant database</td><td>tenants.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/tenants/:id/activate</td><td>Activate tenant</td><td>tenants.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/tenants/:id/suspend</td><td>Suspend tenant</td><td>tenants.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/tenants/:id/reactivate</td><td>Reactivate tenant</td><td>tenants.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/master/tenants/:id/users</td><td>Add user to tenant</td><td>tenants.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/master/tenants/:id</td><td>Delete tenant</td><td>tenants.delete</td></tr>
+</table>
+
+<!-- ==================== AUTH ==================== -->
+<h2 id="auth">Auth <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/auth</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/auth/login</td><td>Tenant user login</td><td><span class="public">PUBLIC</span></td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/auth/register</td><td>Tenant user register</td><td><span class="public">PUBLIC</span></td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/auth/refresh</td><td>Refresh access token</td><td><span class="public">PUBLIC</span></td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/auth/logout</td><td>Logout current session</td><td>Authenticated</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/auth/logout-all</td><td>Logout all sessions</td><td>Authenticated</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/auth/change-password</td><td>Change password</td><td>Authenticated</td></tr>
+</table>
+
+<!-- ==================== USERS ==================== -->
+<h2 id="users">Users <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/users</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/users</td><td>Create a new user</td><td>users.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/users</td><td>Get all users with pagination</td><td>users.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/users/:id</td><td>Get user by ID</td><td>users.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/users/:id</td><td>Update user</td><td>users.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/users/:id</td><td>Delete user</td><td>users.delete</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/users/:id/roles</td><td>Assign roles to user</td><td>users.update</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/users/:id/roles</td><td>Get user roles</td><td>users.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/users/:id/permissions</td><td>Get user permissions</td><td>users.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/users/:id/activate</td><td>Activate user</td><td>users.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/users/:id/deactivate</td><td>Deactivate user</td><td>users.update</td></tr>
+</table>
+
+<!-- ==================== BRANDS ==================== -->
+<h2 id="brands">Brands <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/brands</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/brands</td><td>Create a new brand</td><td>brands.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/brands</td><td>Get all brands with pagination</td><td>brands.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/brands/active</td><td>Get all active brands</td><td>brands.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/brands/:id</td><td>Get brand by ID</td><td>brands.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/brands/:id</td><td>Update brand</td><td>brands.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/brands/:id</td><td>Delete brand (soft delete)</td><td>brands.delete</td></tr>
+</table>
+
+<!-- ==================== CATEGORIES ==================== -->
+<h2 id="categories">Categories <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/categories</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/categories</td><td>Create a new category</td><td>categories.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/categories</td><td>Get all categories with pagination</td><td>categories.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/categories/tree</td><td>Get category tree (hierarchical)</td><td>categories.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/categories/active</td><td>Get all active categories</td><td>categories.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/categories/:id</td><td>Get category by ID</td><td>categories.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/categories/:id/children</td><td>Get category children</td><td>categories.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/categories/:id</td><td>Update category</td><td>categories.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/categories/:id</td><td>Delete category (soft delete)</td><td>categories.delete</td></tr>
+</table>
+
+<!-- ==================== PRODUCTS ==================== -->
+<h2 id="products">Products <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/products</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/products</td><td>Create a new product</td><td>products.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/products</td><td>Get all products with filters &amp; pagination</td><td>products.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/products/low-stock</td><td>Get low stock products</td><td>products.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/products/search/sku/:sku</td><td>Find product by SKU</td><td>products.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/products/search/barcode/:barcode</td><td>Find product by barcode</td><td>products.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/products/:id</td><td>Get product by ID</td><td>products.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/products/:id/stock</td><td>Get product stock levels</td><td>products.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/products/:id</td><td>Update product</td><td>products.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/products/:id</td><td>Delete product (soft delete)</td><td>products.delete</td></tr>
+</table>
+
+<!-- ==================== SUPPLIERS ==================== -->
+<h2 id="suppliers">Suppliers <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/suppliers</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/suppliers</td><td>Create a new supplier</td><td>suppliers.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/suppliers</td><td>Get all suppliers with filters &amp; pagination</td><td>suppliers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/suppliers/active</td><td>Get all active suppliers</td><td>suppliers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/suppliers/:id</td><td>Get supplier by ID</td><td>suppliers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/suppliers/:id/balance</td><td>Get supplier outstanding balance</td><td>suppliers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/suppliers/:id/products</td><td>Get supplier products</td><td>suppliers.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/suppliers/:id</td><td>Update supplier</td><td>suppliers.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/suppliers/:id</td><td>Delete supplier (soft delete)</td><td>suppliers.delete</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/suppliers/:id/contacts</td><td>Add contact to supplier</td><td>suppliers.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/suppliers/contacts/:contactId</td><td>Update supplier contact</td><td>suppliers.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/suppliers/contacts/:contactId</td><td>Remove supplier contact</td><td>suppliers.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/suppliers/:id/products</td><td>Add product to supplier catalog</td><td>suppliers.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/suppliers/products/:productId</td><td>Update supplier product</td><td>suppliers.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/suppliers/products/:productId</td><td>Remove supplier product</td><td>suppliers.update</td></tr>
+</table>
+
+<!-- ==================== TAX ==================== -->
+<h2 id="tax">Tax <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/tax</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/tax/categories</td><td>Get all tax categories</td><td>tax.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/tax/categories/:code</td><td>Get tax category by code</td><td>tax.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/tax/rates</td><td>Create tax rate</td><td>tax.write</td></tr>
+</table>
+
+<!-- ==================== UNITS ==================== -->
+<h2 id="units">Units of Measure <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/units</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/units</td><td>Create a new unit</td><td>units.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/units</td><td>Get all units with pagination</td><td>units.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/units/active</td><td>Get all active units</td><td>units.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/units/type/:type</td><td>Get units by type</td><td>units.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/units/convert</td><td>Convert between units (?from=&amp;to=&amp;quantity=)</td><td>units.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/units/:id</td><td>Get unit by ID</td><td>units.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/units/:id/conversions</td><td>Get unit conversions</td><td>units.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/units/:id</td><td>Update unit</td><td>units.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/units/:id</td><td>Delete unit</td><td>units.delete</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/units/conversions</td><td>Create unit conversion</td><td>units.create</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/units/conversions/:conversionId</td><td>Update unit conversion</td><td>units.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/units/conversions/:conversionId</td><td>Delete unit conversion</td><td>units.delete</td></tr>
+</table>
+
+<!-- ==================== PRICE LISTS ==================== -->
+<h2 id="price-lists">Price Lists <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/price-lists</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/price-lists</td><td>Create a new price list</td><td>price-lists.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/price-lists</td><td>Get all price lists with pagination</td><td>price-lists.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/price-lists/active</td><td>Get all active price lists</td><td>price-lists.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/price-lists/type/:type</td><td>Get price lists by type</td><td>price-lists.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/price-lists/default/:type</td><td>Get default price list for type</td><td>price-lists.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/price-lists/price</td><td>Get price for product (?productId=&amp;priceListId=)</td><td>price-lists.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/price-lists/:id</td><td>Get price list by ID</td><td>price-lists.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/price-lists/:id/items</td><td>Get price list items</td><td>price-lists.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/price-lists/:id</td><td>Update price list</td><td>price-lists.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/price-lists/:id</td><td>Delete price list</td><td>price-lists.delete</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/price-lists/:id/copy</td><td>Copy/duplicate price list</td><td>price-lists.create</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/price-lists/:id/items</td><td>Add item to price list</td><td>price-lists.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/price-lists/:id/items/bulk</td><td>Bulk add items to price list</td><td>price-lists.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/price-lists/items/:itemId</td><td>Update price list item</td><td>price-lists.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/price-lists/items/:itemId</td><td>Remove item from price list</td><td>price-lists.update</td></tr>
+</table>
+
+<!-- ==================== WAREHOUSES ==================== -->
+<h2 id="warehouses">Warehouses <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/warehouses</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/warehouses</td><td>Create a new warehouse</td><td>warehouses.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/warehouses</td><td>Get all warehouses with pagination</td><td>warehouses.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/warehouses/active</td><td>Get all active warehouses</td><td>warehouses.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/warehouses/default</td><td>Get default warehouse</td><td>warehouses.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/warehouses/:id</td><td>Get warehouse by ID</td><td>warehouses.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/warehouses/:id/zones</td><td>Get warehouse zones</td><td>warehouses.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/warehouses/:id/stock-summary</td><td>Get warehouse stock summary</td><td>warehouses.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/warehouses/:id</td><td>Update warehouse</td><td>warehouses.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/warehouses/:id</td><td>Delete warehouse</td><td>warehouses.delete</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/warehouses/:id/zones</td><td>Add zone to warehouse</td><td>warehouses.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/warehouses/zones/:zoneId</td><td>Update warehouse zone</td><td>warehouses.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/warehouses/zones/:zoneId</td><td>Remove warehouse zone</td><td>warehouses.update</td></tr>
+</table>
+
+<!-- ==================== LOCATIONS ==================== -->
+<h2 id="locations">Warehouse Locations <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/locations</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/locations</td><td>Create a new location</td><td>locations.create</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/locations/bulk</td><td>Bulk create locations</td><td>locations.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/locations</td><td>Get all locations with filters &amp; pagination</td><td>locations.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/locations/warehouse/:warehouseId</td><td>Get locations by warehouse</td><td>locations.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/locations/zone/:zoneId</td><td>Get locations by zone</td><td>locations.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/locations/available/:warehouseId</td><td>Get available locations for putaway</td><td>locations.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/locations/barcode/:barcode</td><td>Find location by barcode</td><td>locations.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/locations/:id</td><td>Get location by ID</td><td>locations.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/locations/:id/inventory</td><td>Get location inventory</td><td>locations.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/locations/:id/utilization</td><td>Get location utilization stats</td><td>locations.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/locations/:id</td><td>Update location</td><td>locations.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/locations/:id/status</td><td>Update location status</td><td>locations.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/locations/:id</td><td>Delete location</td><td>locations.delete</td></tr>
+</table>
+
+<!-- ==================== STOCK ==================== -->
+<h2 id="stock">Stock <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/stock</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/stock</td><td>Get stock with filters &amp; pagination</td><td>stock.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/stock/low-stock</td><td>Get low stock products (?warehouseId=)</td><td>stock.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/stock/valuation</td><td>Get stock valuation (?warehouseId=)</td><td>stock.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/stock/movements</td><td>Get stock movements with filters</td><td>stock.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/stock/product/:productId</td><td>Get stock by product</td><td>stock.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/stock/warehouse/:warehouseId</td><td>Get stock by warehouse</td><td>stock.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/stock/warehouse/:warehouseId/locations</td><td>Get location-wise inventory for warehouse</td><td>stock.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/stock/available/:productId/:warehouseId</td><td>Get available qty for product (?variantId=)</td><td>stock.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/stock/movement</td><td>Record stock movement</td><td>stock.write</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/stock/reserve</td><td>Reserve stock</td><td>stock.write</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/stock/release</td><td>Release reserved stock</td><td>stock.write</td></tr>
+</table>
+
+<!-- ==================== ADJUSTMENTS ==================== -->
+<h2 id="adjustments">Stock Adjustments <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/adjustments</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/adjustments</td><td>Create a new stock adjustment</td><td>adjustments.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/adjustments</td><td>Get all adjustments with filters &amp; pagination</td><td>adjustments.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/adjustments/:id</td><td>Get adjustment by ID</td><td>adjustments.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/adjustments/:id</td><td>Update adjustment (draft only)</td><td>adjustments.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/adjustments/:id/submit</td><td>Submit adjustment for approval</td><td>adjustments.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/adjustments/:id/approve</td><td>Approve adjustment</td><td>adjustments.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/adjustments/:id/reject</td><td>Reject adjustment</td><td>adjustments.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/adjustments/:id/cancel</td><td>Cancel adjustment</td><td>adjustments.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/adjustments/:id</td><td>Delete adjustment (draft only)</td><td>adjustments.delete</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/adjustments/:id/items</td><td>Add item to adjustment</td><td>adjustments.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/adjustments/items/:itemId</td><td>Update adjustment item</td><td>adjustments.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/adjustments/items/:itemId</td><td>Remove adjustment item</td><td>adjustments.update</td></tr>
+</table>
+
+<!-- ==================== TRANSFERS ==================== -->
+<h2 id="transfers">Warehouse Transfers <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/transfers</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/transfers</td><td>Create a new transfer</td><td>transfers.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/transfers</td><td>Get all transfers with filters &amp; pagination</td><td>transfers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/transfers/:id</td><td>Get transfer by ID</td><td>transfers.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/transfers/:id</td><td>Update transfer (draft only)</td><td>transfers.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/transfers/:id/submit</td><td>Submit transfer for approval</td><td>transfers.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/transfers/:id/approve</td><td>Approve transfer</td><td>transfers.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/transfers/:id/reject</td><td>Reject transfer</td><td>transfers.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/transfers/:id/ship</td><td>Ship transfer</td><td>transfers.ship</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/transfers/:id/receive</td><td>Receive transfer</td><td>transfers.receive</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/transfers/:id/cancel</td><td>Cancel transfer</td><td>transfers.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/transfers/:id</td><td>Delete transfer (draft only)</td><td>transfers.delete</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/transfers/:id/items</td><td>Add item to transfer</td><td>transfers.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/transfers/items/:itemId</td><td>Update transfer item</td><td>transfers.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/transfers/items/:itemId</td><td>Remove transfer item</td><td>transfers.update</td></tr>
+</table>
+
+<!-- ==================== CUSTOMERS ==================== -->
+<h2 id="customers">Customers <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/customers</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/customers</td><td>Create a new customer</td><td>customers.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customers</td><td>Get all customers with filters &amp; pagination</td><td>customers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customers/search/email/:email</td><td>Find customer by email</td><td>customers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customers/search/code/:code</td><td>Find customer by code</td><td>customers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customers/:id</td><td>Get customer by ID</td><td>customers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customers/:id/balance</td><td>Get customer outstanding balance</td><td>customers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customers/:id/dues</td><td>Get customer dues</td><td>customers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customers/:id/orders</td><td>Get customer order history</td><td>customers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customers/:id/addresses</td><td>Get customer addresses</td><td>customers.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customers/:id/check-credit</td><td>Check if order amount is within credit limit (?amount=)</td><td>customers.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/customers/:id</td><td>Update customer</td><td>customers.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/customers/:id/credit-limit</td><td>Update customer credit limit</td><td>customers.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/customers/:id</td><td>Delete customer (soft delete)</td><td>customers.delete</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/customers/:id/addresses</td><td>Add address to customer</td><td>customers.update</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/customers/addresses/:addressId</td><td>Update customer address</td><td>customers.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/customers/addresses/:addressId</td><td>Remove customer address</td><td>customers.update</td></tr>
+</table>
+
+<!-- ==================== ORDERS ==================== -->
+<h2 id="orders">Sales Orders <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/orders</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/orders</td><td>Create a new sales order</td><td>orders.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/orders</td><td>Get all orders with filters &amp; pagination</td><td>orders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/orders/statistics</td><td>Get order statistics</td><td>orders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/orders/search/number/:orderNumber</td><td>Find order by order number</td><td>orders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/orders/:id</td><td>Get order by ID</td><td>orders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/orders/:id/payments</td><td>Get order payments</td><td>orders.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/orders/:id</td><td>Update order (draft only)</td><td>orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/orders/:id/confirm</td><td>Confirm order</td><td>orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/orders/:id/process</td><td>Process order (pick &amp; pack)</td><td>orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/orders/:id/ship</td><td>Ship order</td><td>orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/orders/:id/deliver</td><td>Mark order as delivered</td><td>orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/orders/:id/complete</td><td>Complete order</td><td>orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/orders/:id/cancel</td><td>Cancel order</td><td>orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/orders/:id/payments</td><td>Record payment for order</td><td>orders.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/orders/:id</td><td>Delete order (draft only)</td><td>orders.delete</td></tr>
+</table>
+
+<!-- ==================== SALES RETURNS ==================== -->
+<h2 id="returns">Sales Returns <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/returns</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/returns</td><td>Create a new return</td><td>returns.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/returns</td><td>Get all returns with filters &amp; pagination</td><td>returns.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/returns/:id</td><td>Get return by ID</td><td>returns.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/returns/:id</td><td>Update return</td><td>returns.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/returns/:id/approve</td><td>Approve return</td><td>returns.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/returns/:id/receive</td><td>Receive returned goods</td><td>returns.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/returns/:id/refund</td><td>Process refund for return</td><td>returns.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/returns/:id/complete</td><td>Complete return</td><td>returns.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/returns/:id/reject</td><td>Reject return</td><td>returns.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/returns/:id/cancel</td><td>Cancel return</td><td>returns.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/returns/:id</td><td>Delete return (draft only)</td><td>returns.delete</td></tr>
+</table>
+
+<!-- ==================== PURCHASE ORDERS ==================== -->
+<h2 id="purchase-orders">Purchase Orders <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/purchase-orders</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-orders</td><td>Create a new purchase order</td><td>purchase-orders.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/purchase-orders</td><td>Get all POs with filters &amp; pagination</td><td>purchase-orders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/purchase-orders/overdue</td><td>Get overdue purchase orders</td><td>purchase-orders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/purchase-orders/supplier/:supplierId/pending</td><td>Get pending POs for supplier</td><td>purchase-orders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/purchase-orders/search/number/:poNumber</td><td>Find PO by PO number</td><td>purchase-orders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/purchase-orders/:id</td><td>Get purchase order by ID</td><td>purchase-orders.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/purchase-orders/:id</td><td>Update purchase order</td><td>purchase-orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-orders/:id/submit</td><td>Submit PO for approval</td><td>purchase-orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-orders/:id/approve</td><td>Approve purchase order</td><td>purchase-orders.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-orders/:id/reject</td><td>Reject purchase order</td><td>purchase-orders.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-orders/:id/send</td><td>Send PO to supplier</td><td>purchase-orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-orders/:id/acknowledge</td><td>Acknowledge PO (supplier confirmation)</td><td>purchase-orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-orders/:id/close</td><td>Close purchase order</td><td>purchase-orders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-orders/:id/cancel</td><td>Cancel purchase order</td><td>purchase-orders.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/purchase-orders/:id</td><td>Delete purchase order (draft only)</td><td>purchase-orders.delete</td></tr>
+</table>
+
+<!-- ==================== GRN ==================== -->
+<h2 id="grn">GRN — Goods Receipt Notes <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/grn</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/grn</td><td>Create a new GRN</td><td>grn.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/grn</td><td>Get all GRNs with filters &amp; pagination</td><td>grn.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/grn/purchase-order/:poId</td><td>Get GRNs by purchase order</td><td>grn.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/grn/:id</td><td>Get GRN by ID</td><td>grn.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/grn/:id</td><td>Update GRN</td><td>grn.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/grn/:id/submit</td><td>Submit GRN for QC</td><td>grn.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/grn/:id/complete-qc</td><td>Complete quality control check</td><td>grn.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/grn/:id/approve</td><td>Approve and receive stock</td><td>grn.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/grn/:id/cancel</td><td>Cancel GRN</td><td>grn.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/grn/:id</td><td>Delete GRN (draft only)</td><td>grn.delete</td></tr>
+</table>
+
+<!-- ==================== PURCHASE RETURNS ==================== -->
+<h2 id="purchase-returns">Purchase Returns <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/purchase-returns</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-returns</td><td>Create a new purchase return</td><td>purchase-returns.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/purchase-returns</td><td>Get all purchase returns with pagination</td><td>purchase-returns.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/purchase-returns/:id</td><td>Get purchase return by ID</td><td>purchase-returns.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/purchase-returns/:id</td><td>Update purchase return</td><td>purchase-returns.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-returns/:id/submit</td><td>Submit for approval</td><td>purchase-returns.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-returns/:id/approve</td><td>Approve purchase return</td><td>purchase-returns.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-returns/:id/reject</td><td>Reject purchase return</td><td>purchase-returns.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-returns/:id/ship</td><td>Ship goods back to supplier</td><td>purchase-returns.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-returns/:id/confirm-receipt</td><td>Confirm supplier receipt</td><td>purchase-returns.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-returns/:id/credit-note</td><td>Request credit note from supplier</td><td>purchase-returns.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-returns/:id/complete</td><td>Complete purchase return</td><td>purchase-returns.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/purchase-returns/:id/cancel</td><td>Cancel purchase return</td><td>purchase-returns.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/purchase-returns/:id</td><td>Delete purchase return (draft only)</td><td>purchase-returns.delete</td></tr>
+</table>
+
+<!-- ==================== DASHBOARD ==================== -->
+<h2 id="dashboard">Dashboard <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/dashboard</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/dashboard/overview</td><td>Get dashboard overview KPIs</td><td>dashboard.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/dashboard/sales-trend</td><td>Get sales trend data</td><td>dashboard.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/dashboard/top-products</td><td>Get top selling products</td><td>dashboard.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/dashboard/top-customers</td><td>Get top customers</td><td>dashboard.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/dashboard/low-stock</td><td>Get low stock alerts</td><td>dashboard.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/dashboard/recent-orders</td><td>Get recent orders</td><td>dashboard.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/dashboard/pending-purchase-orders</td><td>Get pending purchase orders</td><td>dashboard.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/dashboard/stock-valuation</td><td>Get stock valuation summary</td><td>dashboard.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/dashboard/receivables</td><td>Get accounts receivable summary</td><td>dashboard.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/dashboard/payables</td><td>Get accounts payable summary</td><td>dashboard.read</td></tr>
+</table>
+
+<!-- ==================== CUSTOMER GROUPS ==================== -->
+<h2 id="customer-groups">Customer Groups <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/customer-groups</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/customer-groups</td><td>Create a new customer group</td><td>customer-groups.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-groups</td><td>Get all customer groups with pagination</td><td>customer-groups.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-groups/list</td><td>Get simplified list of customer groups</td><td>customer-groups.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-groups/statistics</td><td>Get customer group statistics</td><td>customer-groups.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-groups/default</td><td>Get default customer group</td><td>customer-groups.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-groups/:id</td><td>Get customer group by ID</td><td>customer-groups.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-groups/code/:code</td><td>Get customer group by code</td><td>customer-groups.read</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/customer-groups/:id</td><td>Update customer group</td><td>customer-groups.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/customer-groups/:id</td><td>Delete customer group</td><td>customer-groups.delete</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-groups/:id/customers</td><td>Get customers in group</td><td>customer-groups.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-groups/:id/customers/count</td><td>Get customer count in group</td><td>customer-groups.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/customer-groups/:id/customers</td><td>Add customers to group</td><td>customer-groups.update</td></tr>
+</table>
+
+<!-- ==================== QUOTATIONS ==================== -->
+<h2 id="quotations">Quotations <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/quotations</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/quotations</td><td>Create a new quotation</td><td>quotations.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/quotations</td><td>Get all quotations with filters &amp; pagination</td><td>quotations.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/quotations/search/number/:quotationNumber</td><td>Find quotation by number</td><td>quotations.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/quotations/:id</td><td>Get quotation by ID</td><td>quotations.read</td></tr>
+<tr><td><span class="badge PATCH">PATCH</span></td><td>/api/v1/quotations/:id</td><td>Update quotation</td><td>quotations.update</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/quotations/:id</td><td>Delete quotation (draft only)</td><td>quotations.delete</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/quotations/:id/send</td><td>Send quotation to customer</td><td>quotations.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/quotations/:id/accept</td><td>Mark quotation as accepted</td><td>quotations.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/quotations/:id/reject</td><td>Mark quotation as rejected</td><td>quotations.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/quotations/:id/cancel</td><td>Cancel quotation</td><td>quotations.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/quotations/:id/convert-to-sales-order</td><td>Convert quotation to sales order</td><td>quotations.update</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING NOTE ==================== -->
+<div class="note">
+<strong>Note — Accounting Module URL Pattern:</strong> Accounting controllers use a hardcoded full path <code>@Controller('api/v1/accounting/...')</code>.
+With the global <code>/api</code> prefix applied, the actual URLs are <code>/api/api/v1/accounting/...</code>.
+The paths below reflect the intended design (<code>/api/v1/accounting/...</code>); verify against your actual app configuration.
+</div>
+
+<!-- ==================== ACCOUNTING COA ==================== -->
+<h2 id="acc-coa">Accounting — Chart of Accounts <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/chart-of-accounts</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/chart-of-accounts</td><td>Create a new account</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/chart-of-accounts</td><td>Get all accounts</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/chart-of-accounts/tree</td><td>Get accounts as hierarchical tree</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/chart-of-accounts/by-code/:code</td><td>Get account by code</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/chart-of-accounts/:id</td><td>Get account by ID</td><td>accounting.view</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/accounting/chart-of-accounts/:id</td><td>Update account</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/accounting/chart-of-accounts/:id</td><td>Delete account</td><td>accounting.manage</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING BANK ACCOUNTS ==================== -->
+<h2 id="acc-bank">Accounting — Bank Accounts <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/bank-accounts</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/bank-accounts</td><td>Create a new bank account</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/bank-accounts</td><td>Get all bank accounts</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/bank-accounts/:id</td><td>Get bank account by ID</td><td>accounting.view</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/accounting/bank-accounts/:id</td><td>Update bank account</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/accounting/bank-accounts/:id</td><td>Delete bank account</td><td>accounting.manage</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING COST CENTERS ==================== -->
+<h2 id="acc-cost">Accounting — Cost Centers <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/cost-centers</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/cost-centers</td><td>Create a new cost center</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/cost-centers</td><td>Get all cost centers</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/cost-centers/tree</td><td>Get cost centers as hierarchical tree</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/cost-centers/:id</td><td>Get cost center by ID</td><td>accounting.view</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/accounting/cost-centers/:id</td><td>Update cost center</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/accounting/cost-centers/:id</td><td>Delete cost center</td><td>accounting.manage</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING FISCAL YEARS ==================== -->
+<h2 id="acc-fy">Accounting — Fiscal Years <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/fiscal-years</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/fiscal-years</td><td>Create a new fiscal year</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/fiscal-years</td><td>Get all fiscal years</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/fiscal-years/current</td><td>Get current fiscal year</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/fiscal-years/:id</td><td>Get fiscal year by ID</td><td>accounting.view</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/accounting/fiscal-years/:id</td><td>Update fiscal year</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/fiscal-years/:id/close</td><td>Close fiscal year</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/accounting/fiscal-years/:id</td><td>Delete fiscal year</td><td>accounting.manage</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING FISCAL PERIODS ==================== -->
+<h2 id="acc-fp">Accounting — Fiscal Periods <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/fiscal-periods</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/fiscal-periods</td><td>Create a new fiscal period</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/fiscal-periods</td><td>Get all fiscal periods</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/fiscal-periods/:id</td><td>Get fiscal period by ID</td><td>accounting.view</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/accounting/fiscal-periods/:id</td><td>Update fiscal period</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/fiscal-periods/:id/close</td><td>Close fiscal period</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/fiscal-periods/:id/reopen</td><td>Reopen fiscal period</td><td>accounting.manage</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING GENERAL LEDGER ==================== -->
+<h2 id="acc-gl">Accounting — General Ledger <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/general-ledger</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/general-ledger</td><td>Get general ledger entries</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/general-ledger/account/:accountId</td><td>Get ledger entries for specific account</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/general-ledger/trial-balance/:fiscalYearId</td><td>Get trial balance for fiscal year</td><td>accounting.view</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING BANK TRANSACTIONS ==================== -->
+<h2 id="acc-bt">Accounting — Bank Transactions <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/bank-transactions</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/bank-transactions</td><td>Create a new bank transaction</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/bank-transactions</td><td>Get all bank transactions</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/bank-transactions/unreconciled/:bankAccountId</td><td>Get unreconciled transactions for account</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/bank-transactions/:id</td><td>Get bank transaction by ID</td><td>accounting.view</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/accounting/bank-transactions/:id</td><td>Update bank transaction</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/bank-transactions/:id/clear</td><td>Clear/settle bank transaction</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/bank-transactions/:id/bounce</td><td>Mark transaction as bounced</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/accounting/bank-transactions/:id</td><td>Delete bank transaction</td><td>accounting.manage</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING BANK RECONCILIATIONS ==================== -->
+<h2 id="acc-br">Accounting — Bank Reconciliations <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/bank-reconciliations</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/bank-reconciliations</td><td>Create a new bank reconciliation</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/bank-reconciliations</td><td>Get all bank reconciliations</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/bank-reconciliations/:id</td><td>Get reconciliation by ID</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/bank-reconciliations/:id/summary</td><td>Get reconciliation summary</td><td>accounting.view</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/accounting/bank-reconciliations/:id</td><td>Update bank reconciliation</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/bank-reconciliations/:id/start</td><td>Start reconciliation process</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/bank-reconciliations/:id/complete</td><td>Complete reconciliation</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/bank-reconciliations/:id/cancel</td><td>Cancel reconciliation</td><td>accounting.manage</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING BUDGETS ==================== -->
+<h2 id="acc-bud">Accounting — Budgets <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/budgets</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/budgets</td><td>Create a new budget</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/budgets</td><td>Get all budgets</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/budgets/:id</td><td>Get budget by ID</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/budgets/:id/vs-actual</td><td>Get budget vs actual comparison</td><td>accounting.view</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/accounting/budgets/:id</td><td>Update budget</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/budgets/:id/lines</td><td>Add budget line</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/accounting/budgets/lines/:lineId</td><td>Update budget line</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/accounting/budgets/lines/:lineId</td><td>Delete budget line</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/budgets/:id/submit</td><td>Submit budget for approval</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/budgets/:id/approve</td><td>Approve budget</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/budgets/:id/reject</td><td>Reject budget</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/budgets/:id/activate</td><td>Activate budget</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/budgets/:id/close</td><td>Close budget</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/accounting/budgets/:id</td><td>Delete budget</td><td>accounting.manage</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING FINANCIAL REPORTS ==================== -->
+<h2 id="acc-rep">Accounting — Financial Reports <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/reports</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/reports</td><td>Get available financial reports</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/reports/balance-sheet</td><td>Get balance sheet report</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/reports/income-statement</td><td>Get income statement (P&amp;L) report</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/reports/cash-flow</td><td>Get cash flow statement</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/reports/bank-summary</td><td>Get bank accounts summary</td><td>accounting.view</td></tr>
+</table>
+
+<!-- ==================== ACCOUNTING JOURNAL ENTRIES ==================== -->
+<h2 id="acc-je">Accounting — Journal Entries <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/accounting/journal-entries</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/journal-entries</td><td>Create a new journal entry</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/journal-entries</td><td>Get all journal entries</td><td>accounting.view</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/accounting/journal-entries/:id</td><td>Get journal entry by ID</td><td>accounting.view</td></tr>
+<tr><td><span class="badge PUT">PUT</span></td><td>/api/v1/accounting/journal-entries/:id</td><td>Update journal entry (draft only)</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/journal-entries/:id/post</td><td>Post journal entry to ledger</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/accounting/journal-entries/:id/reverse</td><td>Reverse a posted journal entry</td><td>accounting.manage</td></tr>
+<tr><td><span class="badge DELETE">DELETE</span></td><td>/api/v1/accounting/journal-entries/:id</td><td>Delete journal entry (draft only)</td><td>accounting.manage</td></tr>
+</table>
+
+<!-- ==================== CUSTOMER DUES ==================== -->
+<h2 id="customer-dues">Customer Dues <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/customer-dues</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-dues</td><td>Get all customer dues</td><td>customer-dues.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-dues/overdue</td><td>Get overdue customer dues</td><td>customer-dues.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-dues/dashboard</td><td>Get customer dues dashboard summary</td><td>customer-dues.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-dues/customer/:customerId</td><td>Get dues for specific customer</td><td>customer-dues.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-dues/customer/:customerId/statement</td><td>Get customer account statement</td><td>customer-dues.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/customer-dues/:id</td><td>Get customer due by ID</td><td>customer-dues.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/customer-dues/opening-balance</td><td>Create opening balance for customer</td><td>customer-dues.write</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/customer-dues/:id/adjust</td><td>Adjust customer due amount</td><td>customer-dues.write</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/customer-dues/:id/write-off</td><td>Write off customer due</td><td>customer-dues.write</td></tr>
+</table>
+
+<!-- ==================== COLLECTIONS ==================== -->
+<h2 id="collections">Collections <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/collections</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/collections</td><td>Record a new collection (payment received)</td><td>collections.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/collections</td><td>Get all collections with pagination</td><td>collections.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/collections/:id</td><td>Get collection by ID</td><td>collections.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/collections/:id/confirm</td><td>Confirm collection</td><td>collections.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/collections/:id/deposit</td><td>Mark collection as deposited</td><td>collections.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/collections/:id/bounce</td><td>Mark collection as bounced (cheque)</td><td>collections.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/collections/:id/allocate</td><td>Allocate collection to dues</td><td>collections.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/collections/:id/cancel</td><td>Cancel collection</td><td>collections.update</td></tr>
+</table>
+
+<!-- ==================== CREDIT NOTES ==================== -->
+<h2 id="credit-notes">Credit Notes <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/credit-notes</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/credit-notes</td><td>Create a new credit note</td><td>credit-notes.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/credit-notes</td><td>Get all credit notes with pagination</td><td>credit-notes.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/credit-notes/customer/:customerId</td><td>Get credit notes for customer</td><td>credit-notes.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/credit-notes/customer/:customerId/usable</td><td>Get usable credit notes for customer</td><td>credit-notes.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/credit-notes/:id</td><td>Get credit note by ID</td><td>credit-notes.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/credit-notes/:id/submit</td><td>Submit credit note for approval</td><td>credit-notes.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/credit-notes/:id/approve</td><td>Approve credit note</td><td>credit-notes.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/credit-notes/:id/apply</td><td>Apply credit note to customer dues</td><td>credit-notes.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/credit-notes/:id/cancel</td><td>Cancel credit note</td><td>credit-notes.update</td></tr>
+</table>
+
+<!-- ==================== PAYMENT REMINDERS ==================== -->
+<h2 id="payment-reminders">Payment Reminders <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/payment-reminders</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/payment-reminders</td><td>Get all payment reminders</td><td>payment-reminders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/payment-reminders/follow-ups-today</td><td>Get reminders requiring follow-up today</td><td>payment-reminders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/payment-reminders/broken-promises</td><td>Get broken promise-to-pay reminders</td><td>payment-reminders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/payment-reminders/due/:dueId</td><td>Get reminders for a specific due</td><td>payment-reminders.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/payment-reminders/:id</td><td>Get payment reminder by ID</td><td>payment-reminders.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/payment-reminders</td><td>Create a new payment reminder</td><td>payment-reminders.create</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/payment-reminders/:id/send</td><td>Send payment reminder to customer</td><td>payment-reminders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/payment-reminders/:id/response</td><td>Record customer response to reminder</td><td>payment-reminders.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/payment-reminders/:id/cancel</td><td>Cancel payment reminder</td><td>payment-reminders.update</td></tr>
+</table>
+
+<!-- ==================== SUPPLIER DUES ==================== -->
+<h2 id="supplier-dues">Supplier Dues <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/supplier-dues</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/supplier-dues</td><td>Get all supplier dues</td><td>supplier-dues.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/supplier-dues/dashboard</td><td>Get supplier dues dashboard summary</td><td>supplier-dues.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/supplier-dues/upcoming</td><td>Get upcoming supplier dues</td><td>supplier-dues.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/supplier-dues/supplier/:supplierId</td><td>Get dues for specific supplier</td><td>supplier-dues.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/supplier-dues/:id</td><td>Get supplier due by ID</td><td>supplier-dues.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/supplier-dues/opening-balance</td><td>Create opening balance for supplier</td><td>supplier-dues.write</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/supplier-dues/:id/adjust</td><td>Adjust supplier due amount</td><td>supplier-dues.write</td></tr>
+</table>
+
+<!-- ==================== SUPPLIER PAYMENTS ==================== -->
+<h2 id="supplier-payments">Supplier Payments <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/supplier-payments</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/supplier-payments</td><td>Create a new supplier payment</td><td>supplier-payments.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/supplier-payments</td><td>Get all supplier payments with pagination</td><td>supplier-payments.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/supplier-payments/:id</td><td>Get supplier payment by ID</td><td>supplier-payments.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/supplier-payments/:id/submit</td><td>Submit payment for approval</td><td>supplier-payments.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/supplier-payments/:id/approve</td><td>Approve supplier payment</td><td>supplier-payments.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/supplier-payments/:id/process</td><td>Process (initiate) supplier payment</td><td>supplier-payments.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/supplier-payments/:id/complete</td><td>Complete supplier payment</td><td>supplier-payments.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/supplier-payments/:id/allocate</td><td>Allocate payment to supplier dues</td><td>supplier-payments.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/supplier-payments/:id/cancel</td><td>Cancel supplier payment</td><td>supplier-payments.update</td></tr>
+</table>
+
+<!-- ==================== DEBIT NOTES ==================== -->
+<h2 id="debit-notes">Debit Notes <small style="font-size:11pt;color:#666">— TENANT DB &nbsp;|&nbsp; Base: /api/v1/debit-notes</small></h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/debit-notes</td><td>Create a new debit note</td><td>debit-notes.create</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/debit-notes</td><td>Get all debit notes with pagination</td><td>debit-notes.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/debit-notes/supplier/:supplierId</td><td>Get debit notes for supplier</td><td>debit-notes.read</td></tr>
+<tr><td><span class="badge GET">GET</span></td><td>/api/v1/debit-notes/:id</td><td>Get debit note by ID</td><td>debit-notes.read</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/debit-notes/:id/submit</td><td>Submit debit note for approval</td><td>debit-notes.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/debit-notes/:id/approve</td><td>Approve debit note</td><td>debit-notes.approve</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/debit-notes/:id/send</td><td>Send debit note to supplier</td><td>debit-notes.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/debit-notes/:id/acknowledge</td><td>Record supplier acknowledgment</td><td>debit-notes.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/debit-notes/:id/apply</td><td>Apply debit note to supplier dues</td><td>debit-notes.update</td></tr>
+<tr><td><span class="badge POST">POST</span></td><td>/api/v1/debit-notes/:id/cancel</td><td>Cancel debit note</td><td>debit-notes.update</td></tr>
+</table>
+
+<hr style="margin-top:40px;border-color:#dee2e6">
+<p style="color:#999;font-size:9pt;text-align:center">
+  ivnmng API Reference &nbsp;&bull;&nbsp; Generated 2026-02-28 &nbsp;&bull;&nbsp;
+  48 controllers &nbsp;&bull;&nbsp; ~444 endpoints &nbsp;&bull;&nbsp; Base URL: /api/v1
+</p>
+
+</body>
+</html>

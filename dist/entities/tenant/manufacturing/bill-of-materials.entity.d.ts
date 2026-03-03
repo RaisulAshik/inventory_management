@@ -1,0 +1,37 @@
+import { BOMStatus } from '@common/enums';
+import { BomItem } from './bom-item.entity';
+import { ProductVariant } from '../inventory/product-variant.entity';
+import { Product } from '../inventory/product.entity';
+import { UnitOfMeasure } from '../inventory/unit-of-measure.entity';
+import { BomOperation } from './bom-operation.entity';
+export declare class BillOfMaterials {
+    id: string;
+    bomCode: string;
+    bomName: string;
+    productId: string;
+    variantId: string;
+    version: number;
+    status: BOMStatus;
+    effectiveFrom: Date;
+    effectiveTo: Date;
+    quantity: number;
+    uomId: string;
+    description: string;
+    totalMaterialCost: number;
+    totalOperationCost: number;
+    totalCost: number;
+    scrapPercentage: number;
+    isDefault: boolean;
+    notes: string;
+    createdBy: string;
+    approvedBy: string;
+    approvedAt: Date;
+    createdAt: Date;
+    updatedAt: Date;
+    product: Product;
+    variant: ProductVariant;
+    uom: UnitOfMeasure;
+    items: BomItem[];
+    operations: BomOperation[];
+    get unitCost(): number;
+}

@@ -1,0 +1,95 @@
+import { PurchaseOrderStatus } from '@common/enums';
+import { PurchaseOrder } from '@entities/tenant';
+declare class PurchaseOrderItemDto {
+    id: string;
+    lineNumber: number;
+    productId: string;
+    productName: string;
+    productSku: string;
+    variantId?: string;
+    quantityOrdered: number;
+    receivedQuantity: number;
+    pendingQuantity: number;
+    unitPrice: number;
+    discountPercentage: number;
+    discountAmount: number;
+    taxPercentage: number;
+    taxAmount: number;
+    lineTotal: number;
+}
+declare class SupplierDto {
+    id: string;
+    supplierCode: string;
+    companyName: string;
+    email?: string;
+    phone?: string;
+}
+export declare class PurchaseOrderResponseDto {
+    id: string;
+    poNumber: string;
+    status: PurchaseOrderStatus;
+    poDate: Date;
+    orderDate: Date;
+    expectedDeliveryDate?: Date;
+    supplier?: SupplierDto;
+    warehouseId?: string;
+    warehouseName?: string;
+    currency: string;
+    exchangeRate: number;
+    subtotal: number;
+    discountPercentage: number;
+    discountAmount: number;
+    taxAmount: number;
+    shippingAmount: number;
+    otherCharges: number;
+    totalAmount: number;
+    paidAmount: number;
+    balanceAmount: number;
+    approvedAt?: Date;
+    sentAt?: Date;
+    acknowledgedAt?: Date;
+    supplierReferenceNumber?: string;
+    notes?: string;
+    items?: PurchaseOrderItemDto[];
+    itemCount: number;
+    totalQuantity: number;
+    receivedQuantity: number;
+    createdAt: Date;
+    updatedAt: Date;
+    constructor(po: PurchaseOrder);
+}
+export declare class PurchaseOrderDetailResponseDto {
+    id: string;
+    poNumber: string;
+    status: PurchaseOrderStatus;
+    poDate: Date;
+    orderDate: Date;
+    expectedDeliveryDate?: Date;
+    supplier?: SupplierDto;
+    warehouseId?: string;
+    warehouseName?: string;
+    currency: string;
+    exchangeRate: number;
+    subtotal: number;
+    discountPercentage: number;
+    discountAmount: number;
+    taxAmount: number;
+    shippingAmount: number;
+    otherCharges: number;
+    totalAmount: number;
+    paidAmount: number;
+    balanceAmount: number;
+    approvedAt?: Date;
+    sentAt?: Date;
+    acknowledgedAt?: Date;
+    supplierReferenceNumber?: string;
+    notes?: string;
+    items?: PurchaseOrderItemDto[];
+    itemCount: number;
+    totalQuantity: number;
+    receivedQuantity: number;
+    createdAt: Date;
+    updatedAt: Date;
+    constructor(po: PurchaseOrder);
+}
+export {};

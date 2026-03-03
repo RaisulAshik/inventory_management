@@ -1,0 +1,32 @@
+import { PurchaseOrder } from './purchase-order.entity';
+import { Product } from '../inventory/product.entity';
+import { ProductVariant } from '../inventory/product-variant.entity';
+import { UnitOfMeasure } from '../inventory/unit-of-measure.entity';
+import { TaxCategory } from '../inventory/tax-category.entity';
+export declare class PurchaseOrderItem {
+    id: string;
+    purchaseOrderId: string;
+    productId: string;
+    variantId: string;
+    description: string;
+    quantityOrdered: number;
+    quantityReceived: number;
+    quantityRejected: number;
+    uomId: string;
+    unitPrice: number;
+    discountPercentage: number;
+    discountAmount: number;
+    taxCategoryId: string;
+    taxAmount: number;
+    lineTotal: number;
+    expectedDate: Date;
+    notes: string;
+    createdAt: Date;
+    updatedAt: Date;
+    purchaseOrder: PurchaseOrder;
+    product: Product;
+    variant: ProductVariant;
+    uom: UnitOfMeasure;
+    taxCategory: TaxCategory;
+    get quantityPending(): number;
+}
