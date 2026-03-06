@@ -63,7 +63,7 @@ export class TenantConnectionManager implements OnModuleDestroy {
       ),
       synchronize: false, // Never sync in production
       logging: this.configService.get<string>('NODE_ENV') === 'development',
-      timezone: '+05:30',
+      timezone: '+06.00',
       charset: 'utf8mb4',
       extra: {
         connectionLimit: 5,
