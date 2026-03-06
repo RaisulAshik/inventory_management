@@ -24,7 +24,7 @@ import {
 import { BudgetsService } from '../service/budgets.service';
 import { JwtPayload } from '@/common/interfaces';
 
-@Controller('api/v1/accounting/budgets')
+@Controller('accounting/budgets')
 export class BudgetsController {
   constructor(private readonly budgetsService: BudgetsService) {}
 

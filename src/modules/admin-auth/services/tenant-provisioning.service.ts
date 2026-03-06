@@ -1253,6 +1253,2118 @@ export class TenantProvisioningService {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
+      // ─── Accounting ───────────────────────────────────────────────────────
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`fiscal_years\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`year_code\` VARCHAR(50) NOT NULL,
+          \`year_name\` VARCHAR(100) NOT NULL,
+          \`start_date\` DATE NOT NULL,
+          \`end_date\` DATE NOT NULL,
+          \`status\` ENUM('OPEN','CLOSED','LOCKED') NOT NULL DEFAULT 'OPEN',
+          \`is_current\` TINYINT NOT NULL DEFAULT 0,
+          \`closed_by\` VARCHAR(255) NULL,
+          \`closed_at\` TIMESTAMP NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_fiscal_years_code\` (\`year_code\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`fiscal_periods\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`fiscal_year_id\` VARCHAR(255) NOT NULL,
+          \`period_number\` INT NOT NULL,
+          \`period_name\` VARCHAR(50) NOT NULL,
+          \`start_date\` DATE NOT NULL,
+          \`end_date\` DATE NOT NULL,
+          \`status\` ENUM('OPEN','CLOSED','LOCKED') NOT NULL DEFAULT 'OPEN',
+          \`closed_by\` VARCHAR(255) NULL,
+          \`closed_at\` TIMESTAMP NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_fp_year\` (\`fiscal_year_id\`),
+          CONSTRAINT \`fk_fp_year\` FOREIGN KEY (\`fiscal_year_id\`) REFERENCES \`fiscal_years\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`chart_of_accounts\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`account_code\` VARCHAR(50) NOT NULL,
+          \`account_name\` VARCHAR(200) NOT NULL,
+          \`account_type\` ENUM('ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE') NOT NULL,
+          \`account_subtype\` VARCHAR(50) NULL,
+          \`parent_id\` VARCHAR(255) NULL,
+          \`level\` INT NOT NULL DEFAULT 0,
+          \`path\` VARCHAR(500) NULL,
+          \`normal_balance\` ENUM('DEBIT','CREDIT') NOT NULL,
+          \`is_header\` TINYINT NOT NULL DEFAULT 0,
+          \`is_system\` TINYINT NOT NULL DEFAULT 0,
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`is_bank_account\` TINYINT NOT NULL DEFAULT 0,
+          \`is_cash_account\` TINYINT NOT NULL DEFAULT 0,
+          \`is_receivable\` TINYINT NOT NULL DEFAULT 0,
+          \`is_payable\` TINYINT NOT NULL DEFAULT 0,
+          \`currency\` VARCHAR(3) NULL,
+          \`opening_balance_debit\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`opening_balance_credit\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`current_balance\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`description\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_coa_code\` (\`account_code\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`cost_centers\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`cost_center_code\` VARCHAR(50) NOT NULL,
+          \`cost_center_name\` VARCHAR(200) NOT NULL,
+          \`parent_id\` VARCHAR(255) NULL,
+          \`level\` INT NOT NULL DEFAULT 0,
+          \`path\` VARCHAR(500) NULL,
+          \`description\` TEXT NULL,
+          \`manager_id\` VARCHAR(255) NULL,
+          \`budget\` DECIMAL(18,4) NULL,
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_cc_code\` (\`cost_center_code\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`journal_entries\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`entry_number\` VARCHAR(50) NOT NULL,
+          \`entry_date\` DATE NOT NULL,
+          \`fiscal_year_id\` VARCHAR(255) NOT NULL,
+          \`fiscal_period_id\` VARCHAR(255) NOT NULL,
+          \`entry_type\` ENUM('MANUAL','SALES','PURCHASE','RECEIPT','PAYMENT','INVENTORY','MANUFACTURING','ADJUSTMENT','OPENING','CLOSING','REVERSAL') NOT NULL DEFAULT 'MANUAL',
+          \`reference_type\` VARCHAR(50) NULL,
+          \`reference_id\` VARCHAR(255) NULL,
+          \`reference_number\` VARCHAR(50) NULL,
+          \`description\` TEXT NOT NULL,
+          \`total_debit\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_credit\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`exchange_rate\` DECIMAL(12,6) NOT NULL DEFAULT 1,
+          \`status\` ENUM('DRAFT','PENDING','POSTED','REVERSED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`is_auto_generated\` TINYINT NOT NULL DEFAULT 0,
+          \`reversal_of_id\` VARCHAR(255) NULL,
+          \`reversed_by_id\` VARCHAR(255) NULL,
+          \`posted_by\` VARCHAR(255) NULL,
+          \`posted_at\` TIMESTAMP NULL,
+          \`notes\` TEXT NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_je_number\` (\`entry_number\`),
+          INDEX \`idx_je_date\` (\`entry_date\`),
+          INDEX \`idx_je_fy\` (\`fiscal_year_id\`),
+          CONSTRAINT \`fk_je_fy\` FOREIGN KEY (\`fiscal_year_id\`) REFERENCES \`fiscal_years\` (\`id\`),
+          CONSTRAINT \`fk_je_fp\` FOREIGN KEY (\`fiscal_period_id\`) REFERENCES \`fiscal_periods\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`journal_entry_lines\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`journal_entry_id\` VARCHAR(255) NOT NULL,
+          \`line_number\` INT NOT NULL,
+          \`account_id\` VARCHAR(255) NOT NULL,
+          \`cost_center_id\` VARCHAR(255) NULL,
+          \`description\` VARCHAR(500) NULL,
+          \`debit_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`credit_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`base_debit_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`base_credit_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`exchange_rate\` DECIMAL(12,6) NOT NULL DEFAULT 1,
+          \`party_type\` ENUM('CUSTOMER','SUPPLIER','EMPLOYEE','OTHER') NULL,
+          \`party_id\` VARCHAR(255) NULL,
+          \`tax_category_id\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_jel_entry\` (\`journal_entry_id\`),
+          INDEX \`idx_jel_account\` (\`account_id\`),
+          CONSTRAINT \`fk_jel_entry\` FOREIGN KEY (\`journal_entry_id\`) REFERENCES \`journal_entries\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_jel_account\` FOREIGN KEY (\`account_id\`) REFERENCES \`chart_of_accounts\` (\`id\`),
+          CONSTRAINT \`fk_jel_cost_center\` FOREIGN KEY (\`cost_center_id\`) REFERENCES \`cost_centers\` (\`id\`),
+          CONSTRAINT \`fk_jel_tax_cat\` FOREIGN KEY (\`tax_category_id\`) REFERENCES \`tax_categories\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`general_ledger\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`account_id\` VARCHAR(255) NOT NULL,
+          \`fiscal_year_id\` VARCHAR(255) NOT NULL,
+          \`fiscal_period_id\` VARCHAR(255) NOT NULL,
+          \`transaction_date\` DATE NOT NULL,
+          \`journal_entry_id\` VARCHAR(255) NOT NULL,
+          \`journal_entry_line_id\` VARCHAR(255) NOT NULL,
+          \`description\` VARCHAR(500) NULL,
+          \`debit_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`credit_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`running_balance\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`exchange_rate\` DECIMAL(12,6) NOT NULL DEFAULT 1,
+          \`base_debit_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`base_credit_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`cost_center_id\` VARCHAR(255) NULL,
+          \`reference_type\` VARCHAR(50) NULL,
+          \`reference_id\` VARCHAR(255) NULL,
+          \`reference_number\` VARCHAR(100) NULL,
+          \`party_type\` VARCHAR(50) NULL,
+          \`party_id\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_gl_account_date\` (\`account_id\`, \`transaction_date\`),
+          INDEX \`idx_gl_fy_fp_account\` (\`fiscal_year_id\`, \`fiscal_period_id\`, \`account_id\`),
+          CONSTRAINT \`fk_gl_account\` FOREIGN KEY (\`account_id\`) REFERENCES \`chart_of_accounts\` (\`id\`),
+          CONSTRAINT \`fk_gl_fy\` FOREIGN KEY (\`fiscal_year_id\`) REFERENCES \`fiscal_years\` (\`id\`),
+          CONSTRAINT \`fk_gl_fp\` FOREIGN KEY (\`fiscal_period_id\`) REFERENCES \`fiscal_periods\` (\`id\`),
+          CONSTRAINT \`fk_gl_je\` FOREIGN KEY (\`journal_entry_id\`) REFERENCES \`journal_entries\` (\`id\`),
+          CONSTRAINT \`fk_gl_jel\` FOREIGN KEY (\`journal_entry_line_id\`) REFERENCES \`journal_entry_lines\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`budgets\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`budget_code\` VARCHAR(50) NOT NULL,
+          \`budget_name\` VARCHAR(200) NOT NULL,
+          \`description\` TEXT NULL,
+          \`budget_type\` ENUM('REVENUE','EXPENSE','CAPITAL','PROJECT') NOT NULL DEFAULT 'EXPENSE',
+          \`fiscal_year_id\` VARCHAR(255) NOT NULL,
+          \`cost_center_id\` VARCHAR(255) NULL,
+          \`status\` ENUM('DRAFT','PENDING_APPROVAL','APPROVED','REJECTED','ACTIVE','CLOSED') NOT NULL DEFAULT 'DRAFT',
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`total_budget_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`allocated_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`utilized_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`committed_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`start_date\` DATE NOT NULL,
+          \`end_date\` DATE NOT NULL,
+          \`allow_over_budget\` TINYINT NOT NULL DEFAULT 0,
+          \`over_budget_tolerance_percentage\` DECIMAL(5,2) NOT NULL DEFAULT 0,
+          \`notes\` TEXT NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_budgets_code\` (\`budget_code\`),
+          CONSTRAINT \`fk_budget_fy\` FOREIGN KEY (\`fiscal_year_id\`) REFERENCES \`fiscal_years\` (\`id\`),
+          CONSTRAINT \`fk_budget_cc\` FOREIGN KEY (\`cost_center_id\`) REFERENCES \`cost_centers\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`budget_lines\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`budget_id\` VARCHAR(255) NOT NULL,
+          \`account_id\` VARCHAR(255) NOT NULL,
+          \`fiscal_period_id\` VARCHAR(255) NULL,
+          \`description\` TEXT NULL,
+          \`budget_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`revised_amount\` DECIMAL(18,4) NULL,
+          \`utilized_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`committed_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`january_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`february_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`march_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`april_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`may_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`june_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`july_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`august_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`september_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`october_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`november_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`december_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_bl_budget\` (\`budget_id\`),
+          CONSTRAINT \`fk_bl_budget\` FOREIGN KEY (\`budget_id\`) REFERENCES \`budgets\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_bl_account\` FOREIGN KEY (\`account_id\`) REFERENCES \`chart_of_accounts\` (\`id\`),
+          CONSTRAINT \`fk_bl_fp\` FOREIGN KEY (\`fiscal_period_id\`) REFERENCES \`fiscal_periods\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`bank_accounts\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`account_code\` VARCHAR(50) NOT NULL,
+          \`account_name\` VARCHAR(200) NOT NULL,
+          \`account_type\` ENUM('SAVINGS','CURRENT','CASH_CREDIT','OVERDRAFT','FIXED_DEPOSIT','OTHER') NOT NULL DEFAULT 'CURRENT',
+          \`bank_name\` VARCHAR(200) NOT NULL,
+          \`branch_name\` VARCHAR(200) NULL,
+          \`account_number\` VARCHAR(50) NOT NULL,
+          \`ifsc_code\` VARCHAR(20) NULL,
+          \`swift_code\` VARCHAR(20) NULL,
+          \`micr_code\` VARCHAR(20) NULL,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`gl_account_id\` VARCHAR(255) NULL,
+          \`opening_balance\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`current_balance\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`overdraft_limit\` DECIMAL(18,4) NULL,
+          \`interest_rate\` DECIMAL(5,2) NULL,
+          \`contact_person\` VARCHAR(200) NULL,
+          \`contact_phone\` VARCHAR(50) NULL,
+          \`contact_email\` VARCHAR(255) NULL,
+          \`address\` TEXT NULL,
+          \`is_primary\` TINYINT NOT NULL DEFAULT 0,
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`last_reconciled_date\` DATE NULL,
+          \`last_reconciled_balance\` DECIMAL(18,4) NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_bank_accounts_code\` (\`account_code\`),
+          CONSTRAINT \`fk_bank_gl\` FOREIGN KEY (\`gl_account_id\`) REFERENCES \`chart_of_accounts\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`bank_transactions\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`transaction_number\` VARCHAR(50) NOT NULL,
+          \`bank_account_id\` VARCHAR(255) NOT NULL,
+          \`transaction_date\` DATE NOT NULL,
+          \`value_date\` DATE NULL,
+          \`transaction_type\` ENUM('DEPOSIT','WITHDRAWAL','TRANSFER_IN','TRANSFER_OUT','INTEREST','CHARGES','CHEQUE_DEPOSIT','CHEQUE_PAYMENT','NEFT','RTGS','IMPS','UPI','CARD_PAYMENT','DIRECT_DEBIT','DIRECT_CREDIT') NOT NULL,
+          \`status\` ENUM('PENDING','CLEARED','BOUNCED','CANCELLED','RECONCILED') NOT NULL DEFAULT 'PENDING',
+          \`amount\` DECIMAL(18,4) NOT NULL,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`running_balance\` DECIMAL(18,4) NULL,
+          \`description\` TEXT NOT NULL,
+          \`reference_number\` VARCHAR(100) NULL,
+          \`cheque_number\` VARCHAR(50) NULL,
+          \`cheque_date\` DATE NULL,
+          \`payee_payer_name\` VARCHAR(200) NULL,
+          \`bank_reference\` VARCHAR(100) NULL,
+          \`journal_entry_id\` VARCHAR(255) NULL,
+          \`is_reconciled\` TINYINT NOT NULL DEFAULT 0,
+          \`reconciled_date\` DATE NULL,
+          \`reconciliation_id\` VARCHAR(255) NULL,
+          \`notes\` TEXT NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_bt_number\` (\`transaction_number\`),
+          INDEX \`idx_bt_account_date\` (\`bank_account_id\`, \`transaction_date\`),
+          CONSTRAINT \`fk_bt_account\` FOREIGN KEY (\`bank_account_id\`) REFERENCES \`bank_accounts\` (\`id\`),
+          CONSTRAINT \`fk_bt_je\` FOREIGN KEY (\`journal_entry_id\`) REFERENCES \`journal_entries\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`bank_reconciliations\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`reconciliation_number\` VARCHAR(50) NOT NULL,
+          \`bank_account_id\` VARCHAR(255) NOT NULL,
+          \`statement_date\` DATE NOT NULL,
+          \`statement_start_date\` DATE NOT NULL,
+          \`statement_end_date\` DATE NOT NULL,
+          \`status\` ENUM('DRAFT','IN_PROGRESS','COMPLETED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`opening_balance_book\` DECIMAL(18,4) NOT NULL,
+          \`closing_balance_book\` DECIMAL(18,4) NOT NULL,
+          \`opening_balance_bank\` DECIMAL(18,4) NOT NULL,
+          \`closing_balance_bank\` DECIMAL(18,4) NOT NULL,
+          \`total_deposits_book\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_withdrawals_book\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_deposits_bank\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_withdrawals_bank\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`deposits_in_transit\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`outstanding_cheques\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`bank_errors\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`book_errors\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`adjusted_balance_book\` DECIMAL(18,4) NULL,
+          \`adjusted_balance_bank\` DECIMAL(18,4) NULL,
+          \`difference\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`is_reconciled\` TINYINT NOT NULL DEFAULT 0,
+          \`notes\` TEXT NULL,
+          \`reconciled_by\` VARCHAR(255) NULL,
+          \`reconciled_at\` TIMESTAMP NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_br_number\` (\`reconciliation_number\`),
+          CONSTRAINT \`fk_br_account\` FOREIGN KEY (\`bank_account_id\`) REFERENCES \`bank_accounts\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      // ─── eCommerce Extras ─────────────────────────────────────────────────
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`coupons\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`coupon_code\` VARCHAR(50) NOT NULL,
+          \`coupon_name\` VARCHAR(200) NOT NULL,
+          \`description\` TEXT NULL,
+          \`coupon_type\` ENUM('PERCENTAGE','FIXED_AMOUNT','FREE_SHIPPING','BUY_X_GET_Y') NOT NULL DEFAULT 'PERCENTAGE',
+          \`discount_value\` DECIMAL(18,4) NOT NULL,
+          \`max_discount_amount\` DECIMAL(18,4) NULL,
+          \`min_order_amount\` DECIMAL(18,4) NULL,
+          \`min_quantity\` INT NULL,
+          \`start_date\` TIMESTAMP NOT NULL,
+          \`end_date\` TIMESTAMP NULL,
+          \`usage_limit\` INT NULL,
+          \`usage_limit_per_customer\` INT NULL,
+          \`times_used\` INT NOT NULL DEFAULT 0,
+          \`status\` ENUM('ACTIVE','INACTIVE','EXPIRED','EXHAUSTED') NOT NULL DEFAULT 'ACTIVE',
+          \`applies_to_all_products\` TINYINT NOT NULL DEFAULT 1,
+          \`applies_to_all_customers\` TINYINT NOT NULL DEFAULT 1,
+          \`is_first_order_only\` TINYINT NOT NULL DEFAULT 0,
+          \`is_combinable\` TINYINT NOT NULL DEFAULT 0,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_coupons_code\` (\`coupon_code\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`customer_credentials\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`customer_id\` CHAR(36) NOT NULL,
+          \`password_hash\` VARCHAR(255) NOT NULL,
+          \`password_changed_at\` TIMESTAMP NULL,
+          \`email_verified\` TINYINT NOT NULL DEFAULT 0,
+          \`email_verification_token\` VARCHAR(255) NULL,
+          \`email_verification_expires\` TIMESTAMP NULL,
+          \`password_reset_token\` VARCHAR(255) NULL,
+          \`password_reset_expires\` TIMESTAMP NULL,
+          \`failed_login_attempts\` INT NOT NULL DEFAULT 0,
+          \`locked_until\` TIMESTAMP NULL,
+          \`last_login_at\` TIMESTAMP NULL,
+          \`last_login_ip\` VARCHAR(45) NULL,
+          \`two_factor_enabled\` TINYINT NOT NULL DEFAULT 0,
+          \`two_factor_secret\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_cc_customer\` (\`customer_id\`),
+          CONSTRAINT \`fk_cc_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`order_payments\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`order_id\` VARCHAR(255) NOT NULL,
+          \`payment_method_id\` VARCHAR(255) NOT NULL,
+          \`payment_date\` TIMESTAMP NOT NULL,
+          \`amount\` DECIMAL(18,4) NOT NULL,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`status\` ENUM('PENDING','PROCESSING','COMPLETED','FAILED','CANCELLED','REFUNDED','PARTIALLY_REFUNDED') NOT NULL DEFAULT 'PENDING',
+          \`transaction_id\` VARCHAR(255) NULL,
+          \`gateway_transaction_id\` VARCHAR(255) NULL,
+          \`gateway_response\` JSON NULL,
+          \`payment_reference\` VARCHAR(255) NULL,
+          \`refunded_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`refund_reason\` TEXT NULL,
+          \`refunded_at\` TIMESTAMP NULL,
+          \`failure_reason\` TEXT NULL,
+          \`notes\` TEXT NULL,
+          \`processed_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_op_order\` (\`order_id\`),
+          CONSTRAINT \`fk_op_order\` FOREIGN KEY (\`order_id\`) REFERENCES \`sales_orders\` (\`id\`),
+          CONSTRAINT \`fk_op_method\` FOREIGN KEY (\`payment_method_id\`) REFERENCES \`payment_methods\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`sales_returns\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`return_number\` VARCHAR(50) NOT NULL,
+          \`return_date\` DATE NOT NULL,
+          \`sales_order_id\` VARCHAR(255) NOT NULL,
+          \`customer_id\` VARCHAR(255) NOT NULL,
+          \`warehouse_id\` VARCHAR(255) NOT NULL,
+          \`status\` ENUM('REQUESTED','PENDING_APPROVAL','APPROVED','REJECTED','RECEIVED','INSPECTING','REFUND_PENDING','REFUNDED','EXCHANGED','COMPLETED','CANCELLED') NOT NULL DEFAULT 'REQUESTED',
+          \`return_reason\` ENUM('DEFECTIVE','WRONG_ITEM','NOT_AS_DESCRIBED','DAMAGED_IN_TRANSIT','CHANGED_MIND','QUALITY_ISSUE','EXPIRED','EXCESS_QUANTITY','OTHER') NOT NULL,
+          \`reason_details\` TEXT NULL,
+          \`refund_type\` ENUM('ORIGINAL_PAYMENT','STORE_CREDIT','BANK_TRANSFER','EXCHANGE') NULL,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`subtotal\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`restocking_fee\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`shipping_fee_deduction\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`refund_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`is_pickup_required\` TINYINT NOT NULL DEFAULT 0,
+          \`pickup_address\` TEXT NULL,
+          \`pickup_date\` DATE NULL,
+          \`tracking_number\` VARCHAR(100) NULL,
+          \`received_date\` DATE NULL,
+          \`inspection_notes\` TEXT NULL,
+          \`customer_notes\` TEXT NULL,
+          \`internal_notes\` TEXT NULL,
+          \`refund_transaction_id\` VARCHAR(255) NULL,
+          \`refunded_at\` TIMESTAMP NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_sr_number\` (\`return_number\`),
+          CONSTRAINT \`fk_sr_order\` FOREIGN KEY (\`sales_order_id\`) REFERENCES \`sales_orders\` (\`id\`),
+          CONSTRAINT \`fk_sr_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`),
+          CONSTRAINT \`fk_sr_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`sales_return_items\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`sales_return_id\` VARCHAR(255) NOT NULL,
+          \`order_item_id\` VARCHAR(255) NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`quantity_returned\` DECIMAL(18,4) NOT NULL,
+          \`quantity_received\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`quantity_restocked\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`unit_price\` DECIMAL(18,4) NOT NULL,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`line_total\` DECIMAL(18,4) NOT NULL,
+          \`refund_amount\` DECIMAL(18,4) NULL,
+          \`condition\` ENUM('GOOD','LIKE_NEW','NEW','OPENED','DAMAGED','DEFECTIVE','EXPIRED') NULL,
+          \`disposition\` ENUM('RESTOCK','SCRAP','REFURBISH','RETURN_TO_VENDOR','PENDING') NOT NULL DEFAULT 'PENDING',
+          \`reason\` TEXT NULL,
+          \`inspection_notes\` TEXT NULL,
+          \`is_restocked\` TINYINT NOT NULL DEFAULT 0,
+          \`restocked_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_sri_return\` (\`sales_return_id\`),
+          CONSTRAINT \`fk_sri_return\` FOREIGN KEY (\`sales_return_id\`) REFERENCES \`sales_returns\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_sri_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_sri_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_sri_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`shipping_methods\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`method_code\` VARCHAR(50) NOT NULL,
+          \`method_name\` VARCHAR(200) NOT NULL,
+          \`description\` TEXT NULL,
+          \`carrier_type\` ENUM('INTERNAL','EXTERNAL','PICKUP') NOT NULL DEFAULT 'INTERNAL',
+          \`carrier_code\` VARCHAR(50) NULL,
+          \`calculation_type\` ENUM('FLAT_RATE','WEIGHT_BASED','PRICE_BASED','ITEM_BASED','REAL_TIME','FREE') NOT NULL DEFAULT 'FLAT_RATE',
+          \`base_rate\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`rate_per_kg\` DECIMAL(18,4) NULL,
+          \`rate_per_item\` DECIMAL(18,4) NULL,
+          \`free_shipping_threshold\` DECIMAL(18,4) NULL,
+          \`min_order_amount\` DECIMAL(18,4) NULL,
+          \`max_order_amount\` DECIMAL(18,4) NULL,
+          \`max_weight_kg\` DECIMAL(10,2) NULL,
+          \`estimated_delivery_days_min\` INT NULL,
+          \`estimated_delivery_days_max\` INT NULL,
+          \`tracking_available\` TINYINT NOT NULL DEFAULT 0,
+          \`insurance_available\` TINYINT NOT NULL DEFAULT 0,
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`sort_order\` INT NOT NULL DEFAULT 0,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_sm_code\` (\`method_code\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`shopping_carts\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`customer_id\` VARCHAR(255) NULL,
+          \`session_id\` VARCHAR(255) NULL,
+          \`status\` ENUM('ACTIVE','CONVERTED','ABANDONED','MERGED') NOT NULL DEFAULT 'ACTIVE',
+          \`subtotal\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`discount_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`coupon_id\` VARCHAR(255) NULL,
+          \`coupon_code\` VARCHAR(50) NULL,
+          \`coupon_discount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`item_count\` INT NOT NULL DEFAULT 0,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`ip_address\` VARCHAR(45) NULL,
+          \`user_agent\` TEXT NULL,
+          \`last_activity_at\` TIMESTAMP NULL,
+          \`converted_order_id\` VARCHAR(255) NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_sc_customer\` (\`customer_id\`),
+          CONSTRAINT \`fk_sc_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`),
+          CONSTRAINT \`fk_sc_coupon\` FOREIGN KEY (\`coupon_id\`) REFERENCES \`coupons\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`shopping_cart_items\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`cart_id\` VARCHAR(255) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`quantity\` DECIMAL(18,4) NOT NULL DEFAULT 1,
+          \`unit_price\` DECIMAL(18,4) NOT NULL,
+          \`original_price\` DECIMAL(18,4) NULL,
+          \`discount_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`line_total\` DECIMAL(18,4) NOT NULL,
+          \`custom_options\` JSON NULL,
+          \`notes\` TEXT NULL,
+          \`added_at\` TIMESTAMP NOT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_sci_cart\` (\`cart_id\`),
+          CONSTRAINT \`fk_sci_cart\` FOREIGN KEY (\`cart_id\`) REFERENCES \`shopping_carts\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_sci_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_sci_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`wishlists\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`customer_id\` VARCHAR(255) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`notes\` TEXT NULL,
+          \`priority\` INT NOT NULL DEFAULT 0,
+          \`notify_on_sale\` TINYINT NOT NULL DEFAULT 0,
+          \`notify_on_stock\` TINYINT NOT NULL DEFAULT 0,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_wl_customer\` (\`customer_id\`),
+          CONSTRAINT \`fk_wl_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_wl_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_wl_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      // ─── Due Management ───────────────────────────────────────────────────
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`customer_dues\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`customer_id\` VARCHAR(255) NOT NULL,
+          \`reference_type\` ENUM('SALES_ORDER','INVOICE','DEBIT_NOTE','OPENING_BALANCE','OTHER') NOT NULL,
+          \`sales_order_id\` VARCHAR(255) NULL,
+          \`reference_id\` VARCHAR(255) NULL,
+          \`reference_number\` VARCHAR(50) NULL,
+          \`due_date\` DATE NOT NULL,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`original_amount\` DECIMAL(18,4) NOT NULL,
+          \`paid_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`adjusted_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`written_off_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`status\` ENUM('PENDING','PARTIAL','PAID','OVERDUE','WRITTEN_OFF','CANCELLED') NOT NULL DEFAULT 'PENDING',
+          \`last_reminder_date\` DATE NULL,
+          \`reminder_count\` INT NOT NULL DEFAULT 0,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_cd_customer\` (\`customer_id\`),
+          INDEX \`idx_cd_due_date\` (\`due_date\`),
+          CONSTRAINT \`fk_cd_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`),
+          CONSTRAINT \`fk_cd_order\` FOREIGN KEY (\`sales_order_id\`) REFERENCES \`sales_orders\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`customer_due_collections\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`collection_number\` VARCHAR(50) NOT NULL,
+          \`collection_date\` DATE NOT NULL,
+          \`customer_id\` VARCHAR(255) NOT NULL,
+          \`payment_method_id\` VARCHAR(255) NOT NULL,
+          \`amount\` DECIMAL(18,4) NOT NULL,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`status\` ENUM('DRAFT','PENDING','CONFIRMED','DEPOSITED','BOUNCED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`reference_number\` VARCHAR(100) NULL,
+          \`cheque_number\` VARCHAR(50) NULL,
+          \`cheque_date\` DATE NULL,
+          \`cheque_bank\` VARCHAR(200) NULL,
+          \`bank_account_id\` VARCHAR(255) NULL,
+          \`deposit_date\` DATE NULL,
+          \`clearance_date\` DATE NULL,
+          \`bounce_date\` DATE NULL,
+          \`bounce_reason\` TEXT NULL,
+          \`bounce_charges\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`allocated_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`unallocated_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`journal_entry_id\` VARCHAR(255) NULL,
+          \`notes\` TEXT NULL,
+          \`received_by\` VARCHAR(255) NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_cdc_number\` (\`collection_number\`),
+          INDEX \`idx_cdc_customer\` (\`customer_id\`),
+          CONSTRAINT \`fk_cdc_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`),
+          CONSTRAINT \`fk_cdc_method\` FOREIGN KEY (\`payment_method_id\`) REFERENCES \`payment_methods\` (\`id\`),
+          CONSTRAINT \`fk_cdc_bank\` FOREIGN KEY (\`bank_account_id\`) REFERENCES \`bank_accounts\` (\`id\`),
+          CONSTRAINT \`fk_cdc_je\` FOREIGN KEY (\`journal_entry_id\`) REFERENCES \`journal_entries\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`customer_due_collection_allocations\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`collection_id\` VARCHAR(255) NOT NULL,
+          \`customer_due_id\` VARCHAR(255) NOT NULL,
+          \`allocated_amount\` DECIMAL(18,4) NOT NULL,
+          \`allocation_date\` DATE NOT NULL,
+          \`notes\` TEXT NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_cdca_collection\` (\`collection_id\`),
+          CONSTRAINT \`fk_cdca_collection\` FOREIGN KEY (\`collection_id\`) REFERENCES \`customer_due_collections\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_cdca_due\` FOREIGN KEY (\`customer_due_id\`) REFERENCES \`customer_dues\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`credit_notes\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`credit_note_number\` VARCHAR(50) NOT NULL,
+          \`credit_note_date\` DATE NOT NULL,
+          \`customer_id\` VARCHAR(255) NOT NULL,
+          \`sales_order_id\` VARCHAR(255) NULL,
+          \`sales_return_id\` VARCHAR(255) NULL,
+          \`reason\` ENUM('SALES_RETURN','PRICE_ADJUSTMENT','DISCOUNT','DAMAGED_GOODS','QUALITY_ISSUE','DUPLICATE_PAYMENT','GOODWILL','OTHER') NOT NULL,
+          \`reason_details\` TEXT NULL,
+          \`status\` ENUM('DRAFT','PENDING_APPROVAL','APPROVED','REJECTED','ISSUED','PARTIALLY_USED','FULLY_USED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`subtotal\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_amount\` DECIMAL(18,4) NOT NULL,
+          \`used_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`balance_amount\` DECIMAL(18,4) NOT NULL,
+          \`valid_until\` DATE NULL,
+          \`journal_entry_id\` VARCHAR(255) NULL,
+          \`notes\` TEXT NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_cn_number\` (\`credit_note_number\`),
+          CONSTRAINT \`fk_cn_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`),
+          CONSTRAINT \`fk_cn_order\` FOREIGN KEY (\`sales_order_id\`) REFERENCES \`sales_orders\` (\`id\`),
+          CONSTRAINT \`fk_cn_return\` FOREIGN KEY (\`sales_return_id\`) REFERENCES \`sales_returns\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`debit_notes\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`debit_note_number\` VARCHAR(50) NOT NULL,
+          \`debit_note_date\` DATE NOT NULL,
+          \`supplier_id\` VARCHAR(255) NOT NULL,
+          \`purchase_order_id\` VARCHAR(255) NULL,
+          \`grn_id\` VARCHAR(255) NULL,
+          \`purchase_return_id\` VARCHAR(255) NULL,
+          \`reason\` ENUM('PURCHASE_RETURN','PRICE_ADJUSTMENT','QUALITY_ISSUE','SHORTAGE','DAMAGED_GOODS','EXCESS_BILLING','OTHER') NOT NULL,
+          \`reason_details\` TEXT NULL,
+          \`status\` ENUM('DRAFT','PENDING_APPROVAL','APPROVED','REJECTED','ISSUED','SENT_TO_SUPPLIER','ACKNOWLEDGED','PARTIALLY_ADJUSTED','FULLY_ADJUSTED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`subtotal\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_amount\` DECIMAL(18,4) NOT NULL,
+          \`adjusted_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`balance_amount\` DECIMAL(18,4) NOT NULL,
+          \`supplier_acknowledgement_number\` VARCHAR(100) NULL,
+          \`supplier_acknowledgement_date\` DATE NULL,
+          \`journal_entry_id\` VARCHAR(255) NULL,
+          \`notes\` TEXT NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_dn_number\` (\`debit_note_number\`),
+          CONSTRAINT \`fk_dn_supplier\` FOREIGN KEY (\`supplier_id\`) REFERENCES \`suppliers\` (\`id\`),
+          CONSTRAINT \`fk_dn_po\` FOREIGN KEY (\`purchase_order_id\`) REFERENCES \`purchase_orders\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`payment_reminders\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`customer_id\` VARCHAR(255) NOT NULL,
+          \`customer_due_id\` VARCHAR(255) NULL,
+          \`reminder_type\` ENUM('EMAIL','SMS','PHONE_CALL','LETTER','WHATSAPP','IN_PERSON') NOT NULL,
+          \`status\` ENUM('SCHEDULED','SENT','DELIVERED','FAILED','CANCELLED') NOT NULL DEFAULT 'SCHEDULED',
+          \`reminder_date\` DATE NOT NULL,
+          \`scheduled_time\` TIME NULL,
+          \`sent_at\` TIMESTAMP NULL,
+          \`subject\` TEXT NULL,
+          \`message\` TEXT NULL,
+          \`recipient_email\` VARCHAR(255) NULL,
+          \`recipient_phone\` VARCHAR(50) NULL,
+          \`overdue_amount\` DECIMAL(18,4) NULL,
+          \`overdue_days\` INT NULL,
+          \`reminder_level\` INT NOT NULL DEFAULT 1,
+          \`response_received\` TINYINT NOT NULL DEFAULT 0,
+          \`response_date\` DATE NULL,
+          \`response_notes\` TEXT NULL,
+          \`promise_to_pay_date\` DATE NULL,
+          \`promised_amount\` DECIMAL(18,4) NULL,
+          \`follow_up_required\` TINYINT NOT NULL DEFAULT 0,
+          \`follow_up_date\` DATE NULL,
+          \`notes\` TEXT NULL,
+          \`sent_by\` VARCHAR(255) NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_pr_customer\` (\`customer_id\`),
+          CONSTRAINT \`fk_pr_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`),
+          CONSTRAINT \`fk_pr_due\` FOREIGN KEY (\`customer_due_id\`) REFERENCES \`customer_dues\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`supplier_dues\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`supplier_id\` VARCHAR(255) NOT NULL,
+          \`reference_type\` ENUM('PURCHASE_ORDER','GRN','BILL','CREDIT_NOTE','OPENING_BALANCE','OTHER') NOT NULL,
+          \`reference_id\` VARCHAR(255) NULL,
+          \`purchase_order_id\` VARCHAR(255) NULL,
+          \`reference_number\` VARCHAR(50) NULL,
+          \`bill_number\` VARCHAR(100) NULL,
+          \`bill_date\` DATE NULL,
+          \`due_date\` DATE NOT NULL,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`original_amount\` DECIMAL(18,4) NOT NULL,
+          \`paid_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`adjusted_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`status\` ENUM('PENDING','PARTIAL','PAID','OVERDUE','WRITTEN_OFF','CANCELLED') NOT NULL DEFAULT 'PENDING',
+          \`payment_scheduled_date\` DATE NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_sd_supplier\` (\`supplier_id\`),
+          INDEX \`idx_sd_due_date\` (\`due_date\`),
+          CONSTRAINT \`fk_sd_supplier\` FOREIGN KEY (\`supplier_id\`) REFERENCES \`suppliers\` (\`id\`),
+          CONSTRAINT \`fk_sd_po\` FOREIGN KEY (\`purchase_order_id\`) REFERENCES \`purchase_orders\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`supplier_payments\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`payment_number\` VARCHAR(50) NOT NULL,
+          \`payment_date\` DATE NOT NULL,
+          \`supplier_id\` VARCHAR(255) NOT NULL,
+          \`payment_method_id\` VARCHAR(255) NOT NULL,
+          \`bank_account_id\` VARCHAR(255) NULL,
+          \`amount\` DECIMAL(18,4) NOT NULL,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`exchange_rate\` DECIMAL(12,6) NOT NULL DEFAULT 1,
+          \`status\` ENUM('DRAFT','PENDING_APPROVAL','APPROVED','PROCESSING','COMPLETED','FAILED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`reference_number\` VARCHAR(100) NULL,
+          \`cheque_number\` VARCHAR(50) NULL,
+          \`cheque_date\` DATE NULL,
+          \`bank_reference\` VARCHAR(100) NULL,
+          \`transaction_id\` VARCHAR(255) NULL,
+          \`allocated_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`unallocated_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tds_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tds_percentage\` DECIMAL(5,2) NULL,
+          \`journal_entry_id\` VARCHAR(255) NULL,
+          \`notes\` TEXT NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_sp_number\` (\`payment_number\`),
+          INDEX \`idx_sp_supplier\` (\`supplier_id\`),
+          CONSTRAINT \`fk_sp_supplier\` FOREIGN KEY (\`supplier_id\`) REFERENCES \`suppliers\` (\`id\`),
+          CONSTRAINT \`fk_sp_method\` FOREIGN KEY (\`payment_method_id\`) REFERENCES \`payment_methods\` (\`id\`),
+          CONSTRAINT \`fk_sp_bank\` FOREIGN KEY (\`bank_account_id\`) REFERENCES \`bank_accounts\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`supplier_payment_allocations\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`payment_id\` VARCHAR(255) NOT NULL,
+          \`supplier_due_id\` VARCHAR(255) NOT NULL,
+          \`allocated_amount\` DECIMAL(18,4) NOT NULL,
+          \`allocation_date\` DATE NOT NULL,
+          \`notes\` TEXT NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_spa_payment\` (\`payment_id\`),
+          CONSTRAINT \`fk_spa_payment\` FOREIGN KEY (\`payment_id\`) REFERENCES \`supplier_payments\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_spa_due\` FOREIGN KEY (\`supplier_due_id\`) REFERENCES \`supplier_dues\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      // ─── Warehouse Extras ─────────────────────────────────────────────────
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`inventory_batches\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`batch_number\` VARCHAR(100) NOT NULL,
+          \`manufacturing_date\` DATE NULL,
+          \`expiry_date\` DATE NULL,
+          \`supplier_id\` VARCHAR(255) NULL,
+          \`warehouse_id\` VARCHAR(255) NULL,
+          \`purchase_order_id\` VARCHAR(255) NULL,
+          \`cost_price\` DECIMAL(18,4) NULL,
+          \`current_quantity\` DECIMAL(18,4) NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_ib_product\` (\`product_id\`),
+          INDEX \`idx_ib_batch_number\` (\`batch_number\`),
+          CONSTRAINT \`fk_ib_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_ib_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_ib_supplier\` FOREIGN KEY (\`supplier_id\`) REFERENCES \`suppliers\` (\`id\`),
+          CONSTRAINT \`fk_ib_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
+          CONSTRAINT \`fk_ib_po\` FOREIGN KEY (\`purchase_order_id\`) REFERENCES \`purchase_orders\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`inventory_serial_numbers\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`serial_number\` VARCHAR(100) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`batch_id\` VARCHAR(255) NULL,
+          \`warehouse_id\` VARCHAR(255) NULL,
+          \`location_id\` VARCHAR(255) NULL,
+          \`status\` ENUM('AVAILABLE','RESERVED','SOLD','IN_TRANSIT','RETURNED','DAMAGED','SCRAPPED') NOT NULL DEFAULT 'AVAILABLE',
+          \`cost_price\` DECIMAL(18,4) NULL,
+          \`purchase_order_id\` VARCHAR(255) NULL,
+          \`grn_id\` VARCHAR(255) NULL,
+          \`received_date\` DATE NULL,
+          \`sales_order_id\` VARCHAR(255) NULL,
+          \`sold_date\` DATE NULL,
+          \`warranty_start_date\` DATE NULL,
+          \`warranty_end_date\` DATE NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_isn_serial\` (\`serial_number\`),
+          INDEX \`idx_isn_product\` (\`product_id\`),
+          CONSTRAINT \`fk_isn_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_isn_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_isn_batch\` FOREIGN KEY (\`batch_id\`) REFERENCES \`inventory_batches\` (\`id\`),
+          CONSTRAINT \`fk_isn_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
+          CONSTRAINT \`fk_isn_location\` FOREIGN KEY (\`location_id\`) REFERENCES \`warehouse_locations\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`location_inventory\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`warehouse_id\` VARCHAR(255) NOT NULL,
+          \`location_id\` VARCHAR(255) NOT NULL,
+          \`batch_id\` VARCHAR(255) NULL,
+          \`quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`quantity_reserved\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`status\` ENUM('AVAILABLE','RESERVED','DAMAGED','QUARANTINE','ON_HOLD') NOT NULL DEFAULT 'AVAILABLE',
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_li_product_location\` (\`product_id\`, \`location_id\`),
+          CONSTRAINT \`fk_li_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_li_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_li_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
+          CONSTRAINT \`fk_li_location\` FOREIGN KEY (\`location_id\`) REFERENCES \`warehouse_locations\` (\`id\`),
+          CONSTRAINT \`fk_li_batch\` FOREIGN KEY (\`batch_id\`) REFERENCES \`inventory_batches\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`stock_adjustments\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`adjustment_number\` VARCHAR(50) NOT NULL,
+          \`adjustment_date\` DATE NOT NULL,
+          \`warehouse_id\` VARCHAR(255) NOT NULL,
+          \`adjustment_type\` ENUM('INCREASE','DECREASE','WRITE_OFF','OPENING_STOCK','CYCLE_COUNT','DAMAGE','EXPIRY','THEFT','OTHER') NOT NULL,
+          \`status\` ENUM('DRAFT','PENDING_APPROVAL','APPROVED','REJECTED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`reason\` TEXT NOT NULL,
+          \`reference_number\` VARCHAR(50) NULL,
+          \`total_value_impact\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`notes\` TEXT NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`rejection_reason\` TEXT NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_sa_number\` (\`adjustment_number\`),
+          CONSTRAINT \`fk_sa_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`stock_adjustment_items\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`stock_adjustment_id\` VARCHAR(255) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`location_id\` VARCHAR(255) NULL,
+          \`batch_id\` VARCHAR(255) NULL,
+          \`system_quantity\` DECIMAL(18,4) NOT NULL,
+          \`physical_quantity\` DECIMAL(18,4) NOT NULL,
+          \`adjustment_quantity\` DECIMAL(18,4) NOT NULL,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`unit_cost\` DECIMAL(18,4) NULL,
+          \`value_impact\` DECIMAL(18,4) NULL,
+          \`reason\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_sai_adjustment\` (\`stock_adjustment_id\`),
+          CONSTRAINT \`fk_sai_adjustment\` FOREIGN KEY (\`stock_adjustment_id\`) REFERENCES \`stock_adjustments\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_sai_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_sai_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_sai_location\` FOREIGN KEY (\`location_id\`) REFERENCES \`warehouse_locations\` (\`id\`),
+          CONSTRAINT \`fk_sai_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`stock_movements\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`movement_number\` VARCHAR(50) NOT NULL,
+          \`movement_type\` ENUM('PURCHASE_RECEIPT','SALES_ISSUE','TRANSFER_IN','TRANSFER_OUT','ADJUSTMENT_IN','ADJUSTMENT_OUT','RETURN_FROM_CUSTOMER','RETURN_TO_SUPPLIER','PRODUCTION_ISSUE','PRODUCTION_RECEIPT','OPENING_STOCK','WRITE_OFF','DAMAGE','EXPIRY','SAMPLE','INTER_LOCATION_IN','INTER_LOCATION_OUT','SCRAP','OTHER') NOT NULL,
+          \`movement_date\` TIMESTAMP NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`batch_id\` VARCHAR(255) NULL,
+          \`from_warehouse_id\` VARCHAR(255) NULL,
+          \`to_warehouse_id\` VARCHAR(255) NULL,
+          \`from_location_id\` VARCHAR(255) NULL,
+          \`to_location_id\` VARCHAR(255) NULL,
+          \`quantity\` DECIMAL(18,4) NOT NULL,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`unit_cost\` DECIMAL(18,4) NULL,
+          \`total_cost\` DECIMAL(18,4) NULL,
+          \`reference_type\` VARCHAR(50) NULL,
+          \`reference_id\` VARCHAR(255) NULL,
+          \`reference_number\` VARCHAR(50) NULL,
+          \`reason\` TEXT NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_sm_number\` (\`movement_number\`),
+          INDEX \`idx_smov_product_date\` (\`product_id\`, \`movement_date\`),
+          CONSTRAINT \`fk_smov_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_smov_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`warehouse_transfers\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`transfer_number\` VARCHAR(50) NOT NULL,
+          \`transfer_type\` ENUM('INTER_WAREHOUSE','INTER_LOCATION') NOT NULL DEFAULT 'INTER_WAREHOUSE',
+          \`transfer_date\` DATE NOT NULL,
+          \`from_warehouse_id\` VARCHAR(255) NOT NULL,
+          \`to_warehouse_id\` VARCHAR(255) NOT NULL,
+          \`status\` ENUM('DRAFT','PENDING_APPROVAL','APPROVED','IN_TRANSIT','PARTIALLY_RECEIVED','RECEIVED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`expected_delivery_date\` DATE NULL,
+          \`actual_delivery_date\` DATE NULL,
+          \`shipping_method\` VARCHAR(100) NULL,
+          \`tracking_number\` VARCHAR(100) NULL,
+          \`shipping_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_value\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`reason\` TEXT NULL,
+          \`notes\` TEXT NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`shipped_by\` VARCHAR(255) NULL,
+          \`shipped_at\` TIMESTAMP NULL,
+          \`received_by\` VARCHAR(255) NULL,
+          \`received_at\` TIMESTAMP NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_wt_number\` (\`transfer_number\`),
+          CONSTRAINT \`fk_wt_from\` FOREIGN KEY (\`from_warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
+          CONSTRAINT \`fk_wt_to\` FOREIGN KEY (\`to_warehouse_id\`) REFERENCES \`warehouses\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`warehouse_transfer_items\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`warehouse_transfer_id\` VARCHAR(255) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`from_location_id\` VARCHAR(255) NULL,
+          \`to_location_id\` VARCHAR(255) NULL,
+          \`batch_id\` VARCHAR(255) NULL,
+          \`quantity_requested\` DECIMAL(18,4) NOT NULL,
+          \`quantity_shipped\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`quantity_received\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`quantity_damaged\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`unit_cost\` DECIMAL(18,4) NULL,
+          \`line_value\` DECIMAL(18,4) NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_wti_transfer\` (\`warehouse_transfer_id\`),
+          CONSTRAINT \`fk_wti_transfer\` FOREIGN KEY (\`warehouse_transfer_id\`) REFERENCES \`warehouse_transfers\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_wti_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_wti_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_wti_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      // ─── Purchase Extras ──────────────────────────────────────────────────
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`goods_received_notes\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`grn_number\` VARCHAR(50) NOT NULL,
+          \`grn_date\` DATE NOT NULL,
+          \`receipt_date\` DATE NOT NULL,
+          \`purchase_order_id\` VARCHAR(255) NULL,
+          \`supplier_id\` VARCHAR(255) NOT NULL,
+          \`warehouse_id\` VARCHAR(255) NOT NULL,
+          \`status\` ENUM('DRAFT','PENDING_QC','QC_PASSED','QC_FAILED','PARTIALLY_ACCEPTED','ACCEPTED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`supplier_invoice_number\` VARCHAR(100) NULL,
+          \`supplier_invoice_date\` DATE NULL,
+          \`delivery_note_number\` VARCHAR(100) NULL,
+          \`vehicle_number\` VARCHAR(50) NULL,
+          \`transporter_name\` VARCHAR(200) NULL,
+          \`lr_number\` VARCHAR(100) NULL,
+          \`currency\` VARCHAR(100) NULL,
+          \`lr_date\` DATE NULL,
+          \`total_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`accepted_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`rejected_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_value\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`subtotal\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`notes\` TEXT NULL,
+          \`qc_notes\` TEXT NULL,
+          \`qc_by\` VARCHAR(255) NULL,
+          \`qc_at\` TIMESTAMP NULL,
+          \`received_by\` VARCHAR(255) NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` DATETIME DEFAULT CURRENT_TIMESTAMP,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_grn_number\` (\`grn_number\`),
+          INDEX \`idx_grn_supplier\` (\`supplier_id\`),
+          CONSTRAINT \`fk_grn_po\` FOREIGN KEY (\`purchase_order_id\`) REFERENCES \`purchase_orders\` (\`id\`),
+          CONSTRAINT \`fk_grn_supplier\` FOREIGN KEY (\`supplier_id\`) REFERENCES \`suppliers\` (\`id\`),
+          CONSTRAINT \`fk_grn_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`grn_items\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`grn_id\` VARCHAR(255) NOT NULL,
+          \`po_item_id\` VARCHAR(255) NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`location_id\` VARCHAR(255) NULL,
+          \`batch_id\` VARCHAR(255) NULL,
+          \`quantity_received\` DECIMAL(18,4) NOT NULL,
+          \`quantity_accepted\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`quantity_rejected\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`unit_price\` DECIMAL(18,4) NULL,
+          \`line_value\` DECIMAL(18,4) NULL,
+          \`status\` ENUM('PENDING_QC','QC_PASSED','QC_FAILED','PARTIALLY_ACCEPTED','ACCEPTED') NOT NULL DEFAULT 'PENDING_QC',
+          \`batch_number\` VARCHAR(100) NULL,
+          \`manufacturing_date\` DATE NULL,
+          \`expiry_date\` DATE NULL,
+          \`rejection_reason\` TEXT NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_grni_grn\` (\`grn_id\`),
+          CONSTRAINT \`fk_grni_grn\` FOREIGN KEY (\`grn_id\`) REFERENCES \`goods_received_notes\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_grni_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_grni_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_grni_location\` FOREIGN KEY (\`location_id\`) REFERENCES \`warehouse_locations\` (\`id\`),
+          CONSTRAINT \`fk_grni_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`purchase_returns\` (
+          \`id\` CHAR(36) NOT NULL,
+          \`return_number\` VARCHAR(50) NOT NULL,
+          \`purchase_order_id\` CHAR(36) NULL,
+          \`grn_id\` CHAR(36) NULL,
+          \`supplier_id\` CHAR(36) NOT NULL,
+          \`warehouse_id\` CHAR(36) NOT NULL,
+          \`return_date\` DATE NOT NULL,
+          \`status\` ENUM('DRAFT','PENDING_APPROVAL','APPROVED','REJECTED','SHIPPED','DELIVERED','CREDIT_RECEIVED','REPLACEMENT_RECEIVED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`return_type\` VARCHAR(50) NOT NULL,
+          \`reason\` VARCHAR(500) NOT NULL,
+          \`reason_details\` TEXT NULL,
+          \`currency\` CHAR(3) NOT NULL DEFAULT 'INR',
+          \`subtotal\` DECIMAL(15,4) NOT NULL DEFAULT 0,
+          \`tax_amount\` DECIMAL(15,4) NOT NULL DEFAULT 0,
+          \`total_amount\` DECIMAL(15,4) NOT NULL DEFAULT 0,
+          \`tracking_number\` VARCHAR(100) NULL,
+          \`credit_note_number\` VARCHAR(100) NULL,
+          \`credit_note_amount\` DECIMAL(15,4) NULL,
+          \`credit_note_date\` DATE NULL,
+          \`approved_by\` CHAR(36) NULL,
+          \`approved_at\` DATETIME NULL,
+          \`shipped_by\` CHAR(36) NULL,
+          \`shipped_at\` DATETIME NULL,
+          \`received_by_supplier_at\` DATETIME NULL,
+          \`rejection_reason\` VARCHAR(500) NULL,
+          \`notes\` TEXT NULL,
+          \`created_by\` CHAR(36) NULL,
+          \`updated_by\` CHAR(36) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_pr_number\` (\`return_number\`),
+          INDEX \`idx_pr_supplier_date\` (\`supplier_id\`, \`return_date\`),
+          INDEX \`idx_pr_status\` (\`status\`),
+          CONSTRAINT \`fk_pr_supplier\` FOREIGN KEY (\`supplier_id\`) REFERENCES \`suppliers\` (\`id\`),
+          CONSTRAINT \`fk_pr_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
+          CONSTRAINT \`fk_pr_po\` FOREIGN KEY (\`purchase_order_id\`) REFERENCES \`purchase_orders\` (\`id\`),
+          CONSTRAINT \`fk_pr_grn\` FOREIGN KEY (\`grn_id\`) REFERENCES \`goods_received_notes\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`purchase_return_items\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`purchase_return_id\` VARCHAR(255) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`batch_id\` VARCHAR(255) NULL,
+          \`quantity\` DECIMAL(18,4) NOT NULL,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`unit_price\` DECIMAL(18,4) NOT NULL,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`line_total\` DECIMAL(18,4) NOT NULL,
+          \`reason\` TEXT NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_pri_return\` (\`purchase_return_id\`),
+          CONSTRAINT \`fk_pri_return\` FOREIGN KEY (\`purchase_return_id\`) REFERENCES \`purchase_returns\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_pri_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_pri_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_pri_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      // ─── POS ──────────────────────────────────────────────────────────────
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`stores\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`store_code\` VARCHAR(50) NOT NULL,
+          \`store_name\` VARCHAR(200) NOT NULL,
+          \`store_type\` ENUM('RETAIL','OUTLET','FRANCHISE','POPUP','KIOSK') NOT NULL DEFAULT 'RETAIL',
+          \`warehouse_id\` VARCHAR(255) NOT NULL,
+          \`address_line1\` VARCHAR(255) NULL,
+          \`address_line2\` VARCHAR(255) NULL,
+          \`city\` VARCHAR(100) NULL,
+          \`state\` VARCHAR(100) NULL,
+          \`country\` VARCHAR(100) NULL,
+          \`postal_code\` VARCHAR(20) NULL,
+          \`phone\` VARCHAR(50) NULL,
+          \`email\` VARCHAR(255) NULL,
+          \`manager_id\` VARCHAR(255) NULL,
+          \`opening_time\` TIME NULL,
+          \`closing_time\` TIME NULL,
+          \`timezone\` VARCHAR(100) NOT NULL DEFAULT 'Asia/Kolkata',
+          \`tax_id\` VARCHAR(100) NULL,
+          \`default_price_list_id\` VARCHAR(255) NULL,
+          \`receipt_header\` TEXT NULL,
+          \`receipt_footer\` TEXT NULL,
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_stores_code\` (\`store_code\`),
+          CONSTRAINT \`fk_stores_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
+          CONSTRAINT \`fk_stores_price_list\` FOREIGN KEY (\`default_price_list_id\`) REFERENCES \`price_lists\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`pos_terminals\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`terminal_code\` VARCHAR(50) NOT NULL,
+          \`terminal_name\` VARCHAR(200) NOT NULL,
+          \`store_id\` VARCHAR(255) NOT NULL,
+          \`terminal_type\` ENUM('DESKTOP','TABLET','MOBILE','SELF_SERVICE') NOT NULL DEFAULT 'DESKTOP',
+          \`device_id\` VARCHAR(200) NULL,
+          \`ip_address\` VARCHAR(45) NULL,
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`last_sync_at\` TIMESTAMP NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_pt_code\` (\`terminal_code\`),
+          CONSTRAINT \`fk_pt_store\` FOREIGN KEY (\`store_id\`) REFERENCES \`stores\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`pos_sessions\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`session_number\` VARCHAR(50) NOT NULL,
+          \`store_id\` VARCHAR(255) NOT NULL,
+          \`terminal_id\` VARCHAR(255) NOT NULL,
+          \`user_id\` VARCHAR(255) NOT NULL,
+          \`status\` ENUM('OPEN','CLOSED','SUSPENDED') NOT NULL DEFAULT 'OPEN',
+          \`opening_time\` TIMESTAMP NOT NULL,
+          \`closing_time\` TIMESTAMP NULL,
+          \`opening_cash\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`closing_cash\` DECIMAL(18,4) NULL,
+          \`expected_cash\` DECIMAL(18,4) NULL,
+          \`cash_difference\` DECIMAL(18,4) NULL,
+          \`total_sales\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_returns\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_transactions\` INT NOT NULL DEFAULT 0,
+          \`cash_sales\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`card_sales\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`upi_sales\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`other_sales\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`cash_in\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`cash_out\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`opening_notes\` TEXT NULL,
+          \`closing_notes\` TEXT NULL,
+          \`closed_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_ps_number\` (\`session_number\`),
+          INDEX \`idx_ps_store\` (\`store_id\`),
+          CONSTRAINT \`fk_ps_store\` FOREIGN KEY (\`store_id\`) REFERENCES \`stores\` (\`id\`),
+          CONSTRAINT \`fk_ps_terminal\` FOREIGN KEY (\`terminal_id\`) REFERENCES \`pos_terminals\` (\`id\`),
+          CONSTRAINT \`fk_ps_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`pos_transactions\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`transaction_number\` VARCHAR(50) NOT NULL,
+          \`session_id\` VARCHAR(255) NOT NULL,
+          \`store_id\` VARCHAR(255) NOT NULL,
+          \`terminal_id\` VARCHAR(255) NOT NULL,
+          \`sales_order_id\` VARCHAR(255) NULL,
+          \`transaction_type\` ENUM('SALE','RETURN','EXCHANGE','VOID') NOT NULL DEFAULT 'SALE',
+          \`customer_id\` VARCHAR(255) NULL,
+          \`customer_name\` VARCHAR(200) NULL,
+          \`customer_phone\` VARCHAR(50) NULL,
+          \`transaction_date\` TIMESTAMP NOT NULL,
+          \`subtotal\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`discount_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`paid_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`change_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`status\` ENUM('COMPLETED','VOIDED','HELD','PENDING') NOT NULL DEFAULT 'COMPLETED',
+          \`void_reason\` TEXT NULL,
+          \`voided_by\` VARCHAR(255) NULL,
+          \`voided_at\` TIMESTAMP NULL,
+          \`notes\` TEXT NULL,
+          \`cashier_id\` VARCHAR(255) NOT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_ptx_number\` (\`transaction_number\`),
+          INDEX \`idx_ptx_session\` (\`session_id\`),
+          CONSTRAINT \`fk_ptx_session\` FOREIGN KEY (\`session_id\`) REFERENCES \`pos_sessions\` (\`id\`),
+          CONSTRAINT \`fk_ptx_store\` FOREIGN KEY (\`store_id\`) REFERENCES \`stores\` (\`id\`),
+          CONSTRAINT \`fk_ptx_terminal\` FOREIGN KEY (\`terminal_id\`) REFERENCES \`pos_terminals\` (\`id\`),
+          CONSTRAINT \`fk_ptx_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`pos_transaction_items\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`transaction_id\` VARCHAR(255) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`sku\` VARCHAR(100) NOT NULL,
+          \`product_name\` VARCHAR(300) NOT NULL,
+          \`quantity\` DECIMAL(18,4) NOT NULL,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`unit_price\` DECIMAL(18,4) NOT NULL,
+          \`original_price\` DECIMAL(18,4) NULL,
+          \`discount_percentage\` DECIMAL(5,2) NOT NULL DEFAULT 0,
+          \`discount_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tax_percentage\` DECIMAL(5,2) NOT NULL DEFAULT 0,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`line_total\` DECIMAL(18,4) NOT NULL,
+          \`cost_price\` DECIMAL(18,4) NULL,
+          \`serial_number\` VARCHAR(100) NULL,
+          \`batch_number\` VARCHAR(100) NULL,
+          \`is_return_item\` TINYINT NOT NULL DEFAULT 0,
+          \`return_reason\` TEXT NULL,
+          \`original_transaction_item_id\` VARCHAR(255) NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_pti_transaction\` (\`transaction_id\`),
+          CONSTRAINT \`fk_pti_transaction\` FOREIGN KEY (\`transaction_id\`) REFERENCES \`pos_transactions\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_pti_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_pti_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_pti_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`pos_transaction_payments\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`transaction_id\` VARCHAR(255) NOT NULL,
+          \`payment_method_id\` VARCHAR(255) NOT NULL,
+          \`amount\` DECIMAL(18,4) NOT NULL,
+          \`tendered_amount\` DECIMAL(18,4) NULL,
+          \`change_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`status\` ENUM('PENDING','COMPLETED','FAILED','CANCELLED','REFUNDED') NOT NULL DEFAULT 'COMPLETED',
+          \`reference_number\` VARCHAR(100) NULL,
+          \`card_last_four\` VARCHAR(4) NULL,
+          \`card_type\` VARCHAR(50) NULL,
+          \`approval_code\` VARCHAR(50) NULL,
+          \`terminal_response\` JSON NULL,
+          \`is_refund\` TINYINT NOT NULL DEFAULT 0,
+          \`refund_reason\` TEXT NULL,
+          \`original_payment_id\` VARCHAR(255) NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_ptp_transaction\` (\`transaction_id\`),
+          CONSTRAINT \`fk_ptp_transaction\` FOREIGN KEY (\`transaction_id\`) REFERENCES \`pos_transactions\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_ptp_method\` FOREIGN KEY (\`payment_method_id\`) REFERENCES \`payment_methods\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`cash_movements\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`movement_number\` VARCHAR(50) NOT NULL,
+          \`session_id\` VARCHAR(255) NULL,
+          \`store_id\` VARCHAR(255) NOT NULL,
+          \`movement_type\` ENUM('CASH_IN','CASH_OUT','PETTY_CASH','FLOAT','BANK_DEPOSIT','BANK_WITHDRAWAL','EXPENSE','REFUND','ADJUSTMENT') NOT NULL,
+          \`movement_date\` TIMESTAMP NOT NULL,
+          \`amount\` DECIMAL(18,4) NOT NULL,
+          \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
+          \`status\` ENUM('PENDING','APPROVED','REJECTED','CANCELLED') NOT NULL DEFAULT 'APPROVED',
+          \`reason\` TEXT NOT NULL,
+          \`reference_number\` VARCHAR(100) NULL,
+          \`reference_type\` VARCHAR(50) NULL,
+          \`reference_id\` VARCHAR(255) NULL,
+          \`expense_category\` VARCHAR(100) NULL,
+          \`received_from\` VARCHAR(200) NULL,
+          \`paid_to\` VARCHAR(200) NULL,
+          \`notes\` TEXT NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`created_by\` VARCHAR(255) NOT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_cm_number\` (\`movement_number\`),
+          CONSTRAINT \`fk_cm_session\` FOREIGN KEY (\`session_id\`) REFERENCES \`pos_sessions\` (\`id\`),
+          CONSTRAINT \`fk_cm_store\` FOREIGN KEY (\`store_id\`) REFERENCES \`stores\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      // ─── Manufacturing ────────────────────────────────────────────────────
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`workstations\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`workstation_code\` VARCHAR(50) NOT NULL,
+          \`workstation_name\` VARCHAR(200) NOT NULL,
+          \`workstation_type\` ENUM('ASSEMBLY','MACHINING','WELDING','PAINTING','PACKAGING','TESTING','CUTTING','MOLDING','PRINTING','OTHER') NOT NULL DEFAULT 'ASSEMBLY',
+          \`warehouse_id\` VARCHAR(255) NULL,
+          \`description\` TEXT NULL,
+          \`status\` ENUM('AVAILABLE','IN_USE','MAINTENANCE','BREAKDOWN','INACTIVE') NOT NULL DEFAULT 'AVAILABLE',
+          \`hourly_rate\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`operating_cost_per_hour\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`capacity_per_hour\` DECIMAL(18,4) NULL,
+          \`working_hours_per_day\` DECIMAL(4,2) NOT NULL DEFAULT 8,
+          \`efficiency_percentage\` DECIMAL(5,2) NOT NULL DEFAULT 100,
+          \`setup_time_minutes\` INT NOT NULL DEFAULT 0,
+          \`cleanup_time_minutes\` INT NOT NULL DEFAULT 0,
+          \`last_maintenance_date\` DATE NULL,
+          \`next_maintenance_date\` DATE NULL,
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_ws_code\` (\`workstation_code\`),
+          CONSTRAINT \`fk_ws_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`bill_of_materials\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`bom_code\` VARCHAR(50) NOT NULL,
+          \`bom_name\` VARCHAR(200) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`version\` INT NOT NULL DEFAULT 1,
+          \`status\` ENUM('DRAFT','ACTIVE','OBSOLETE') NOT NULL DEFAULT 'DRAFT',
+          \`effective_from\` DATE NULL,
+          \`effective_to\` DATE NULL,
+          \`quantity\` DECIMAL(18,4) NOT NULL DEFAULT 1,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`description\` TEXT NULL,
+          \`total_material_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_operation_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`scrap_percentage\` DECIMAL(5,2) NOT NULL DEFAULT 0,
+          \`is_default\` TINYINT NOT NULL DEFAULT 0,
+          \`notes\` TEXT NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_bom_product\` (\`product_id\`),
+          CONSTRAINT \`fk_bom_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_bom_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_bom_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`bom_items\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`bom_id\` VARCHAR(255) NOT NULL,
+          \`item_type\` ENUM('RAW_MATERIAL','SEMI_FINISHED','SUB_ASSEMBLY','PACKAGING','CONSUMABLE') NOT NULL DEFAULT 'RAW_MATERIAL',
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`quantity\` DECIMAL(18,6) NOT NULL,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`unit_cost\` DECIMAL(18,4) NULL,
+          \`total_cost\` DECIMAL(18,4) NULL,
+          \`scrap_percentage\` DECIMAL(5,2) NOT NULL DEFAULT 0,
+          \`is_critical\` TINYINT NOT NULL DEFAULT 0,
+          \`substitute_product_id\` VARCHAR(255) NULL,
+          \`sequence\` INT NOT NULL DEFAULT 0,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_bi_bom\` (\`bom_id\`),
+          CONSTRAINT \`fk_bi_bom\` FOREIGN KEY (\`bom_id\`) REFERENCES \`bill_of_materials\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_bi_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_bi_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
+          CONSTRAINT \`fk_bi_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`bom_operations\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`bom_id\` VARCHAR(255) NOT NULL,
+          \`operation_number\` INT NOT NULL,
+          \`operation_name\` VARCHAR(200) NOT NULL,
+          \`workstation_id\` VARCHAR(255) NULL,
+          \`description\` TEXT NULL,
+          \`instructions\` TEXT NULL,
+          \`setup_time_minutes\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`operation_time_minutes\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`teardown_time_minutes\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`labor_cost_per_unit\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`overhead_cost_per_unit\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_cost_per_unit\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`is_outsourced\` TINYINT NOT NULL DEFAULT 0,
+          \`outsourced_vendor\` VARCHAR(200) NULL,
+          \`outsourced_cost\` DECIMAL(18,4) NULL,
+          \`is_quality_check_required\` TINYINT NOT NULL DEFAULT 0,
+          \`quality_parameters\` JSON NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_bo_bom\` (\`bom_id\`),
+          CONSTRAINT \`fk_bo_bom\` FOREIGN KEY (\`bom_id\`) REFERENCES \`bill_of_materials\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_bo_workstation\` FOREIGN KEY (\`workstation_id\`) REFERENCES \`workstations\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`work_orders\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`work_order_number\` VARCHAR(50) NOT NULL,
+          \`bom_id\` VARCHAR(255) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`warehouse_id\` VARCHAR(255) NOT NULL,
+          \`status\` ENUM('DRAFT','CONFIRMED','RELEASED','IN_PROGRESS','PAUSED','COMPLETED','CANCELLED','ON_HOLD') NOT NULL DEFAULT 'DRAFT',
+          \`priority\` ENUM('LOW','NORMAL','HIGH','URGENT') NOT NULL DEFAULT 'NORMAL',
+          \`planned_quantity\` DECIMAL(18,4) NOT NULL,
+          \`completed_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`rejected_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`planned_start_date\` DATE NOT NULL,
+          \`planned_end_date\` DATE NOT NULL,
+          \`actual_start_date\` DATE NULL,
+          \`actual_end_date\` DATE NULL,
+          \`sales_order_id\` VARCHAR(255) NULL,
+          \`parent_work_order_id\` VARCHAR(255) NULL,
+          \`estimated_material_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`estimated_labor_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`estimated_overhead_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`estimated_total_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`actual_material_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`actual_labor_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`actual_overhead_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`actual_total_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`notes\` TEXT NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`released_by\` VARCHAR(255) NULL,
+          \`released_at\` TIMESTAMP NULL,
+          \`completed_by\` VARCHAR(255) NULL,
+          \`completed_at\` TIMESTAMP NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_wo_number\` (\`work_order_number\`),
+          INDEX \`idx_wo_product\` (\`product_id\`),
+          CONSTRAINT \`fk_wo_bom\` FOREIGN KEY (\`bom_id\`) REFERENCES \`bill_of_materials\` (\`id\`),
+          CONSTRAINT \`fk_wo_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_wo_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
+          CONSTRAINT \`fk_wo_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`work_order_items\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`work_order_id\` VARCHAR(255) NOT NULL,
+          \`bom_item_id\` VARCHAR(255) NULL,
+          \`item_type\` ENUM('RAW_MATERIAL','SEMI_FINISHED','SUB_ASSEMBLY','PACKAGING','CONSUMABLE') NOT NULL DEFAULT 'RAW_MATERIAL',
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`required_quantity\` DECIMAL(18,4) NOT NULL,
+          \`issued_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`consumed_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`returned_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`scrap_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`unit_cost\` DECIMAL(18,4) NULL,
+          \`total_cost\` DECIMAL(18,4) NULL,
+          \`status\` ENUM('PENDING','PARTIALLY_ISSUED','ISSUED','RETURNED') NOT NULL DEFAULT 'PENDING',
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_woi_order\` (\`work_order_id\`),
+          CONSTRAINT \`fk_woi_order\` FOREIGN KEY (\`work_order_id\`) REFERENCES \`work_orders\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_woi_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_woi_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`work_order_operations\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`work_order_id\` VARCHAR(255) NOT NULL,
+          \`bom_operation_id\` VARCHAR(255) NULL,
+          \`operation_number\` INT NOT NULL,
+          \`operation_name\` VARCHAR(200) NOT NULL,
+          \`workstation_id\` VARCHAR(255) NULL,
+          \`status\` ENUM('PENDING','READY','IN_PROGRESS','PAUSED','COMPLETED','CANCELLED') NOT NULL DEFAULT 'PENDING',
+          \`planned_quantity\` DECIMAL(18,4) NOT NULL,
+          \`completed_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`rejected_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`planned_start_time\` TIMESTAMP NULL,
+          \`planned_end_time\` TIMESTAMP NULL,
+          \`actual_start_time\` TIMESTAMP NULL,
+          \`actual_end_time\` TIMESTAMP NULL,
+          \`planned_duration_minutes\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`actual_duration_minutes\` DECIMAL(10,2) NOT NULL DEFAULT 0,
+          \`estimated_labor_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`actual_labor_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`estimated_overhead_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`actual_overhead_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`operator_id\` VARCHAR(255) NULL,
+          \`instructions\` TEXT NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_woo_order\` (\`work_order_id\`),
+          CONSTRAINT \`fk_woo_order\` FOREIGN KEY (\`work_order_id\`) REFERENCES \`work_orders\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_woo_workstation\` FOREIGN KEY (\`workstation_id\`) REFERENCES \`workstations\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`material_issues\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`issue_number\` VARCHAR(50) NOT NULL,
+          \`issue_date\` TIMESTAMP NOT NULL,
+          \`work_order_id\` VARCHAR(255) NULL,
+          \`warehouse_id\` VARCHAR(255) NOT NULL,
+          \`issue_type\` ENUM('PRODUCTION','REWORK','SAMPLE','REPLACEMENT','OTHER') NOT NULL DEFAULT 'PRODUCTION',
+          \`status\` ENUM('DRAFT','PENDING_APPROVAL','APPROVED','ISSUED','PARTIALLY_RETURNED','RETURNED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+          \`total_value\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`reason\` TEXT NULL,
+          \`notes\` TEXT NULL,
+          \`issued_by\` VARCHAR(255) NULL,
+          \`issued_at\` TIMESTAMP NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_mi_number\` (\`issue_number\`),
+          CONSTRAINT \`fk_mi_work_order\` FOREIGN KEY (\`work_order_id\`) REFERENCES \`work_orders\` (\`id\`),
+          CONSTRAINT \`fk_mi_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`material_issue_items\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`material_issue_id\` VARCHAR(255) NOT NULL,
+          \`work_order_item_id\` VARCHAR(255) NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`location_id\` VARCHAR(255) NULL,
+          \`batch_id\` VARCHAR(255) NULL,
+          \`issued_quantity\` DECIMAL(18,4) NOT NULL,
+          \`returned_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`unit_cost\` DECIMAL(18,4) NULL,
+          \`total_cost\` DECIMAL(18,4) NULL,
+          \`serial_numbers\` JSON NULL,
+          \`notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_mii_issue\` (\`material_issue_id\`),
+          CONSTRAINT \`fk_mii_issue\` FOREIGN KEY (\`material_issue_id\`) REFERENCES \`material_issues\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_mii_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_mii_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`production_outputs\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`output_number\` VARCHAR(50) NOT NULL,
+          \`output_date\` TIMESTAMP NOT NULL,
+          \`work_order_id\` VARCHAR(255) NOT NULL,
+          \`work_order_operation_id\` VARCHAR(255) NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`warehouse_id\` VARCHAR(255) NOT NULL,
+          \`location_id\` VARCHAR(255) NULL,
+          \`batch_id\` VARCHAR(255) NULL,
+          \`produced_quantity\` DECIMAL(18,4) NOT NULL,
+          \`accepted_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`rejected_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`rework_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`status\` ENUM('PENDING_QC','QC_PASSED','QC_FAILED','ACCEPTED','REJECTED','REWORK') NOT NULL DEFAULT 'PENDING_QC',
+          \`material_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`labor_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`overhead_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`total_cost\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`unit_cost\` DECIMAL(18,4) NULL,
+          \`batch_number\` VARCHAR(100) NULL,
+          \`manufacturing_date\` DATE NULL,
+          \`expiry_date\` DATE NULL,
+          \`rejection_reason\` TEXT NULL,
+          \`notes\` TEXT NULL,
+          \`produced_by\` VARCHAR(255) NULL,
+          \`qc_by\` VARCHAR(255) NULL,
+          \`qc_at\` TIMESTAMP NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_po_number\` (\`output_number\`),
+          INDEX \`idx_po_work_order\` (\`work_order_id\`),
+          CONSTRAINT \`fk_po_work_order\` FOREIGN KEY (\`work_order_id\`) REFERENCES \`work_orders\` (\`id\`),
+          CONSTRAINT \`fk_po_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_po_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
+          CONSTRAINT \`fk_po_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`quality_parameters\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`parameter_code\` VARCHAR(50) NOT NULL,
+          \`parameter_name\` VARCHAR(200) NOT NULL,
+          \`description\` TEXT NULL,
+          \`parameter_type\` ENUM('NUMERIC','BOOLEAN','TEXT','RANGE','OPTIONS') NOT NULL DEFAULT 'NUMERIC',
+          \`unit_of_measure\` VARCHAR(50) NULL,
+          \`min_value\` DECIMAL(18,6) NULL,
+          \`max_value\` DECIMAL(18,6) NULL,
+          \`target_value\` DECIMAL(18,6) NULL,
+          \`allowed_options\` JSON NULL,
+          \`is_critical\` TINYINT NOT NULL DEFAULT 0,
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`inspection_method\` TEXT NULL,
+          \`sampling_instructions\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_qp_code\` (\`parameter_code\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`quality_inspections\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`inspection_number\` VARCHAR(50) NOT NULL,
+          \`inspection_date\` TIMESTAMP NOT NULL,
+          \`inspection_type\` ENUM('INCOMING','IN_PROCESS','FINAL','RANDOM') NOT NULL,
+          \`status\` ENUM('PENDING','IN_PROGRESS','PASSED','FAILED','CONDITIONAL','CANCELLED') NOT NULL DEFAULT 'PENDING',
+          \`reference_type\` VARCHAR(50) NOT NULL,
+          \`reference_id\` VARCHAR(255) NOT NULL,
+          \`product_id\` VARCHAR(255) NOT NULL,
+          \`variant_id\` VARCHAR(255) NULL,
+          \`grn_id\` VARCHAR(255) NULL,
+          \`production_output_id\` VARCHAR(255) NULL,
+          \`batch_number\` VARCHAR(100) NULL,
+          \`sample_size\` DECIMAL(18,4) NOT NULL,
+          \`inspected_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`passed_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`failed_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`inspection_results\` JSON NULL,
+          \`defects_found\` JSON NULL,
+          \`remarks\` TEXT NULL,
+          \`corrective_action\` TEXT NULL,
+          \`inspector_id\` VARCHAR(255) NOT NULL,
+          \`approved_by\` VARCHAR(255) NULL,
+          \`approved_at\` TIMESTAMP NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_qi_number\` (\`inspection_number\`),
+          CONSTRAINT \`fk_qi_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_qi_grn\` FOREIGN KEY (\`grn_id\`) REFERENCES \`goods_received_notes\` (\`id\`),
+          CONSTRAINT \`fk_qi_output\` FOREIGN KEY (\`production_output_id\`) REFERENCES \`production_outputs\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      // ─── Import / Export ──────────────────────────────────────────────────
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`file_uploads\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`original_filename\` VARCHAR(255) NOT NULL,
+          \`stored_filename\` VARCHAR(255) NOT NULL,
+          \`file_path\` VARCHAR(500) NOT NULL,
+          \`file_url\` VARCHAR(500) NULL,
+          \`mime_type\` VARCHAR(100) NOT NULL,
+          \`file_extension\` VARCHAR(20) NOT NULL,
+          \`file_size\` BIGINT NOT NULL,
+          \`checksum\` VARCHAR(64) NULL,
+          \`status\` ENUM('PENDING','UPLOADING','COMPLETED','FAILED','PROCESSING','PROCESSED','EXPIRED','DELETED') NOT NULL DEFAULT 'PENDING',
+          \`purpose\` ENUM('IMPORT','ATTACHMENT','PRODUCT_IMAGE','DOCUMENT','REPORT','BACKUP','OTHER') NOT NULL DEFAULT 'OTHER',
+          \`reference_type\` VARCHAR(100) NULL,
+          \`reference_id\` VARCHAR(255) NULL,
+          \`storage_provider\` VARCHAR(50) NOT NULL DEFAULT 'LOCAL',
+          \`storage_bucket\` VARCHAR(255) NULL,
+          \`is_public\` TINYINT NOT NULL DEFAULT 0,
+          \`is_temporary\` TINYINT NOT NULL DEFAULT 0,
+          \`expires_at\` TIMESTAMP NULL,
+          \`deleted_at\` TIMESTAMP NULL,
+          \`metadata\` JSON NULL,
+          \`error_message\` TEXT NULL,
+          \`uploaded_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_fu_purpose\` (\`purpose\`),
+          INDEX \`idx_fu_status\` (\`status\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`import_templates\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`template_code\` VARCHAR(50) NOT NULL,
+          \`template_name\` VARCHAR(200) NOT NULL,
+          \`description\` TEXT NULL,
+          \`entity_type\` ENUM('PRODUCTS','CUSTOMERS','SUPPLIERS','INVENTORY_STOCK','PRICE_LIST','SALES_ORDERS','PURCHASE_ORDERS','CHART_OF_ACCOUNTS','JOURNAL_ENTRIES','OPENING_BALANCES','CATEGORIES','BRANDS','WAREHOUSES','LOCATIONS') NOT NULL,
+          \`file_format\` ENUM('XLSX','CSV','TSV') NOT NULL DEFAULT 'XLSX',
+          \`has_header_row\` TINYINT NOT NULL DEFAULT 1,
+          \`header_row_number\` INT NOT NULL DEFAULT 1,
+          \`data_start_row\` INT NOT NULL DEFAULT 2,
+          \`sheet_name\` VARCHAR(100) NULL,
+          \`date_format\` VARCHAR(50) NOT NULL DEFAULT 'YYYY-MM-DD',
+          \`number_format\` VARCHAR(50) NULL,
+          \`delimiter\` VARCHAR(10) NULL,
+          \`text_qualifier\` VARCHAR(10) NULL,
+          \`encoding\` VARCHAR(50) NOT NULL DEFAULT 'UTF-8',
+          \`sample_file_url\` VARCHAR(500) NULL,
+          \`is_system\` TINYINT NOT NULL DEFAULT 0,
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_it_code\` (\`template_code\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`import_template_columns\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`template_id\` VARCHAR(255) NOT NULL,
+          \`column_order\` INT NOT NULL,
+          \`source_column_name\` VARCHAR(200) NOT NULL,
+          \`source_column_index\` INT NULL,
+          \`target_field_name\` VARCHAR(200) NOT NULL,
+          \`display_name\` VARCHAR(200) NOT NULL,
+          \`data_type\` ENUM('STRING','NUMBER','DECIMAL','DATE','DATETIME','BOOLEAN','EMAIL','PHONE','URL') NOT NULL DEFAULT 'STRING',
+          \`mapping_type\` ENUM('DIRECT','LOOKUP','TRANSFORM','CONSTANT','FORMULA') NOT NULL DEFAULT 'DIRECT',
+          \`is_required\` TINYINT NOT NULL DEFAULT 0,
+          \`is_unique\` TINYINT NOT NULL DEFAULT 0,
+          \`default_value\` VARCHAR(500) NULL,
+          \`lookup_entity\` VARCHAR(100) NULL,
+          \`lookup_field\` VARCHAR(100) NULL,
+          \`lookup_return_field\` VARCHAR(100) NULL,
+          \`transform_expression\` TEXT NULL,
+          \`validation_rules\` JSON NULL,
+          \`allowed_values\` JSON NULL,
+          \`min_length\` INT NULL,
+          \`max_length\` INT NULL,
+          \`min_value\` DECIMAL(18,4) NULL,
+          \`max_value\` DECIMAL(18,4) NULL,
+          \`regex_pattern\` VARCHAR(500) NULL,
+          \`description\` TEXT NULL,
+          \`sample_value\` VARCHAR(500) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_itc_template\` (\`template_id\`),
+          CONSTRAINT \`fk_itc_template\` FOREIGN KEY (\`template_id\`) REFERENCES \`import_templates\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`import_jobs\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`job_number\` VARCHAR(50) NOT NULL,
+          \`template_id\` VARCHAR(255) NOT NULL,
+          \`file_upload_id\` VARCHAR(255) NOT NULL,
+          \`status\` ENUM('PENDING','VALIDATING','VALIDATION_FAILED','VALIDATION_PASSED','PROCESSING','COMPLETED','FAILED','CANCELLED','PARTIALLY_COMPLETED') NOT NULL DEFAULT 'PENDING',
+          \`import_mode\` ENUM('INSERT','UPDATE','UPSERT') NOT NULL DEFAULT 'INSERT',
+          \`total_rows\` INT NOT NULL DEFAULT 0,
+          \`processed_rows\` INT NOT NULL DEFAULT 0,
+          \`successful_rows\` INT NOT NULL DEFAULT 0,
+          \`failed_rows\` INT NOT NULL DEFAULT 0,
+          \`skipped_rows\` INT NOT NULL DEFAULT 0,
+          \`inserted_count\` INT NOT NULL DEFAULT 0,
+          \`updated_count\` INT NOT NULL DEFAULT 0,
+          \`validation_started_at\` TIMESTAMP NULL,
+          \`validation_completed_at\` TIMESTAMP NULL,
+          \`processing_started_at\` TIMESTAMP NULL,
+          \`processing_completed_at\` TIMESTAMP NULL,
+          \`error_file_url\` VARCHAR(500) NULL,
+          \`result_summary\` JSON NULL,
+          \`options\` JSON NULL,
+          \`notes\` TEXT NULL,
+          \`cancelled_at\` TIMESTAMP NULL,
+          \`cancelled_by\` VARCHAR(255) NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_ij_number\` (\`job_number\`),
+          CONSTRAINT \`fk_ij_template\` FOREIGN KEY (\`template_id\`) REFERENCES \`import_templates\` (\`id\`),
+          CONSTRAINT \`fk_ij_file\` FOREIGN KEY (\`file_upload_id\`) REFERENCES \`file_uploads\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`import_job_errors\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`import_job_id\` VARCHAR(255) NOT NULL,
+          \`row_number\` INT NOT NULL,
+          \`column_name\` VARCHAR(200) NULL,
+          \`column_index\` INT NULL,
+          \`error_type\` ENUM('VALIDATION','DUPLICATE','NOT_FOUND','CONSTRAINT','TRANSFORMATION','SYSTEM','FORMAT','REQUIRED') NOT NULL,
+          \`severity\` ENUM('WARNING','ERROR','CRITICAL') NOT NULL DEFAULT 'ERROR',
+          \`error_code\` VARCHAR(50) NULL,
+          \`error_message\` TEXT NOT NULL,
+          \`field_value\` TEXT NULL,
+          \`expected_value\` TEXT NULL,
+          \`row_data\` JSON NULL,
+          \`is_resolved\` TINYINT NOT NULL DEFAULT 0,
+          \`resolution_notes\` TEXT NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_ije_job\` (\`import_job_id\`),
+          CONSTRAINT \`fk_ije_job\` FOREIGN KEY (\`import_job_id\`) REFERENCES \`import_jobs\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`export_jobs\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`job_number\` VARCHAR(50) NOT NULL,
+          \`export_name\` VARCHAR(200) NOT NULL,
+          \`entity_type\` VARCHAR(100) NOT NULL,
+          \`status\` ENUM('PENDING','PROCESSING','COMPLETED','FAILED','CANCELLED','EXPIRED') NOT NULL DEFAULT 'PENDING',
+          \`file_format\` ENUM('XLSX','CSV','PDF','JSON') NOT NULL DEFAULT 'XLSX',
+          \`filters\` JSON NULL,
+          \`columns\` JSON NULL,
+          \`sort_by\` VARCHAR(100) NULL,
+          \`sort_order\` VARCHAR(10) NULL,
+          \`include_headers\` TINYINT NOT NULL DEFAULT 1,
+          \`total_records\` INT NOT NULL DEFAULT 0,
+          \`processed_records\` INT NOT NULL DEFAULT 0,
+          \`file_name\` VARCHAR(255) NULL,
+          \`file_size\` BIGINT NULL,
+          \`file_url\` VARCHAR(500) NULL,
+          \`started_at\` TIMESTAMP NULL,
+          \`completed_at\` TIMESTAMP NULL,
+          \`expires_at\` TIMESTAMP NULL,
+          \`error_message\` TEXT NULL,
+          \`notes\` TEXT NULL,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_ej_number\` (\`job_number\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`export_schedules\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`schedule_name\` VARCHAR(200) NOT NULL,
+          \`description\` TEXT NULL,
+          \`entity_type\` VARCHAR(100) NOT NULL,
+          \`file_format\` ENUM('XLSX','CSV','PDF','JSON') NOT NULL DEFAULT 'XLSX',
+          \`filters\` JSON NULL,
+          \`columns\` JSON NULL,
+          \`frequency\` ENUM('DAILY','WEEKLY','BIWEEKLY','MONTHLY','QUARTERLY','YEARLY','CUSTOM') NOT NULL,
+          \`cron_expression\` VARCHAR(100) NULL,
+          \`day_of_week\` INT NULL,
+          \`day_of_month\` INT NULL,
+          \`time_of_day\` TIME NOT NULL,
+          \`timezone\` VARCHAR(100) NOT NULL DEFAULT 'Asia/Kolkata',
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`send_empty_report\` TINYINT NOT NULL DEFAULT 0,
+          \`email_subject\` VARCHAR(500) NULL,
+          \`email_body\` TEXT NULL,
+          \`last_run_at\` TIMESTAMP NULL,
+          \`last_run_status\` VARCHAR(50) NULL,
+          \`next_run_at\` TIMESTAMP NULL,
+          \`run_count\` INT NOT NULL DEFAULT 0,
+          \`created_by\` VARCHAR(255) NULL,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`export_schedule_recipients\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`schedule_id\` VARCHAR(255) NOT NULL,
+          \`recipient_type\` ENUM('USER','EMAIL','WEBHOOK','FTP','S3') NOT NULL DEFAULT 'EMAIL',
+          \`user_id\` VARCHAR(255) NULL,
+          \`email\` VARCHAR(255) NULL,
+          \`recipient_name\` VARCHAR(200) NULL,
+          \`webhook_url\` VARCHAR(500) NULL,
+          \`ftp_host\` VARCHAR(255) NULL,
+          \`ftp_username\` VARCHAR(100) NULL,
+          \`ftp_password\` VARCHAR(255) NULL,
+          \`ftp_path\` VARCHAR(500) NULL,
+          \`s3_bucket\` VARCHAR(255) NULL,
+          \`s3_path\` VARCHAR(500) NULL,
+          \`is_active\` TINYINT NOT NULL DEFAULT 1,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          INDEX \`idx_esr_schedule\` (\`schedule_id\`),
+          CONSTRAINT \`fk_esr_schedule\` FOREIGN KEY (\`schedule_id\`) REFERENCES \`export_schedules\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
       this.logger.log('All tenant tables created successfully');
     } finally {
       await queryRunner.release();

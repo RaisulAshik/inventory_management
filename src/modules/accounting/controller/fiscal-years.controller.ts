@@ -22,7 +22,7 @@ import {
 import { FiscalYearsService } from '../service/fiscal-years.service';
 import { JwtPayload } from '@/common/interfaces';
 
-@Controller('api/v1/accounting/fiscal-years')
+@Controller('accounting/fiscal-years')
 export class FiscalYearsController {
   constructor(private readonly fiscalYearsService: FiscalYearsService) {}
 

@@ -3,7 +3,7 @@ import { Permissions } from '@common/decorators/permissions.decorator';
 import { QueryGeneralLedgerDto } from '../dto/general-ledger.dto';
 import { GeneralLedgerService } from '../service/journal-ledger.service';
 
-@Controller('api/v1/accounting/general-ledger')
+@Controller('accounting/general-ledger')
 export class GeneralLedgerController {
   constructor(private readonly glService: GeneralLedgerService) {}
 

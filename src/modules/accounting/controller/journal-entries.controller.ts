@@ -22,7 +22,7 @@ import {
 import { JournalEntriesService } from '../service/journal-entries.service';
 import { JwtPayload } from '@/common/interfaces';
 
-@Controller('api/v1/accounting/journal-entries')
+@Controller('accounting/journal-entries')
 export class JournalEntriesController {
   constructor(private readonly journalEntriesService: JournalEntriesService) {}
 

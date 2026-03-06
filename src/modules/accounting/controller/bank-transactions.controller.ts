@@ -21,7 +21,7 @@ import {
 import { BankTransactionsService } from '../service/bank-transactions.service';
 import { JwtPayload } from '@/common/interfaces';
 
-@Controller('api/v1/accounting/bank-transactions')
+@Controller('accounting/bank-transactions')
 export class BankTransactionsController {
   constructor(private readonly bankTxnService: BankTransactionsService) {}
 

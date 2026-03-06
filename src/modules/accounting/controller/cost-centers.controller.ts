@@ -19,7 +19,7 @@ import {
 } from '../dto/cost-centers.dto';
 import { CostCentersService } from '../service/cost-centers.service';
 
-@Controller('api/v1/accounting/cost-centers')
+@Controller('accounting/cost-centers')
 export class CostCentersController {
   constructor(private readonly costCentersService: CostCentersService) {}
 

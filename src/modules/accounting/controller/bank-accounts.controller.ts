@@ -19,7 +19,7 @@ import {
 } from '../dto/bank-accounts.dto';
 import { BankAccountsService } from '../service/bank-accounts.service';
 
-@Controller('api/v1/accounting/bank-accounts')
+@Controller('accounting/bank-accounts')
 export class BankAccountsController {
   constructor(private readonly bankAccountsService: BankAccountsService) {}
 

@@ -19,7 +19,7 @@ import {
 import { BankReconciliationsService } from '../service/bank-reconciliation.service';
 import { JwtPayload } from '@/common/interfaces';
 
-@Controller('api/v1/accounting/bank-reconciliations')
+@Controller('accounting/bank-reconciliations')
 export class BankReconciliationsController {
   constructor(
     private readonly reconciliationsService: BankReconciliationsService,

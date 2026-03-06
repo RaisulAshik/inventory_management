@@ -18,7 +18,7 @@ import {
 import { FiscalPeriodsService } from '../service/fiscal-periods.service';
 import { JwtPayload } from '@/common/interfaces';
 
-@Controller('api/v1/accounting/fiscal-periods')
+@Controller('accounting/fiscal-periods')
 export class FiscalPeriodsController {
   constructor(private readonly fiscalPeriodsService: FiscalPeriodsService) {}
 

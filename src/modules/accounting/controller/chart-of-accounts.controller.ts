@@ -21,7 +21,7 @@ import {
 import { ChartOfAccountsService } from '../service/chart-of-accounts.service';
 import { JwtPayload } from '@/common/interfaces';
 
-@Controller('api/v1/accounting/chart-of-accounts')
+@Controller('accounting/chart-of-accounts')
 export class ChartOfAccountsController {
   constructor(private readonly accountsService: ChartOfAccountsService) {}
 

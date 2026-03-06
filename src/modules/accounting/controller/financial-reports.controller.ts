@@ -3,7 +3,7 @@ import { Permissions } from '@common/decorators/permissions.decorator';
 import { FinancialReportQueryDto } from '../dto/financial-reports.dto';
 import { FinancialReportsService } from '../service/financial-reports.service';
 
-@Controller('api/v1/accounting/reports')
+@Controller('accounting/reports')
 export class FinancialReportsController {
   constructor(private readonly reportsService: FinancialReportsService) {}
 
