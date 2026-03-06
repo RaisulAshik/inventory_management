@@ -67,7 +67,10 @@ async function bootstrap() {
   );
 
   // Swagger Documentation (disabled in production)
-  if (configService.get<string>('nodeEnv') !== 'production') {
+  if (
+    configService.get<string>('nodeEnv') !== 'production' ||
+    configService.get<string>('ENABLE_SWAGGER') === 'true'
+  ) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Multi-Tenant ERP API')
       .setDescription(
