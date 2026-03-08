@@ -20,7 +20,9 @@ import {
 } from '../dto/chat-of-accounts.dto';
 import { ChartOfAccountsService } from '../service/chart-of-accounts.service';
 import { JwtPayload } from '@/common/interfaces';
-
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+@ApiTags('chart-of-accounts')
+@ApiBearerAuth()
 @Controller('accounting/chart-of-accounts')
 export class ChartOfAccountsController {
   constructor(private readonly accountsService: ChartOfAccountsService) {}

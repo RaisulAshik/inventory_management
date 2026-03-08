@@ -10,6 +10,10 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
+  Res,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,12 +22,18 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiQuery,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { Response } from 'express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductFilterDto } from './dto/product-filter.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
+import { BulkImportResultDto, ImportMode } from './dto/bulk-import.dto';
 import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
@@ -35,6 +45,48 @@ import { JwtPayload } from '@common/interfaces';
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
+
+  @Post('import')
+  @Permissions('products.create')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @ApiOperation({ summary: 'Bulk import products from CSV or XLSX' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiQuery({ name: 'mode', enum: ['INSERT', 'UPSERT'], required: false })
+  @ApiResponse({ status: 200, description: 'Import result summary' })
+  async bulkImport(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('mode') mode: ImportMode = 'UPSERT',
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<BulkImportResultDto> {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    return this.productsService.bulkImport(file, mode, currentUser.sub);
+  }
+
+  @Get('import/template')
+  @Permissions('products.read')
+  @ApiOperation({ summary: 'Download product import template (XLSX)' })
+  @ApiResponse({ status: 200, description: 'XLSX template file' })
+  async downloadTemplate(@Res() res: Response): Promise<void> {
+    const buffer = await this.productsService.downloadTemplate();
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition':
+        'attachment; filename="product-import-template.xlsx"',
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
+  }
 
   @Post()
   @Permissions('products.create')

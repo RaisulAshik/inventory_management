@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { MulterModule } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { ProductsController } from './products/products.controller';
 import { ProductsService } from './products/products.service';
 import { CategoriesController } from './categories/categories.controller';
@@ -16,7 +18,10 @@ import { TaxController } from './tax/tax.controller';
 import { TaxService } from './tax/tax.service';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [
+    DatabaseModule,
+    MulterModule.register({ storage: memoryStorage() }),
+  ],
   controllers: [
     ProductsController,
     CategoriesController,
