@@ -383,7 +383,6 @@ export class LocationsService {
               await locationRepo.save(location);
               created++;
             } catch (error) {
-              console.log(error);
               // Skip if already exists
             }
           }

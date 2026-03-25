@@ -11,7 +11,7 @@ import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { getNextSequence } from '@common/utils/sequence.util';
-import { DueStatus } from '@common/enums';
+import { DueStatus, SalesOrderStatus } from '@common/enums';
 import {
   CustomerDueCollection,
   CollectionStatus,
@@ -20,8 +20,8 @@ import {
   CustomerDueReferenceType,
   SalesOrder,
 } from '@entities/tenant';
-import { SalesOrderStatus } from '@common/enums';
 import { CustomerDuesService } from '../customer-dues/customer-dues.service';
+import { AccountingIntegrationService } from '@modules/accounting/service/accounting-integration.service';
 import {
   CreateCollectionDto,
   CollectionFilterDto,
@@ -35,6 +35,7 @@ export class CollectionsService {
   constructor(
     private readonly tenantConnectionManager: TenantConnectionManager,
     private readonly duesService: CustomerDuesService,
+    private readonly accountingIntegration: AccountingIntegrationService,
   ) {}
 
   private async getRepo(): Promise<Repository<CustomerDueCollection>> {
@@ -65,6 +66,7 @@ export class CollectionsService {
     }
 
     let savedCollection!: CustomerDueCollection;
+    const orderPayments: { salesOrderId: string; amount: number }[] = [];
 
     await ds.transaction(async (manager) => {
       const collRepo = manager.getRepository(CustomerDueCollection);
@@ -146,11 +148,30 @@ export class CollectionsService {
             alloc.amount,
             manager,
           );
+          orderPayments.push({ salesOrderId: due.salesOrderId, amount: alloc.amount });
         }
       }
     });
 
-    return this.findById(savedCollection.id);
+    const result = await this.findById(savedCollection.id);
+
+    // Auto-post Payment JE: DR Bank/Cash / CR Accounts Receivable (fire-and-forget)
+    if (!dto.chequeNumber && orderPayments.length > 0) {
+      const orderRepo = ds.getRepository(SalesOrder);
+      for (const op of orderPayments) {
+        orderRepo.findOne({ where: { id: op.salesOrderId } }).then((order) => {
+          if (order) {
+            void this.accountingIntegration.postPaymentCollection(
+              order,
+              op.amount,
+              dto.collectionDate ? new Date(dto.collectionDate) : new Date(),
+            );
+          }
+        });
+      }
+    }
+
+    return result;
   }
 
   // ─────────────────────── FIND ALL ───────────────────────

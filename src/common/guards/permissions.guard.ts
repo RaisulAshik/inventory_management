@@ -52,7 +52,6 @@ export class PermissionsGuard implements CanActivate {
       type: request.tenantContext.type,
     };
 
-    console.log(user, 'user permission');
     // No user found
     if (!user) {
       throw new ForbiddenException('Access denied: Authentication required');

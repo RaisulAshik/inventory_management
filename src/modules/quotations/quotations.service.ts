@@ -7,6 +7,9 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { Repository, DeepPartial } from 'typeorm';
+import { Readable } from 'stream';
+import * as ExcelJS from 'exceljs';
+import * as fastCsv from 'fast-csv';
 import { TenantConnectionManager } from '@/database/tenant-connection.manager';
 import {
   Quotation,
@@ -16,6 +19,7 @@ import {
   SalesOrder,
   SalesOrderItem,
 } from '@/entities/tenant';
+import { User } from '@/entities/tenant/user/user.entity';
 import { getNextSequence } from '@/common/utils/sequence.util';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { QuotationFilterDto } from './dto/quotation-filter.dto';
@@ -49,6 +53,15 @@ export class QuotationsService {
 
     const productRepo = await this.getRepo<Product>(Product);
     const quotationRepo = await this.getRepo<Quotation>(Quotation);
+    const userRepo = await this.getRepo<User>(User);
+
+    // Validate salesPersonId — silently strip if user doesn't exist
+    if (dto.salesPersonId) {
+      const userExists = await userRepo.findOne({
+        where: { id: dto.salesPersonId },
+      });
+      if (!userExists) dto.salesPersonId = undefined;
+    }
 
     // Build items with product details and calculations
     const items: Partial<QuotationItem>[] = [];
@@ -236,7 +249,7 @@ export class QuotationsService {
           quotationId: id,
           productId: itemDto.productId,
           variantId: itemDto.variantId,
-          productName: product.name,
+          productName: product.productName,
           sku: product.sku,
           quantity,
           unitPrice,
@@ -329,7 +342,15 @@ export class QuotationsService {
     const quotationRepo = await this.getRepo<Quotation>(Quotation);
     const quotation = await this.findOne(id);
 
-    if (new Date() > new Date(quotation.validUntil)) {
+    if (
+      ![QuotationStatus.SENT, QuotationStatus.DRAFT].includes(quotation.status)
+    ) {
+      throw new BadRequestException(
+        `Cannot accept a quotation in '${quotation.status}' status`,
+      );
+    }
+
+    if (quotation.validUntil && new Date() > new Date(quotation.validUntil)) {
       throw new BadRequestException('This quotation has expired');
     }
 
@@ -408,16 +429,10 @@ export class QuotationsService {
         }),
       );
 
-      console.log(quotation.items, 'quationsItems');
-
-      console.log(items, 'sales order items');
-
       await queryRunner.manager.save(SalesOrderItem, items);
 
       quotation.status = QuotationStatus.CONVERTED;
       quotation.salesOrderId = savedOrder.id;
-
-      console.log(quotation.salesOrderId, 'salesOrderId');
 
       await queryRunner.manager.save(Quotation, quotation);
 
@@ -429,5 +444,250 @@ export class QuotationsService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  // ─── Bulk Item Import ───────────────────────────────────────────────
+
+  async importItems(
+    quotationId: string,
+    file: Express.Multer.File,
+    userId: string,
+  ): Promise<{
+    added: number;
+    failed: number;
+    errors: { row: number; field: string; message: string }[];
+  }> {
+    const quotation = await this.findOne(quotationId);
+    if (quotation.status !== QuotationStatus.DRAFT) {
+      throw new BadRequestException(
+        'Items can only be imported into DRAFT quotations',
+      );
+    }
+
+    const isXlsx =
+      file.mimetype ===
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.originalname.toLowerCase().endsWith('.xlsx');
+
+    const rawRows = isXlsx
+      ? await this.parseItemsXlsx(file.buffer)
+      : await this.parseItemsCsv(file.buffer);
+
+    if (rawRows.length === 0) {
+      return { added: 0, failed: 0, errors: [] };
+    }
+
+    const productRepo = await this.getRepo<Product>(Product);
+    const quotationItemRepo = await this.getQuotationItemRepository();
+    const quotationRepo = await this.getRepo<Quotation>(Quotation);
+
+    // Pre-load product map: sku.toLowerCase() → Product
+    const allProducts = await productRepo.find({
+      select: ['id', 'sku', 'productName', 'sellingPrice', 'taxRate'],
+    });
+    const skuMap = new Map(allProducts.map((p) => [p.sku?.toLowerCase(), p]));
+
+    const newItems: Partial<QuotationItem>[] = [];
+    const errors: { row: number; field: string; message: string }[] = [];
+
+    for (const row of rawRows) {
+      const rowIndex = Number(row.__rowIndex);
+
+      const sku = row.sku?.trim();
+      if (!sku) {
+        errors.push({
+          row: rowIndex,
+          field: 'sku',
+          message: 'sku is required',
+        });
+        continue;
+      }
+
+      const product = skuMap.get(sku.toLowerCase());
+      if (!product) {
+        errors.push({
+          row: rowIndex,
+          field: 'sku',
+          message: `Product with SKU '${sku}' not found`,
+        });
+        continue;
+      }
+
+      const quantity = parseFloat(row.quantity?.trim() || '0');
+      if (!quantity || quantity <= 0) {
+        errors.push({
+          row: rowIndex,
+          field: 'quantity',
+          message: 'quantity must be greater than 0',
+        });
+        continue;
+      }
+
+      const unitPrice =
+        parseFloat(row.unit_price?.trim() || '') ||
+        Number(product.sellingPrice) ||
+        0;
+      const discountType =
+        (row.discount_type?.trim().toUpperCase() as 'PERCENTAGE' | 'FIXED') ||
+        'FIXED';
+      const discountValue = parseFloat(row.discount_value?.trim() || '0') || 0;
+
+      const grossAmount = quantity * unitPrice;
+      let discountAmount = 0;
+      if (discountType === 'PERCENTAGE') {
+        discountAmount = grossAmount * (discountValue / 100);
+      } else {
+        discountAmount = discountValue;
+      }
+      const afterDiscount = grossAmount - discountAmount;
+      const taxRate = Number(product.taxRate) || 0;
+      const taxAmount = afterDiscount * (taxRate / 100);
+      const lineTotal = afterDiscount + taxAmount;
+
+      newItems.push({
+        quotationId,
+        productId: product.id,
+        productName: product.productName,
+        sku: product.sku,
+        quantity,
+        unitPrice,
+        discountType,
+        discountValue,
+        discountAmount,
+        taxRate,
+        taxAmount,
+        lineTotal,
+        notes: row.notes?.trim() || undefined,
+      });
+    }
+
+    if (newItems.length > 0) {
+      await quotationItemRepo.save(newItems as QuotationItem[]);
+
+      // Recalculate quotation totals (existing items + new items)
+      const allItems = await quotationItemRepo.find({ where: { quotationId } });
+      const subtotal = allItems.reduce((s, i) => s + Number(i.lineTotal), 0);
+      const totalTax = allItems.reduce((s, i) => s + Number(i.taxAmount), 0);
+
+      let orderDiscountAmount = 0;
+      if (quotation.discountType === 'PERCENTAGE' && quotation.discountValue) {
+        orderDiscountAmount =
+          subtotal * (Number(quotation.discountValue) / 100);
+      } else if (
+        quotation.discountType === 'FIXED' &&
+        quotation.discountValue
+      ) {
+        orderDiscountAmount = Number(quotation.discountValue);
+      }
+
+      const totalAmount =
+        subtotal - orderDiscountAmount + Number(quotation.shippingAmount || 0);
+
+      await quotationRepo.update(quotationId, {
+        subtotal,
+        taxAmount: totalTax,
+        discountAmount: orderDiscountAmount,
+        totalAmount,
+        updatedBy: userId,
+      } as any);
+    }
+
+    return {
+      added: newItems.length,
+      failed: errors.length,
+      errors,
+    };
+  }
+
+  async downloadItemsTemplate(): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Quotation Items');
+
+    const headers = [
+      'sku',
+      'quantity',
+      'unit_price',
+      'discount_type',
+      'discount_value',
+      'notes',
+    ];
+
+    const headerRow = sheet.addRow(headers);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9E1F2' },
+    };
+    sheet.columns = headers.map((h) => ({
+      key: h,
+      width: h === 'notes' ? 30 : 18,
+    }));
+
+    // Sample rows
+    sheet.addRow(['PRD-001', 10, 500, 'FIXED', 0, 'Sample item 1']);
+    sheet.addRow([
+      'PRD-002',
+      5,
+      1200,
+      'PERCENTAGE',
+      10,
+      'Sample item 2 (10% discount)',
+    ]);
+    sheet.addRow(['PRD-003', 2, 300, '', '', '']);
+
+    const ab = await workbook.xlsx.writeBuffer();
+    return Buffer.from(ab as ArrayBuffer);
+  }
+
+  // ─── File Parsers (Items) ───────────────────────────────────────────
+
+  private async parseItemsCsv(
+    buffer: Buffer,
+  ): Promise<Record<string, string>[]> {
+    const rows: Record<string, string>[] = [];
+    let rowIndex = 2;
+    await new Promise<void>((resolve, reject) => {
+      fastCsv
+        .parseStream(Readable.from(buffer), { headers: true, trim: true })
+        .on('data', (row: Record<string, string>) => {
+          rows.push({ ...row, __rowIndex: String(rowIndex++) });
+        })
+        .on('end', resolve)
+        .on('error', reject);
+    });
+    return rows;
+  }
+
+  private async parseItemsXlsx(
+    buffer: Buffer,
+  ): Promise<Record<string, string>[]> {
+    const workbook = new ExcelJS.Workbook();
+    const ab = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength,
+    );
+    await workbook.xlsx.load(ab as ArrayBuffer);
+    const sheet = workbook.worksheets[0];
+    const rows: Record<string, string>[] = [];
+
+    const headerRow = sheet.getRow(1);
+    const headers: string[] = [];
+    headerRow.eachCell((cell, colIndex) => {
+      headers[colIndex] = String(cell.value ?? '')
+        .trim()
+        .toLowerCase();
+    });
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const obj: Record<string, string> = { __rowIndex: String(rowNumber) };
+      row.eachCell({ includeEmpty: true }, (cell, colIndex) => {
+        const header = headers[colIndex];
+        if (header) obj[header] = String(cell.value ?? '').trim();
+      });
+      rows.push(obj);
+    });
+    return rows;
   }
 }

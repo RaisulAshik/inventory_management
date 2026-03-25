@@ -115,7 +115,6 @@ export class PurchaseOrdersController {
     type: PurchaseOrderDetailResponseDto,
   })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    console.log('Fetching purchase order details for ID:', id);
     const po = await this.purchaseOrdersService.findById(id);
     return new PurchaseOrderDetailResponseDto(po);
   }
@@ -141,11 +140,6 @@ export class PurchaseOrdersController {
     @Body('approverId') approverId: string,
     @CurrentUser() currentUser: JwtPayload,
   ) {
-    console.log('Submitting PO for approval', {
-      id,
-      approverId,
-      userId: currentUser.sub,
-    });
     const po = await this.purchaseOrdersService.submitForApproval(
       id,
       approverId,

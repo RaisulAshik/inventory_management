@@ -1,15 +1,9 @@
 import { TaxCategory, TaxRate } from '@/entities/tenant';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import {
-  DeepPartial,
-  LessThanOrEqual,
-  IsNull,
-  MoreThanOrEqual,
-  Or,
-  Repository,
-} from 'typeorm';
+import { DeepPartial, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateTaxRateDto } from './dto/taxRate.dto';
+import { CreateTaxCategoryDto } from './dto/taxCategory.dto';
 import { TenantConnectionManager } from '@/database/tenant-connection.manager';
 
 @Injectable()
@@ -26,9 +20,41 @@ export class TaxService {
     return this.tenantConnectionManager.getRepository(TaxRate);
   }
 
+  async createCategory(dto: CreateTaxCategoryDto): Promise<TaxCategory> {
+    const categoryRepo = await this.getTaxCategoryRepository();
+    const existing = await categoryRepo.findOne({
+      where: { taxCode: dto.taxCategoryCode },
+    });
+    if (existing) {
+      throw new Error(`Tax code '${dto.taxCategoryCode}' already exists`);
+    }
+    const category = categoryRepo.create({
+      id: uuidv4(),
+      taxCode: dto.taxCategoryCode,
+      taxName: dto.taxCategoryName,
+      description: dto.description,
+      isActive: dto.isActive ?? true,
+    } as DeepPartial<TaxCategory>);
+    return categoryRepo.save(category);
+  }
+
   async findAllCategories() {
     const categoryRepo = await this.getTaxCategoryRepository();
     return categoryRepo.find({ relations: ['taxRates'] });
+  }
+
+  async findCategoriesDropdown() {
+    const categoryRepo = await this.getTaxCategoryRepository();
+    const categories = await categoryRepo.find({
+      where: { isActive: true },
+      order: { taxName: 'ASC' },
+    });
+    return categories.map((c) => ({
+      id: c.id,
+      label: `${c.taxCode} — ${c.taxName}`,
+      taxCode: c.taxCode,
+      taxName: c.taxName,
+    }));
   }
 
   async findCategoryByCode(taxCode: string) {
@@ -88,11 +114,12 @@ export class TaxService {
     const rate = rateRepo.create({
       id: uuidv4(),
       taxCategoryId: dto.taxCategoryId,
-      taxType: dto.taxType,
-      rateName: dto.rateName,
-      ratePercentage: dto.ratePercentage,
-      effectiveFrom: dto.effectiveFrom,
-      isActive: true,
+      taxType: dto.taxType ?? 'PERCENTAGE',
+      rateName: dto.name,
+      ratePercentage: dto.rate,
+      effectiveFrom: dto.effectiveFrom ?? new Date().toISOString().split('T')[0],
+      effectiveTo: dto.effectiveTo ?? null,
+      isActive: dto.isActive ?? true,
     } as DeepPartial<TaxRate>);
     return rateRepo.save(rate);
   }

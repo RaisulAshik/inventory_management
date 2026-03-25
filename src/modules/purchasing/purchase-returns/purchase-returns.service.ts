@@ -465,7 +465,7 @@ export class PurchaseReturnsService {
         const movement = movementRepo.create({
           id: uuidv4(),
           movementNumber: await getNextSequence(dataSource, 'STOCK_MOVEMENT'),
-          movementType: StockMovementType.PURCHASE_RETURN,
+          movementType: StockMovementType.RETURN_TO_SUPPLIER,
           movementDate: new Date(),
           productId: item.productId,
           variantId: item.variantId,

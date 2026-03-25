@@ -381,8 +381,13 @@ export class GrnService {
     const dataSource = await this.tenantConnectionManager.getDataSource();
     const grn = await this.findById(id);
 
-    if (grn.status !== GRNStatus.PENDING_QC) {
-      throw new BadRequestException('Only pending GRNs can be approved');
+    if (
+      grn.status !== GRNStatus.PENDING_QC &&
+      grn.status !== GRNStatus.QC_PASSED
+    ) {
+      throw new BadRequestException(
+        `GRN cannot be approved in status '${grn.status}'. Submit it first, then optionally run QC check.`,
+      );
     }
 
     await dataSource.transaction(async (manager) => {
@@ -401,7 +406,7 @@ export class GrnService {
             productId: item.productId,
             variantId: item.variantId,
             warehouseId: grn.warehouseId,
-            uomId: item.uomId,
+            uomId: item.uomId || item.product?.baseUomId,
             quantity: item.quantityAccepted,
             movementType: StockMovementType.PURCHASE_RECEIPT,
             referenceId: grn.id,

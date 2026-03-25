@@ -25,16 +25,21 @@ export class BankAccountsService {
 
   async create(dto: CreateBankAccountDto): Promise<BankAccount> {
     const repo = await this.getRepo();
-    const existing = await repo.findOne({
-      where: { accountCode: dto.accountCode },
-    });
+
+    // Auto-generate accountCode if not provided: BANK-<BANKNAME>-<last4 of accountNumber>
+    const accountCode =
+      dto.accountCode ??
+      `BANK-${(dto.bankName ?? 'XX').replace(/\s+/g, '').toUpperCase().slice(0, 6)}-${(dto.accountNumber ?? '').slice(-4)}`;
+
+    const existing = await repo.findOne({ where: { accountCode } });
     if (existing)
       throw new ConflictException(
-        `Bank account code ${dto.accountCode} already exists`,
+        `Bank account code ${accountCode} already exists`,
       );
 
     const account = repo.create({
       ...dto,
+      accountCode,
       currentBalance: dto.openingBalance || 0,
     });
     if (dto.isPrimary) await repo.update({}, { isPrimary: false as any });

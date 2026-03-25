@@ -436,7 +436,6 @@ export class PriceListsService {
         await itemRepo.save(item);
         added++;
       } catch (error) {
-        console.log(error);
         skipped++;
       }
     }

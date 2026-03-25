@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@database/database.module';
+import { SettingsModule } from '@modules/settings/settings.module';
 // Services
 
+import { AccountingIntegrationService } from './service/accounting-integration.service';
 import { BankAccountsService } from './service/bank-accounts.service';
 import { BankReconciliationsService } from './service/bank-reconciliation.service';
 import { BankTransactionsService } from './service/bank-transactions.service';
@@ -27,7 +29,7 @@ import { GeneralLedgerController } from './controller/general-ledger.controller'
 import { JournalEntriesController } from './controller/journal-entries.controller';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, SettingsModule],
   controllers: [
     ChartOfAccountsController,
     CostCentersController,
@@ -42,6 +44,7 @@ import { JournalEntriesController } from './controller/journal-entries.controlle
     FinancialReportsController,
   ],
   providers: [
+    AccountingIntegrationService,
     ChartOfAccountsService,
     CostCentersService,
     FiscalYearsService,
@@ -55,6 +58,7 @@ import { JournalEntriesController } from './controller/journal-entries.controlle
     FinancialReportsService,
   ],
   exports: [
+    AccountingIntegrationService,
     ChartOfAccountsService,
     CostCentersService,
     FiscalYearsService,

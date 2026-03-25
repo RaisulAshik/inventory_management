@@ -5,7 +5,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { PaginatedResult } from '@common/interfaces';
@@ -143,8 +143,11 @@ export class CustomerDuesService {
     amount: number,
     dueDate: Date,
     currency: string = 'BDT',
+    manager?: EntityManager,
   ): Promise<CustomerDue> {
-    const repo = await this.getRepo();
+    const repo = manager
+      ? manager.getRepository(CustomerDue)
+      : await this.getRepo();
     const due = repo.create({
       id: uuidv4(),
       customerId,
@@ -163,7 +166,7 @@ export class CustomerDuesService {
     return repo.save(due);
   }
 
-  // ─────────────────────── CREATE OPENING BALANCE ───────────────────────
+  // ─────────────────────── CREATE OPENING BALANCE ──────────────────────────
   async createOpeningBalance(
     dto: CreateOpeningBalanceDto,
     userId: string,

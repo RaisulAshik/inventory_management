@@ -51,7 +51,12 @@ export class FiscalYearsService {
         'Fiscal year dates overlap with existing fiscal year',
       );
 
-    if (dto.isCurrent) await fyRepo.update({}, { isCurrent: false });
+    if (dto.isCurrent) {
+      await fyRepo.createQueryBuilder()
+        .update(FiscalYear)
+        .set({ isCurrent: false as any })
+        .execute();
+    }
 
     const fiscalYear = fyRepo.create(dto);
     const saved = await fyRepo.save(fiscalYear);
@@ -141,7 +146,12 @@ export class FiscalYearsService {
   async update(id: string, dto: UpdateFiscalYearDto): Promise<FiscalYear> {
     const fyRepo = await this.getFYRepo();
     const fy = await this.findOne(id);
-    if (dto.isCurrent) await fyRepo.update({}, { isCurrent: false });
+    if (dto.isCurrent) {
+      await fyRepo.createQueryBuilder()
+        .update(FiscalYear)
+        .set({ isCurrent: false as any })
+        .execute();
+    }
     Object.assign(fy, dto);
     return fyRepo.save(fy);
   }

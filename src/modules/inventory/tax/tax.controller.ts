@@ -18,6 +18,7 @@ import {
 import { TaxService } from './tax.service';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CreateTaxRateDto } from './dto/taxRate.dto';
+import { CreateTaxCategoryDto } from './dto/taxCategory.dto';
 
 @ApiTags('Tax')
 @ApiBearerAuth()
@@ -27,11 +28,26 @@ export class TaxController {
 
   // ─── Categories ───────────────────────────────────────────────────────────
 
+  @Post('categories')
+  @Permissions('tax.write')
+  @ApiOperation({ summary: 'Create a new tax category' })
+  @ApiResponse({ status: 201, description: 'Tax category created successfully' })
+  createCategory(@Body() dto: CreateTaxCategoryDto) {
+    return this.taxService.createCategory(dto);
+  }
+
   @Get('categories')
   @Permissions('tax.read')
   @ApiOperation({ summary: 'Get all tax categories with their rates' })
   getAllCategories() {
     return this.taxService.findAllCategories();
+  }
+
+  @Get('categories/dropdown')
+  @Permissions('tax.read')
+  @ApiOperation({ summary: 'Get tax categories as id/label pairs for dropdowns' })
+  getCategoriesDropdown() {
+    return this.taxService.findCategoriesDropdown();
   }
 
   @Get('categories/:code')

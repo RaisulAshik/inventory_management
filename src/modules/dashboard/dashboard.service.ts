@@ -153,15 +153,15 @@ export class DashboardService {
 
     switch (period) {
       case 'daily':
-        groupBy = 'DATE(order_date)';
+        groupBy = "DATE_FORMAT(order_date, '%Y-%m-%d')";
         dateFormat = '%Y-%m-%d';
         break;
       case 'weekly':
-        groupBy = 'YEARWEEK(order_date, 1)';
-        dateFormat = '%Y-W%u';
+        groupBy = "DATE_FORMAT(order_date, '%Y-%u')";
+        dateFormat = '%Y-%u';
         break;
       case 'monthly':
-        groupBy = 'DATE_FORMAT(order_date, "%Y-%m")';
+        groupBy = "DATE_FORMAT(order_date, '%Y-%m')";
         dateFormat = '%Y-%m';
         break;
     }
@@ -171,7 +171,7 @@ export class DashboardService {
 
     const result = await dataSource.query(
       `
-      SELECT 
+      SELECT
         DATE_FORMAT(order_date, '${dateFormat}') as period,
         COUNT(*) as orderCount,
         SUM(total_amount) as revenue,
@@ -179,7 +179,7 @@ export class DashboardService {
       FROM sales_orders
       WHERE status NOT IN ('CANCELLED', 'DRAFT')
         AND order_date >= ?
-      GROUP BY ${groupBy}
+      GROUP BY DATE_FORMAT(order_date, '${dateFormat}')
       ORDER BY period ASC
     `,
       [startDate],
@@ -209,7 +209,7 @@ export class DashboardService {
         p.id,
         p.product_name as productName,
         p.sku,
-        SUM(soi.quantity) as quantitySold,
+        SUM(soi.quantity_ordered) as quantitySold,
         SUM(soi.line_total) as revenue,
         COUNT(DISTINCT so.id) as orderCount
       FROM sales_order_items soi
@@ -365,14 +365,14 @@ export class DashboardService {
         po.id,
         po.po_number as poNumber,
         po.order_date as orderDate,
-        po.expected_delivery_date as expectedDeliveryDate,
+        po.expected_date as expectedDeliveryDate,
         po.status,
         po.total_amount as totalAmount,
         s.company_name as supplierName
       FROM purchase_orders po
       INNER JOIN suppliers s ON po.supplier_id = s.id
       WHERE po.status IN ('SENT', 'ACKNOWLEDGED', 'PARTIALLY_RECEIVED')
-      ORDER BY po.expected_delivery_date ASC
+      ORDER BY po.expected_date ASC
       LIMIT ?
     `,
       [limit],

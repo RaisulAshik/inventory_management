@@ -10,7 +10,22 @@ import {
 } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AccountType, NormalBalance } from '@common/enums';
+
+/**
+ * When set, the newly created (or updated) account will automatically become
+ * the default for the corresponding auto-accounting setting.
+ * e.g. defaultFor: AccountingRole.AR  →  acc.default_ar_account = <this account id>
+ */
+export enum AccountingRole {
+  AR        = 'AR',        // Accounts Receivable
+  REVENUE   = 'REVENUE',   // Sales Revenue
+  COGS      = 'COGS',      // Cost of Goods Sold
+  INVENTORY = 'INVENTORY', // Inventory Asset
+  BANK      = 'BANK',      // Bank / Cash
+  VAT       = 'VAT',       // VAT / GST Payable
+}
 
 export class CreateChartOfAccountDto {
   @IsString()
@@ -36,7 +51,8 @@ export class CreateChartOfAccountDto {
   parentId?: string;
 
   @IsEnum(NormalBalance)
-  normalBalance: NormalBalance;
+  @IsOptional()
+  normalBalance?: NormalBalance;
 
   @IsBoolean()
   @IsOptional()
@@ -84,6 +100,16 @@ export class CreateChartOfAccountDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiPropertyOptional({
+    enum: AccountingRole,
+    description:
+      'Mark this account as the default for auto-accounting. ' +
+      'Automatically saves the matching acc.default_* tenant setting.',
+  })
+  @IsEnum(AccountingRole)
+  @IsOptional()
+  defaultFor?: AccountingRole;
 }
 
 export class UpdateChartOfAccountDto extends PartialType(
@@ -113,6 +139,11 @@ export class QueryChartOfAccountDto {
   @IsBoolean()
   @Type(() => Boolean)
   isBankAccount?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  rootOnly?: boolean;
 
   @IsOptional()
   @IsString()

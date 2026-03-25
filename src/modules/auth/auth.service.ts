@@ -79,7 +79,6 @@ export class AuthService {
 
     // Generate tokens
     const tokens = await this.generateTokens(user, roles, permissions);
-    console.log(roles, 'user roles');
     // Create session
     await this.createSession(
       user.id,
@@ -192,7 +191,6 @@ export class AuthService {
 
       return { tokens };
     } catch (error) {
-      console.log(error);
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }

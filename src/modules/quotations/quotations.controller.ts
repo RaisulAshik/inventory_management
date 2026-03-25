@@ -12,6 +12,10 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,7 +23,12 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { Response } from 'express';
 import { QuotationsService } from './quotations.service';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
@@ -115,6 +124,48 @@ export class QuotationsController {
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.quotationsService.remove(id);
+  }
+
+  // ────────────── IMPORT ITEMS TEMPLATE ──────────────
+  @Get('items/import/template')
+  @Permissions('quotations.read')
+  @ApiOperation({ summary: 'Download quotation items import template (XLSX)' })
+  @ApiResponse({ status: 200, description: 'XLSX template file' })
+  async downloadItemsTemplate(@Res() res: Response): Promise<void> {
+    const buffer = await this.quotationsService.downloadItemsTemplate();
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition':
+        'attachment; filename="quotation-items-template.xlsx"',
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  // ────────────── IMPORT ITEMS ──────────────
+  @Post(':id/items/import')
+  @Permissions('quotations.update')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @ApiOperation({
+    summary: 'Bulk import items into a DRAFT quotation from CSV or XLSX',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Import result summary' })
+  async importItems(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    return this.quotationsService.importItems(id, file, currentUser.sub);
   }
 
   // ────────────── WORKFLOW: SEND ──────────────

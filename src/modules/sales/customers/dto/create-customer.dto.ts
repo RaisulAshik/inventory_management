@@ -14,7 +14,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { CustomerType } from '@common/enums';
 import { CreateCustomerAddressDto } from './create-customer-address.dto';
 
@@ -80,11 +80,13 @@ export class CreateCustomerDto {
 
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
+  @Transform(({ value }) => value || undefined)
   @IsUUID()
   customerGroupId?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
+  @Transform(({ value }) => value || undefined)
   @IsUUID()
   priceListId?: string;
 

@@ -4,9 +4,10 @@ import { Module } from '@nestjs/common';
 import { CollectionsController } from './collections.controller';
 import { CollectionsService } from './collections.service';
 import { CustomerDuesModule } from '../customer-dues/customer-dues.module';
+import { AccountingModule } from '@modules/accounting/accounting.module';
 
 @Module({
-  imports: [CustomerDuesModule],
+  imports: [CustomerDuesModule, AccountingModule],
   controllers: [CollectionsController],
   providers: [CollectionsService],
   exports: [CollectionsService],

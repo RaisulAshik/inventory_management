@@ -43,6 +43,7 @@ import { CustomerGroupsModule } from './modules/customer-group';
 import { QuotationsModule } from './modules/quotations/quotations.module';
 import { AccountingModule } from '@modules/accounting/accounting.module';
 import { FinancialModule } from '@modules/due-management/financial.module';
+import { SettingsModule } from '@modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { FinancialModule } from '@modules/due-management/financial.module';
     QuotationsModule, // Tenant DB
     AccountingModule, // Tenant DB
     FinancialModule, // Tenant DB - Due Management
+    SettingsModule, // Tenant DB - Tenant Settings
   ],
   providers: [
     // Global guards (order matters!)

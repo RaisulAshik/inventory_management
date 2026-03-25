@@ -7,18 +7,74 @@ import {
 } from '@nestjs/common';
 import { Repository, IsNull } from 'typeorm';
 import {
+  AccountingRole,
   CreateChartOfAccountDto,
   QueryChartOfAccountDto,
   UpdateChartOfAccountDto,
 } from '../dto/chat-of-accounts.dto';
-import { NormalBalance } from '@/common/enums';
+import { AccountType, NormalBalance } from '@/common/enums';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
+import { SettingsService } from '@modules/settings/settings.service';
+import { SettingCategory } from '@entities/tenant/user/tenant-setting.entity';
+
+/** Maps AccountingRole enum → tenant setting key */
+const ROLE_TO_SETTING: Record<AccountingRole, string> = {
+  [AccountingRole.AR]:        'acc.default_ar_account',
+  [AccountingRole.REVENUE]:   'acc.default_revenue_account',
+  [AccountingRole.COGS]:      'acc.default_cogs_account',
+  [AccountingRole.INVENTORY]: 'acc.default_inventory_account',
+  [AccountingRole.BANK]:      'acc.default_bank_account',
+  [AccountingRole.VAT]:       'acc.default_vat_account',
+};
+
+/** Accounting rule: every account type has a canonical normal balance */
+const NORMAL_BALANCE_MAP: Record<AccountType, NormalBalance> = {
+  [AccountType.ASSET]:     NormalBalance.DEBIT,
+  [AccountType.EXPENSE]:   NormalBalance.DEBIT,
+  [AccountType.LIABILITY]: NormalBalance.CREDIT,
+  [AccountType.EQUITY]:    NormalBalance.CREDIT,
+  [AccountType.REVENUE]:   NormalBalance.CREDIT,
+};
 
 @Injectable()
 export class ChartOfAccountsService {
   constructor(
     private readonly tenantConnectionManager: TenantConnectionManager,
+    private readonly settingsService: SettingsService,
   ) {}
+
+  /**
+   * Determine which AccountingRole this account implicitly represents
+   * based on its boolean flags (only used when defaultFor is not set).
+   */
+  private detectImplicitRole(
+    dto: Partial<CreateChartOfAccountDto>,
+  ): AccountingRole | null {
+    if (dto.isReceivable) return AccountingRole.AR;
+    if (dto.isBankAccount || dto.isCashAccount) return AccountingRole.BANK;
+    return null;
+  }
+
+  /**
+   * Save acc.default_* setting for the given role → accountId.
+   * Never throws — a failed settings write must not fail the CoA save.
+   */
+  private async saveDefaultSetting(
+    role: AccountingRole,
+    accountId: string,
+    userId = 'system',
+  ): Promise<void> {
+    try {
+      const key = ROLE_TO_SETTING[role];
+      await this.settingsService.upsert(
+        key,
+        { value: accountId, category: SettingCategory.ACCOUNTING },
+        userId,
+      );
+    } catch {
+      // silently ignore — settings failure must not break account creation
+    }
+  }
 
   private async getRepo(): Promise<Repository<ChartOfAccounts>> {
     return this.tenantConnectionManager.getRepository(ChartOfAccounts);
@@ -37,7 +93,11 @@ export class ChartOfAccountsService {
         `Account code ${dto.accountCode} already exists`,
       );
 
-    const account = repo.create(dto);
+    const { defaultFor, ...accountData } = dto;
+    const account = repo.create({
+      ...accountData,
+      normalBalance: dto.normalBalance ?? NORMAL_BALANCE_MAP[dto.accountType],
+    });
     if (dto.parentId) {
       const parent = await repo.findOne({ where: { id: dto.parentId } });
       if (!parent)
@@ -50,7 +110,15 @@ export class ChartOfAccountsService {
       account.level = 0;
       account.path = account.accountCode;
     }
-    return repo.save(account);
+    const saved = await repo.save(account);
+
+    // Auto-update tenant setting
+    const role = defaultFor ?? this.detectImplicitRole(dto);
+    if (role) {
+      await this.saveDefaultSetting(role, saved.id, userId);
+    }
+
+    return saved;
   }
 
   async findAll(query: QueryChartOfAccountDto) {
@@ -61,6 +129,7 @@ export class ChartOfAccountsService {
       isActive,
       isHeader,
       isBankAccount,
+      rootOnly,
       search,
       page = 1,
       limit = 50,
@@ -68,8 +137,8 @@ export class ChartOfAccountsService {
     const qb = repo.createQueryBuilder('coa');
     if (accountType)
       qb.andWhere('coa.accountType = :accountType', { accountType });
-    if (parentId) qb.andWhere('coa.parentId = :parentId', { parentId });
-    if (parentId === null) qb.andWhere('coa.parentId IS NULL');
+    if (rootOnly) qb.andWhere('coa.parentId IS NULL');
+    else if (parentId) qb.andWhere('coa.parentId = :parentId', { parentId });
     if (isActive !== undefined)
       qb.andWhere('coa.isActive = :isActive', { isActive });
     if (isHeader !== undefined)
@@ -109,6 +178,7 @@ export class ChartOfAccountsService {
   async update(
     id: string,
     dto: UpdateChartOfAccountDto,
+    userId?: string,
   ): Promise<ChartOfAccounts> {
     const repo = await this.getRepo();
     const account = await this.findOne(id);
@@ -134,8 +204,17 @@ export class ChartOfAccountsService {
         account.path = `${parent.path}/${dto.accountCode || account.accountCode}`;
       }
     }
-    Object.assign(account, dto);
-    return repo.save(account);
+    const { defaultFor, ...updateData } = dto;
+    Object.assign(account, updateData);
+    const saved = await repo.save(account);
+
+    // Auto-update tenant setting if role explicitly set or flags changed
+    const role = defaultFor ?? this.detectImplicitRole(dto);
+    if (role) {
+      await this.saveDefaultSetting(role, saved.id, userId);
+    }
+
+    return saved;
   }
 
   private async validateNoCircularReference(

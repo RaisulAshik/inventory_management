@@ -16,12 +16,12 @@ import { getNextSequence } from '@common/utils/sequence.util';
 import {
   SalesOrderStatus,
   StockMovementType,
-  DueStatus,
   PaymentStatus,
   //OrderStatus,
 } from '@common/enums';
 import { StockService } from '@modules/warehouse/stock/stock.service';
 import { PriceListsService } from '@modules/inventory/price-lists/price-lists.service';
+import { AccountingIntegrationService } from '@modules/accounting/service/accounting-integration.service';
 
 import {
   SalesOrder,
@@ -47,6 +47,7 @@ export class OrdersService {
     private readonly stockService: StockService,
     private readonly priceListsService: PriceListsService,
     private readonly customerDuesService: CustomerDuesService,
+    private readonly accountingIntegration: AccountingIntegrationService,
   ) {}
 
   private async getOrderRepository(): Promise<Repository<SalesOrder>> {
@@ -199,7 +200,6 @@ export class OrdersService {
         );
       }
 
-      console.log('Processing item: ', product);
       // Calculate line totals
       const quantity = itemDto.quantity;
       const unitPrice = itemDto.unitPrice || Number(product.sellingPrice);
@@ -245,7 +245,6 @@ export class OrdersService {
         notes: itemDto.notes,
       } as DeepPartial<SalesOrderItem>);
 
-      console.log('Saving item: ', item);
       await itemRepo.save(item);
     }
   }
@@ -633,13 +632,13 @@ export class OrdersService {
           const movement = movementRepo.create({
             id: uuidv4(),
             movementNumber: await getNextSequence(dataSource, 'STOCK_MOVEMENT'),
-            movementType: StockMovementType.SALES,
+            movementType: StockMovementType.SALES_ISSUE,
             movementDate: new Date(),
             productId: item.productId,
             variantId: item.variantId,
             fromWarehouseId: order.warehouseId,
             quantity: Number(item.quantityOrdered),
-            uomId: item.uomId,
+            uomId: item.uomId || item.product?.baseUomId,
             unitCost: item.costPrice,
             referenceType: 'SALES_ORDER',
             referenceId: order.id,
@@ -667,7 +666,10 @@ export class OrdersService {
       await manager.getRepository(SalesOrder).save(order);
     });
 
-    return this.findById(id);
+    const shipped = await this.findById(id);
+    // Auto-post COGS: DR Cost of Goods Sold / CR Inventory
+    void this.accountingIntegration.postCOGS(shipped);
+    return shipped;
   }
 
   /**
@@ -708,6 +710,7 @@ export class OrdersService {
           dueAmount,
           dueDate,
           order.currency,
+          manager,
         );
       }
 
@@ -724,7 +727,10 @@ export class OrdersService {
       });
     });
 
-    return this.findById(id);
+    const delivered = await this.findById(id);
+    // Auto-post Revenue: DR Accounts Receivable / CR Sales Revenue + CR VAT Payable
+    void this.accountingIntegration.postSaleDelivery(delivered);
+    return delivered;
   }
   /**
    * Complete order
@@ -867,7 +873,14 @@ export class OrdersService {
       }
     });
 
-    return this.findById(id);
+    const paid = await this.findById(id);
+    // Auto-post Payment: DR Bank/Cash / CR Accounts Receivable
+    void this.accountingIntegration.postPaymentCollection(
+      paid,
+      paymentDto.amount,
+      paymentDto.paymentDate ? new Date(paymentDto.paymentDate) : new Date(),
+    );
+    return paid;
   }
 
   /**

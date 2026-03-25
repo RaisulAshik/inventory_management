@@ -231,12 +231,12 @@ export class OrderResponseDto {
         lineNumber: item.lineNumber,
         productId: item.productId,
         productName: item.productName,
-        productSku: item.productSku,
+        productSku: item.sku,
         variantId: item.variantId,
         variantName: item.variant?.variantName,
-        quantity: Number(item.quantity),
-        shippedQuantity: Number(item.shippedQuantity) || 0,
-        returnedQuantity: Number(item.returnedQuantity) || 0,
+        quantity: Number(item.quantityOrdered),
+        shippedQuantity: Number(item.quantityShipped) || 0,
+        returnedQuantity: Number(item.quantityReturned) || 0,
         unitPrice: Number(item.unitPrice),
         discountPercentage: Number(item.discountPercentage),
         discountAmount: Number(item.discountAmount),
@@ -247,7 +247,7 @@ export class OrderResponseDto {
 
       this.itemCount = order.items.length;
       this.totalQuantity = order.items.reduce(
-        (sum: any, item: any) => sum + Number(item.quantity),
+        (sum: any, item: any) => sum + Number(item.quantityOrdered),
         0,
       );
     } else {

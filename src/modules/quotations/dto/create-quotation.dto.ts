@@ -11,7 +11,7 @@ import {
   Min,
   IsNotEmpty,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateQuotationItemDto {
@@ -92,6 +92,7 @@ export class CreateQuotationDto {
   @ApiPropertyOptional()
   @IsUUID()
   @IsOptional()
+  @Transform(({ value }) => value || undefined)
   salesPersonId?: string;
 
   @ApiPropertyOptional()

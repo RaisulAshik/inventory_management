@@ -314,9 +314,6 @@ export class PurchaseOrdersService {
   async findById(id: string): Promise<PurchaseOrder> {
     const poRepo = await this.getPurchaseOrderRepository();
 
-    console.log(`Finding purchase order by ID: ${id}`, {
-      po: poRepo,
-    });
     const po = await poRepo.findOne({
       where: { id },
       relations: [
@@ -332,7 +329,6 @@ export class PurchaseOrdersService {
     if (!po) {
       throw new NotFoundException(`Purchase order with ID ${id} not found`);
     }
-    console.log('Found purchase order', { po: po.items });
     return po;
   }
 

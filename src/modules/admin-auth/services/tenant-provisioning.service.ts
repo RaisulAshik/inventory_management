@@ -2120,11 +2120,11 @@ export class TenantProvisioningService {
           \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
           \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
           PRIMARY KEY (\`id\`),
-          UNIQUE KEY \`UQ_sp_number\` (\`payment_number\`),
-          INDEX \`idx_sp_supplier\` (\`supplier_id\`),
-          CONSTRAINT \`fk_sp_supplier\` FOREIGN KEY (\`supplier_id\`) REFERENCES \`suppliers\` (\`id\`),
-          CONSTRAINT \`fk_sp_method\` FOREIGN KEY (\`payment_method_id\`) REFERENCES \`payment_methods\` (\`id\`),
-          CONSTRAINT \`fk_sp_bank\` FOREIGN KEY (\`bank_account_id\`) REFERENCES \`bank_accounts\` (\`id\`)
+          UNIQUE KEY \`UQ_spay_number\` (\`payment_number\`),
+          INDEX \`idx_spay_supplier\` (\`supplier_id\`),
+          CONSTRAINT \`fk_spay_supplier\` FOREIGN KEY (\`supplier_id\`) REFERENCES \`suppliers\` (\`id\`),
+          CONSTRAINT \`fk_spay_method\` FOREIGN KEY (\`payment_method_id\`) REFERENCES \`payment_methods\` (\`id\`),
+          CONSTRAINT \`fk_spay_bank\` FOREIGN KEY (\`bank_account_id\`) REFERENCES \`bank_accounts\` (\`id\`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
@@ -3057,12 +3057,12 @@ export class TenantProvisioningService {
           \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
           \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
           PRIMARY KEY (\`id\`),
-          UNIQUE KEY \`UQ_po_number\` (\`output_number\`),
-          INDEX \`idx_po_work_order\` (\`work_order_id\`),
-          CONSTRAINT \`fk_po_work_order\` FOREIGN KEY (\`work_order_id\`) REFERENCES \`work_orders\` (\`id\`),
-          CONSTRAINT \`fk_po_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
-          CONSTRAINT \`fk_po_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
-          CONSTRAINT \`fk_po_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+          UNIQUE KEY \`UQ_prodout_number\` (\`output_number\`),
+          INDEX \`idx_prodout_work_order\` (\`work_order_id\`),
+          CONSTRAINT \`fk_prodout_work_order\` FOREIGN KEY (\`work_order_id\`) REFERENCES \`work_orders\` (\`id\`),
+          CONSTRAINT \`fk_prodout_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_prodout_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
+          CONSTRAINT \`fk_prodout_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
@@ -3117,10 +3117,10 @@ export class TenantProvisioningService {
           \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
           \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
           PRIMARY KEY (\`id\`),
-          UNIQUE KEY \`UQ_qi_number\` (\`inspection_number\`),
-          CONSTRAINT \`fk_qi_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
-          CONSTRAINT \`fk_qi_grn\` FOREIGN KEY (\`grn_id\`) REFERENCES \`goods_received_notes\` (\`id\`),
-          CONSTRAINT \`fk_qi_output\` FOREIGN KEY (\`production_output_id\`) REFERENCES \`production_outputs\` (\`id\`)
+          UNIQUE KEY \`UQ_qinsp_number\` (\`inspection_number\`),
+          CONSTRAINT \`fk_qinsp_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
+          CONSTRAINT \`fk_qinsp_grn\` FOREIGN KEY (\`grn_id\`) REFERENCES \`goods_received_notes\` (\`id\`),
+          CONSTRAINT \`fk_qinsp_output\` FOREIGN KEY (\`production_output_id\`) REFERENCES \`production_outputs\` (\`id\`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 

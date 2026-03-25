@@ -35,6 +35,12 @@ export class BankAccountsController {
     return this.bankAccountsService.findAll(query);
   }
 
+  @Get('active')
+  @Permissions('accounting.bank-accounts.read')
+  findActive() {
+    return this.bankAccountsService.findAll({ isActive: true });
+  }
+
   @Get(':id')
   @Permissions('accounting.bank-accounts.read')
   findOne(@Param('id', ParseUUIDPipe) id: string) {

@@ -15,9 +15,9 @@ import { BankAccountType } from '@/entities/tenant';
 
 export class CreateBankAccountDto {
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(50)
-  accountCode: string;
+  accountCode?: string;
 
   @IsString()
   @IsNotEmpty()

@@ -197,7 +197,7 @@ export class StockService {
         );
       }
 
-      stock.quantityReserved += quantity;
+      stock.quantityReserved = Number(stock.quantityReserved) + Number(quantity);
       await stockRepo.save(stock);
     });
   }
@@ -230,7 +230,7 @@ export class StockService {
         throw new NotFoundException('Stock not found');
       }
 
-      stock.quantityReserved = Math.max(0, stock.quantityReserved - quantity);
+      stock.quantityReserved = Math.max(0, Number(stock.quantityReserved) - Number(quantity));
       await stockRepo.save(stock);
     });
   }
@@ -288,21 +288,27 @@ export class StockService {
       // Update stock based on movement type
       switch (movementDto.movementType) {
         case StockMovementType.PURCHASE_RECEIPT:
-        case StockMovementType.SALES_RETURN:
+        case StockMovementType.RETURN_FROM_CUSTOMER:
         case StockMovementType.TRANSFER_IN:
-        case StockMovementType.PRODUCTION_OUTPUT:
+        case StockMovementType.PRODUCTION_RECEIPT:
         case StockMovementType.ADJUSTMENT_IN:
-          stock.quantityOnHand += movementDto.quantity;
+        case StockMovementType.INTER_LOCATION_IN:
+        case StockMovementType.OPENING_STOCK:
+          stock.quantityOnHand = Number(stock.quantityOnHand) + Number(movementDto.quantity);
           break;
 
-        case StockMovementType.SALES:
-        case StockMovementType.PURCHASE_RETURN:
+        case StockMovementType.SALES_ISSUE:
+        case StockMovementType.RETURN_TO_SUPPLIER:
         case StockMovementType.TRANSFER_OUT:
-        case StockMovementType.PRODUCTION_CONSUMPTION:
+        case StockMovementType.PRODUCTION_ISSUE:
         case StockMovementType.ADJUSTMENT_OUT:
+        case StockMovementType.INTER_LOCATION_OUT:
         case StockMovementType.WRITE_OFF:
         case StockMovementType.DAMAGE:
-          stock.quantityOnHand -= movementDto.quantity;
+        case StockMovementType.EXPIRY:
+        case StockMovementType.SCRAP:
+        case StockMovementType.SAMPLE:
+          stock.quantityOnHand = Number(stock.quantityOnHand) - Number(movementDto.quantity);
           break;
       }
 
@@ -393,7 +399,7 @@ export class StockService {
     const dataSource = await this.tenantConnectionManager.getDataSource();
 
     let query = `
-      SELECT 
+      SELECT
         p.id,
         p.sku,
         p.product_name,
@@ -407,8 +413,11 @@ export class StockService {
       WHERE p.deleted_at IS NULL
       AND p.is_stockable = 1
       AND p.is_active = 1`;
+
+    const params: string[] = [];
     if (warehouseId) {
-      query += ` AND s.warehouse_id = '${warehouseId}'`;
+      query += ` AND s.warehouse_id = ?`;
+      params.push(warehouseId);
     }
 
     query += `
@@ -417,7 +426,7 @@ export class StockService {
   ORDER BY available_quantity ASC
 `;
 
-    return dataSource.query(query);
+    return dataSource.query(query, params);
   }
   /**
 
@@ -436,11 +445,13 @@ Get stock valuation
   WHERE p.deleted_at IS NULL
 `;
 
+    const params: string[] = [];
     if (warehouseId) {
-      query += ` AND s.warehouse_id = '${warehouseId}'`;
+      query += ` AND s.warehouse_id = ?`;
+      params.push(warehouseId);
     }
 
-    const result = await dataSource.query(query);
+    const result = await dataSource.query(query, params);
     return result[0];
   }
   /**

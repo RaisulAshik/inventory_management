@@ -439,8 +439,10 @@ export class ProductsService {
         AND p.is_stockable = 1
     `;
 
+    const params: string[] = [];
     if (warehouseId) {
-      query += ` AND (s.warehouse_id = '${warehouseId}' OR s.warehouse_id IS NULL)`;
+      query += ` AND (s.warehouse_id = ? OR s.warehouse_id IS NULL)`;
+      params.push(warehouseId);
     }
 
     query += `
@@ -449,7 +451,7 @@ export class ProductsService {
       ORDER BY available_stock ASC
     `;
 
-    return dataSource.query(query);
+    return dataSource.query(query, params);
   }
 
   /**
