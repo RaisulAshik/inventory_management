@@ -883,10 +883,11 @@ export class ProductsService {
     dataSource: DataSource,
   ): Promise<Map<string, string>> {
     const repo = dataSource.getRepository(TaxCategory);
-    const items = await repo.find({ select: ['id', 'taxName'] });
+    const items = await repo.find({ select: ['id', 'taxName', 'taxCode'] });
     const map = new Map<string, string>();
     for (const t of items) {
       if (t.taxName) map.set(t.taxName.toLowerCase(), t.id);
+      if (t.taxCode) map.set(t.taxCode.toLowerCase(), t.id);
     }
     return map;
   }

@@ -24,6 +24,25 @@ class BrandDto {
   brandName: string;
 }
 
+class TaxCategoryDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  taxCode: string;
+
+  @ApiProperty()
+  taxName: string;
+
+  @ApiPropertyOptional()
+  taxRates?: {
+    id: string;
+    rateName: string;
+    ratePercentage: number;
+    isActive: boolean;
+  }[];
+}
+
 class UomDto {
   @ApiProperty()
   id: string;
@@ -166,6 +185,9 @@ export class ProductResponseDto {
   @ApiPropertyOptional({ type: UomDto })
   baseUom?: UomDto;
 
+  @ApiPropertyOptional({ type: TaxCategoryDto })
+  taxCategory?: TaxCategoryDto;
+
   @ApiPropertyOptional({ type: [ProductImageDto] })
   images?: ProductImageDto[];
 
@@ -212,6 +234,20 @@ export class ProductResponseDto {
       : undefined;
     this.createdAt = product.createdAt;
     this.updatedAt = product.updatedAt;
+
+    if (product.taxCategory) {
+      this.taxCategory = {
+        id: product.taxCategory.id,
+        taxCode: product.taxCategory.taxCode,
+        taxName: product.taxCategory.taxName,
+        taxRates: product.taxCategory.taxRates?.map((r: any) => ({
+          id: r.id,
+          rateName: r.rateName,
+          ratePercentage: Number(r.ratePercentage),
+          isActive: r.isActive,
+        })),
+      };
+    }
 
     if (product.category) {
       this.category = {
