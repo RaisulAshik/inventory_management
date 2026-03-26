@@ -77,11 +77,12 @@ export class StockService {
       );
     }
 
-    // Apply search
-    if (paginationDto.search) {
+    // Apply search (supports both ?search= and ?productName=)
+    const searchTerm = paginationDto.search || filterDto.productName;
+    if (searchTerm) {
       queryBuilder.andWhere(
         '(product.sku LIKE :search OR product.productName LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${searchTerm}%` },
       );
     }
 

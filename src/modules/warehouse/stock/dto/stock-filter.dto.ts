@@ -1,8 +1,10 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsBoolean, IsUUID } from 'class-validator';
+import { IsOptional, IsBoolean, IsUUID, IsEnum, IsDateString, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { PaginationDto } from '@common/dto/pagination.dto';
+import { StockMovementType } from '@common/enums';
 
-export class StockFilterDto {
+export class StockFilterDto extends PaginationDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
@@ -20,6 +22,11 @@ export class StockFilterDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  productName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   lowStock?: boolean;
@@ -29,4 +36,31 @@ export class StockFilterDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   outOfStock?: boolean;
+}
+
+export class StockMovementFilterDto extends PaginationDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  productId?: string;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  warehouseId?: string;
+
+  @ApiPropertyOptional({ enum: StockMovementType })
+  @IsOptional()
+  @IsEnum(StockMovementType)
+  movementType?: StockMovementType;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
 }

@@ -23,12 +23,6 @@ export class CustomerFilterDto extends PaginationDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  isActive?: boolean;
-
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsString()
   city?: string;
 

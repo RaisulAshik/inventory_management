@@ -10,7 +10,7 @@ export async function paginate<T extends ObjectLiteral>(
   paginationDto: PaginationDto,
 ): Promise<PaginatedResult<T>> {
   const page = paginationDto.page || 1;
-  const limit = paginationDto.limit || 20;
+  const limit = paginationDto.limit || paginationDto.pageSize || 20;
   const skip = (page - 1) * limit;
 
   // Apply sorting

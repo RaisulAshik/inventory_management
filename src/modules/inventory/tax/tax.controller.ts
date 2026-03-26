@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Query,
@@ -48,6 +49,17 @@ export class TaxController {
   @ApiOperation({ summary: 'Get tax categories as id/label pairs for dropdowns' })
   getCategoriesDropdown() {
     return this.taxService.findCategoriesDropdown();
+  }
+
+  @Patch('categories/:id')
+  @Permissions('tax.write')
+  @ApiOperation({ summary: 'Update a tax category by ID' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  updateCategory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateTaxCategoryDto,
+  ) {
+    return this.taxService.updateCategory(id, dto);
   }
 
   @Get('categories/:code')

@@ -20,7 +20,7 @@ import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
-import { StockFilterDto } from './dto/stock-filter.dto';
+import { StockFilterDto, StockMovementFilterDto } from './dto/stock-filter.dto';
 import { StockMovementDto } from './dto/stock-movement.dto';
 
 @ApiTags('Stock')
@@ -32,11 +32,8 @@ export class StockController {
   @Get()
   @Permissions('stock.read')
   @ApiOperation({ summary: 'Get stock with filters and pagination' })
-  async getStock(
-    @Query() paginationDto: PaginationDto,
-    @Query() filterDto: StockFilterDto,
-  ) {
-    const result = await this.stockService.getStock(paginationDto, filterDto);
+  async getStock(@Query() filterDto: StockFilterDto) {
+    const result = await this.stockService.getStock(filterDto, filterDto);
     return result;
   }
 
@@ -61,20 +58,13 @@ export class StockController {
   @Get('movements')
   @Permissions('stock.read')
   @ApiOperation({ summary: 'Get stock movements' })
-  async getMovements(
-    @Query() paginationDto: PaginationDto,
-    @Query('productId') productId?: string,
-    @Query('warehouseId') warehouseId?: string,
-    @Query('movementType') movementType?: string,
-    @Query('fromDate') fromDate?: string,
-    @Query('toDate') toDate?: string,
-  ) {
-    const result = await this.stockService.getMovements(paginationDto, {
-      productId,
-      warehouseId,
-      movementType: movementType as any,
-      fromDate: fromDate ? new Date(fromDate) : undefined,
-      toDate: toDate ? new Date(toDate) : undefined,
+  async getMovements(@Query() filterDto: StockMovementFilterDto) {
+    const result = await this.stockService.getMovements(filterDto, {
+      productId: filterDto.productId,
+      warehouseId: filterDto.warehouseId,
+      movementType: filterDto.movementType,
+      fromDate: filterDto.fromDate ? new Date(filterDto.fromDate) : undefined,
+      toDate: filterDto.toDate ? new Date(filterDto.toDate) : undefined,
     });
     return result;
   }

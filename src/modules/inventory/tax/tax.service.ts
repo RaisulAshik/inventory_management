@@ -38,6 +38,17 @@ export class TaxService {
     return categoryRepo.save(category);
   }
 
+  async updateCategory(id: string, dto: Partial<CreateTaxCategoryDto>): Promise<TaxCategory> {
+    const categoryRepo = await this.getTaxCategoryRepository();
+    const category = await categoryRepo.findOne({ where: { id } });
+    if (!category) throw new NotFoundException(`Tax category ${id} not found`);
+    if (dto.taxCategoryCode !== undefined) category.taxCode = dto.taxCategoryCode;
+    if (dto.taxCategoryName !== undefined) category.taxName = dto.taxCategoryName;
+    if (dto.description !== undefined) category.description = dto.description;
+    if (dto.isActive !== undefined) category.isActive = dto.isActive;
+    return categoryRepo.save(category);
+  }
+
   async findAllCategories() {
     const categoryRepo = await this.getTaxCategoryRepository();
     return categoryRepo.find({ relations: ['taxRates'] });

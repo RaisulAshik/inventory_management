@@ -6,6 +6,7 @@ import {
   IsBoolean,
   MaxLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateTaxCategoryDto {
   @ApiProperty({ example: 'SST', description: 'Unique tax code' })
@@ -29,6 +30,7 @@ export class CreateTaxCategoryDto {
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()
+  @Transform(({ value }) => value === true || value === 1 || value === 'true')
   @IsBoolean()
   isActive?: boolean;
 }
