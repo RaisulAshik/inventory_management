@@ -480,7 +480,7 @@ export class CollectionsService {
     } else if (order.paidAmount >= Number(order.totalAmount)) {
       order.paymentStatus = 'PAID';
     } else {
-      order.paymentStatus = 'PARTIAL';
+      order.paymentStatus = 'PARTIALLY_PAID';
     }
 
     // Auto-complete if delivered + fully paid

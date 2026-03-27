@@ -1,23 +1,18 @@
-import { PurchaseReturnStatus } from '@entities/tenant';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsEnum, IsUUID, IsDateString } from 'class-validator';
+import { IsOptional, IsUUID, IsEnum, IsDateString } from 'class-validator';
 import { PaginationDto } from '@common/dto/pagination.dto';
+import { PaymentStatus } from '@common/enums';
 
-export class PurchaseReturnFilterDto extends PaginationDto {
-  @ApiPropertyOptional({ enum: PurchaseReturnStatus })
-  @IsOptional()
-  @IsEnum(PurchaseReturnStatus)
-  status?: PurchaseReturnStatus;
-
+export class InvoiceFilterDto extends PaginationDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
-  supplierId?: string;
+  customerId?: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ enum: PaymentStatus })
   @IsOptional()
-  @IsUUID()
-  warehouseId?: string;
+  @IsEnum(PaymentStatus)
+  paymentStatus?: PaymentStatus;
 
   @ApiPropertyOptional({ type: 'string', format: 'date' })
   @IsOptional()

@@ -906,6 +906,125 @@ export class ProductsService {
     return v === 'true' || v === '1' || v === 'yes';
   }
 
+  // ── Export ────────────────────────────────────────────────────────────────
+
+  async exportProducts(
+    filterDto: ProductFilterDto,
+    format: 'csv' | 'xlsx',
+  ): Promise<Buffer> {
+    const productRepo = await this.getProductRepository();
+
+    const queryBuilder = productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.brand', 'brand')
+      .leftJoinAndSelect('product.baseUom', 'baseUom')
+      .leftJoinAndSelect('product.taxCategory', 'taxCategory')
+      .where('product.deletedAt IS NULL');
+
+    this.applyFilters(queryBuilder, filterDto);
+
+    if (filterDto.search) {
+      queryBuilder.andWhere(
+        '(product.sku LIKE :search OR product.productName LIKE :search OR product.barcode LIKE :search)',
+        { search: `%${filterDto.search}%` },
+      );
+    }
+
+    queryBuilder.orderBy('product.productName', 'ASC');
+
+    const products = await queryBuilder.getMany();
+
+    const rows = products.map((p) => ({
+      sku: p.sku ?? '',
+      product_name: p.productName,
+      short_name: p.shortName ?? '',
+      barcode: p.barcode ?? '',
+      description: p.description ?? '',
+      category: p.category?.categoryName ?? '',
+      brand: p.brand?.brandName ?? '',
+      uom: p.baseUom?.uomName ?? '',
+      product_type: p.productType ?? '',
+      hsn_code: p.hsnCode ?? '',
+      cost_price: p.costPrice ?? 0,
+      selling_price: p.sellingPrice ?? 0,
+      mrp: p.mrp ?? '',
+      minimum_price: p.minimumPrice ?? '',
+      wholesale_price: p.wholesalePrice ?? '',
+      reorder_level: p.reorderLevel ?? 0,
+      reorder_quantity: p.reorderQuantity ?? 0,
+      is_stockable: p.isStockable ? 'true' : 'false',
+      is_sellable: p.isSellable ? 'true' : 'false',
+      is_purchasable: p.isPurchasable ? 'true' : 'false',
+      track_batch: p.trackBatch ? 'true' : 'false',
+      track_serial: p.trackSerial ? 'true' : 'false',
+      tax_category: p.taxCategory?.taxName ?? '',
+      is_active: p.isActive ? 'true' : 'false',
+      notes: p.notes ?? '',
+    }));
+
+    if (format === 'csv') {
+      return new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        const stream = fastCsv.format({ headers: true });
+        stream.on('data', (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+        stream.on('error', reject);
+        rows.forEach((row) => stream.write(row));
+        stream.end();
+      });
+    }
+
+    // XLSX
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Products');
+
+    const fallbackRow = {
+      sku: '',
+      product_name: '',
+      short_name: '',
+      barcode: '',
+      description: '',
+      category: '',
+      brand: '',
+      uom: '',
+      product_type: '',
+      hsn_code: '',
+      cost_price: 0,
+      selling_price: 0,
+      mrp: '',
+      minimum_price: '',
+      wholesale_price: '',
+      reorder_level: 0,
+      reorder_quantity: 0,
+      is_stockable: '',
+      is_sellable: '',
+      is_purchasable: '',
+      track_batch: '',
+      track_serial: '',
+      tax_category: '',
+      is_active: '',
+      notes: '',
+    };
+    const headers = Object.keys(rows[0] ?? fallbackRow);
+
+    sheet.addRow(headers);
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9E1F2' },
+    };
+
+    rows.forEach((row) => sheet.addRow(Object.values(row)));
+    sheet.columns.forEach((col) => {
+      col.width = 20;
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
   // ── Template Download ─────────────────────────────────────────────────────
 
   async downloadTemplate(): Promise<Buffer> {

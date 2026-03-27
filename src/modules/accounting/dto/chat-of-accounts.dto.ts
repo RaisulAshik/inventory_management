@@ -19,12 +19,12 @@ import { AccountType, NormalBalance } from '@common/enums';
  * e.g. defaultFor: AccountingRole.AR  →  acc.default_ar_account = <this account id>
  */
 export enum AccountingRole {
-  AR        = 'AR',        // Accounts Receivable
-  REVENUE   = 'REVENUE',   // Sales Revenue
-  COGS      = 'COGS',      // Cost of Goods Sold
+  AR = 'AR', // Accounts Receivable
+  REVENUE = 'REVENUE', // Sales Revenue
+  COGS = 'COGS', // Cost of Goods Sold
   INVENTORY = 'INVENTORY', // Inventory Asset
-  BANK      = 'BANK',      // Bank / Cash
-  VAT       = 'VAT',       // VAT / GST Payable
+  BANK = 'BANK', // Bank / Cash
+  VAT = 'VAT', // VAT / GST Payable
 }
 
 export class CreateChartOfAccountDto {

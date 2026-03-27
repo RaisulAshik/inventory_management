@@ -12,7 +12,6 @@ import {
 } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { getNextSequence } from '@common/utils/sequence.util';
@@ -107,7 +106,6 @@ export class TransfersService {
    * Find all transfers with filters and pagination
    */
   async findAll(
-    paginationDto: PaginationDto,
     filterDto: TransferFilterDto,
   ): Promise<PaginatedResult<WarehouseTransfer>> {
     const transferRepo = await this.getTransferRepository();
@@ -151,19 +149,19 @@ export class TransfersService {
     }
 
     // Apply search
-    if (paginationDto.search) {
+    if (filterDto.search) {
       queryBuilder.andWhere(
         '(transfer.transferNumber LIKE :search OR transfer.trackingNumber LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'createdAt';
-      paginationDto.sortOrder = 'DESC';
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'createdAt';
+      filterDto.sortOrder = 'DESC';
     }
 
-    return paginate(queryBuilder, paginationDto);
+    return paginate(queryBuilder, filterDto);
   }
 
   /**

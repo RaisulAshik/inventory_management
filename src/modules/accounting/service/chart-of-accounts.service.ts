@@ -19,21 +19,21 @@ import { SettingCategory } from '@entities/tenant/user/tenant-setting.entity';
 
 /** Maps AccountingRole enum → tenant setting key */
 const ROLE_TO_SETTING: Record<AccountingRole, string> = {
-  [AccountingRole.AR]:        'acc.default_ar_account',
-  [AccountingRole.REVENUE]:   'acc.default_revenue_account',
-  [AccountingRole.COGS]:      'acc.default_cogs_account',
+  [AccountingRole.AR]: 'acc.default_ar_account',
+  [AccountingRole.REVENUE]: 'acc.default_revenue_account',
+  [AccountingRole.COGS]: 'acc.default_cogs_account',
   [AccountingRole.INVENTORY]: 'acc.default_inventory_account',
-  [AccountingRole.BANK]:      'acc.default_bank_account',
-  [AccountingRole.VAT]:       'acc.default_vat_account',
+  [AccountingRole.BANK]: 'acc.default_bank_account',
+  [AccountingRole.VAT]: 'acc.default_vat_account',
 };
 
 /** Accounting rule: every account type has a canonical normal balance */
 const NORMAL_BALANCE_MAP: Record<AccountType, NormalBalance> = {
-  [AccountType.ASSET]:     NormalBalance.DEBIT,
-  [AccountType.EXPENSE]:   NormalBalance.DEBIT,
+  [AccountType.ASSET]: NormalBalance.DEBIT,
+  [AccountType.EXPENSE]: NormalBalance.DEBIT,
   [AccountType.LIABILITY]: NormalBalance.CREDIT,
-  [AccountType.EQUITY]:    NormalBalance.CREDIT,
-  [AccountType.REVENUE]:   NormalBalance.CREDIT,
+  [AccountType.EQUITY]: NormalBalance.CREDIT,
+  [AccountType.REVENUE]: NormalBalance.CREDIT,
 };
 
 @Injectable()

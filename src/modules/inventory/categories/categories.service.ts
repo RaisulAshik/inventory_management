@@ -9,7 +9,7 @@ import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { ProductCategory } from '@entities/tenant/inventory/product-category.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-import { PaginationDto } from '@common/dto/pagination.dto';
+import { CategoryFilterDto } from './dto/category-filter.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 
@@ -64,7 +64,7 @@ export class CategoriesService {
    * Find all categories with pagination
    */
   async findAll(
-    paginationDto: PaginationDto,
+    filterDto: CategoryFilterDto,
   ): Promise<PaginatedResult<ProductCategory>> {
     const categoryRepo = await this.getCategoryRepository();
 
@@ -72,19 +72,43 @@ export class CategoriesService {
       .createQueryBuilder('category')
       .leftJoinAndSelect('category.parent', 'parent');
 
-    if (paginationDto.search) {
-      queryBuilder.where(
+    if (filterDto.search) {
+      queryBuilder.andWhere(
         '(category.categoryCode LIKE :search OR category.categoryName LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'sortOrder';
-      paginationDto.sortOrder = 'ASC';
+    if (filterDto.categoryCode) {
+      queryBuilder.andWhere('category.categoryCode LIKE :code', {
+        code: `%${filterDto.categoryCode}%`,
+      });
     }
 
-    return paginate(queryBuilder, paginationDto);
+    if (filterDto.categoryName) {
+      queryBuilder.andWhere('category.categoryName LIKE :name', {
+        name: `%${filterDto.categoryName}%`,
+      });
+    }
+
+    if (filterDto.parentId) {
+      queryBuilder.andWhere('category.parentId = :parentId', {
+        parentId: filterDto.parentId,
+      });
+    }
+
+    if (filterDto.isActive !== undefined) {
+      queryBuilder.andWhere('category.isActive = :isActive', {
+        isActive: filterDto.isActive,
+      });
+    }
+
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'sortOrder';
+      filterDto.sortOrder = 'ASC';
+    }
+
+    return paginate(queryBuilder, filterDto);
   }
 
   /**

@@ -34,7 +34,6 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductFilterDto } from './dto/product-filter.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { BulkImportResultDto, ImportMode } from './dto/bulk-import.dto';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
@@ -111,15 +110,33 @@ export class ProductsController {
   @Permissions('products.read')
   @ApiOperation({ summary: 'Get all products with pagination and filters' })
   @ApiPaginatedResponse(ProductResponseDto)
-  async findAll(
-    @Query() paginationDto: PaginationDto,
-    @Query() filterDto: ProductFilterDto,
-  ) {
-    const result = await this.productsService.findAll(paginationDto, filterDto);
+  async findAll(@Query() filterDto: ProductFilterDto) {
+    const result = await this.productsService.findAll(filterDto, filterDto);
     return {
       data: result.data.map((product) => new ProductResponseDto(product)),
       meta: result.meta,
     };
+  }
+
+  @Get('export')
+  @Permissions('products.read')
+  @ApiOperation({ summary: 'Export all products to CSV or XLSX' })
+  @ApiQuery({ name: 'format', enum: ['csv', 'xlsx'], required: false })
+  async exportProducts(
+    @Query() filterDto: ProductFilterDto,
+    @Query('format') format: 'csv' | 'xlsx' = 'xlsx',
+    @Res() res: Response,
+  ): Promise<void> {
+    const buffer = await this.productsService.exportProducts(filterDto, format);
+    const isXlsx = format === 'xlsx';
+    res.set({
+      'Content-Type': isXlsx
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'text/csv',
+      'Content-Disposition': `attachment; filename="products-export.${format}"`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
   }
 
   @Get('low-stock')

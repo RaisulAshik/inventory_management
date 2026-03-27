@@ -4,8 +4,9 @@ import {
   SalesReturnStatus,
   RefundType,
 } from '@entities/tenant/eCommerce/sales-return.entity';
+import { PaginationDto } from '@common/dto/pagination.dto';
 
-export class ReturnFilterDto {
+export class ReturnFilterDto extends PaginationDto {
   @ApiPropertyOptional({ enum: SalesReturnStatus })
   @IsOptional()
   @IsEnum(SalesReturnStatus)

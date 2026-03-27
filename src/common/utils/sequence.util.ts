@@ -76,6 +76,7 @@ function getDefaultPrefix(sequenceType: string): string {
     CUSTOMER: 'CUST',
     SUPPLIER: 'SUPP',
     PRODUCT: 'PRD',
+    EXPENSE: 'EXP',
   };
 
   return prefixes[sequenceType] ?? sequenceType.substring(0, 3).toUpperCase();

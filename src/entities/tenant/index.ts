@@ -105,6 +105,7 @@ export * from './accounting/bank-transaction.entity';
 export * from './accounting/bank-reconciliation.entity';
 export * from './accounting/budget.entity';
 export * from './accounting/budget-line.entity';
+export * from './accounting/expense.entity';
 
 // Due Management
 export * from './dueManagement/customer-due.entity';

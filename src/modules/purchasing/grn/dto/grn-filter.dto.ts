@@ -1,8 +1,9 @@
 import { GRNStatus } from '@common/enums';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsEnum, IsUUID, IsDateString } from 'class-validator';
+import { PaginationDto } from '@common/dto/pagination.dto';
 
-export class GrnFilterDto {
+export class GrnFilterDto extends PaginationDto {
   @ApiPropertyOptional({ enum: GRNStatus })
   @IsOptional()
   @IsEnum(GRNStatus)

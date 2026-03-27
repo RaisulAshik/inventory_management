@@ -19,7 +19,6 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { AdjustmentsService } from './adjustments.service';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
@@ -60,13 +59,9 @@ export class AdjustmentsController {
   @ApiOperation({ summary: 'Get all adjustments with filters and pagination' })
   @ApiPaginatedResponse(AdjustmentResponseDto)
   async findAll(
-    @Query() paginationDto: PaginationDto,
     @Query() filterDto: AdjustmentFilterDto,
   ) {
-    const result = await this.adjustmentsService.findAll(
-      paginationDto,
-      filterDto,
-    );
+    const result = await this.adjustmentsService.findAll(filterDto);
     return {
       data: result.data.map((a) => new AdjustmentResponseDto(a)),
       meta: result.meta,

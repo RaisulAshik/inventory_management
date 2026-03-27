@@ -22,7 +22,7 @@ import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryResponseDto } from './dto/category-response.dto';
-import { PaginationDto } from '@common/dto/pagination.dto';
+import { CategoryFilterDto } from './dto/category-filter.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
 
@@ -49,8 +49,8 @@ export class CategoriesController {
   @Permissions('categories.read')
   @ApiOperation({ summary: 'Get all categories with pagination' })
   @ApiPaginatedResponse(CategoryResponseDto)
-  async findAll(@Query() paginationDto: PaginationDto) {
-    const result = await this.categoriesService.findAll(paginationDto);
+  async findAll(@Query() filterDto: CategoryFilterDto) {
+    const result = await this.categoriesService.findAll(filterDto);
     return {
       data: result.data.map((cat) => new CategoryResponseDto(cat)),
       meta: result.meta,

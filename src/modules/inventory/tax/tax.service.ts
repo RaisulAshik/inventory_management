@@ -4,7 +4,10 @@ import { DeepPartial, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateTaxRateDto } from './dto/taxRate.dto';
 import { CreateTaxCategoryDto } from './dto/taxCategory.dto';
+import { TaxCategoryFilterDto } from './dto/tax-category-filter.dto';
+import { TaxRateFilterDto } from './dto/tax-rate-filter.dto';
 import { TenantConnectionManager } from '@/database/tenant-connection.manager';
+import { paginate } from '@common/utils/pagination.util';
 
 @Injectable()
 export class TaxService {
@@ -49,9 +52,48 @@ export class TaxService {
     return categoryRepo.save(category);
   }
 
-  async findAllCategories() {
+  async findAllCategories(filterDto?: TaxCategoryFilterDto) {
     const categoryRepo = await this.getTaxCategoryRepository();
-    return categoryRepo.find({ relations: ['taxRates'] });
+
+    if (!filterDto) {
+      return categoryRepo.find({ relations: ['taxRates'] });
+    }
+
+    const qb = categoryRepo
+      .createQueryBuilder('category')
+      .leftJoinAndSelect('category.taxRates', 'taxRates');
+
+    if (filterDto.taxCode) {
+      qb.andWhere('category.taxCode LIKE :taxCode', {
+        taxCode: `%${filterDto.taxCode}%`,
+      });
+    }
+
+    if (filterDto.taxName) {
+      qb.andWhere('category.taxName LIKE :taxName', {
+        taxName: `%${filterDto.taxName}%`,
+      });
+    }
+
+    if (filterDto.isActive !== undefined) {
+      qb.andWhere('category.isActive = :isActive', {
+        isActive: filterDto.isActive,
+      });
+    }
+
+    if (filterDto.search) {
+      qb.andWhere(
+        '(category.taxCode LIKE :search OR category.taxName LIKE :search)',
+        { search: `%${filterDto.search}%` },
+      );
+    }
+
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'taxName';
+      filterDto.sortOrder = 'ASC';
+    }
+
+    return paginate(qb, filterDto);
   }
 
   async findCategoriesDropdown() {
@@ -78,13 +120,41 @@ export class TaxService {
     return category;
   }
 
-  async findAllRates(categoryId?: string) {
+  async findAllRates(filterDto: TaxRateFilterDto) {
     const rateRepo = await this.getTaxRateRepository();
-    return rateRepo.find({
-      where: categoryId ? { taxCategoryId: categoryId } : undefined,
-      relations: ['taxCategory'],
-      order: { taxCategoryId: 'ASC', rateName: 'ASC' },
-    });
+
+    const qb = rateRepo
+      .createQueryBuilder('rate')
+      .leftJoinAndSelect('rate.taxCategory', 'taxCategory');
+
+    if (filterDto.categoryId) {
+      qb.andWhere('rate.taxCategoryId = :categoryId', {
+        categoryId: filterDto.categoryId,
+      });
+    }
+
+    if (filterDto.rateName) {
+      qb.andWhere('rate.rateName LIKE :rateName', {
+        rateName: `%${filterDto.rateName}%`,
+      });
+    }
+
+    if (filterDto.isActive !== undefined) {
+      qb.andWhere('rate.isActive = :isActive', { isActive: filterDto.isActive });
+    }
+
+    if (filterDto.search) {
+      qb.andWhere('rate.rateName LIKE :search', {
+        search: `%${filterDto.search}%`,
+      });
+    }
+
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'rateName';
+      filterDto.sortOrder = 'ASC';
+    }
+
+    return paginate(qb, filterDto);
   }
 
   async findActiveRates(categoryId?: string) {
@@ -118,6 +188,22 @@ export class TaxService {
     });
     if (!rate) throw new NotFoundException(`Tax rate with ID ${id} not found`);
     return rate;
+  }
+
+  async updateRate(id: string, dto: Partial<CreateTaxRateDto>) {
+    const rateRepo = await this.getTaxRateRepository();
+    const rate = await rateRepo.findOne({ where: { id } });
+    if (!rate) throw new NotFoundException(`Tax rate with ID ${id} not found`);
+    if (dto.name !== undefined) rate.rateName = dto.name;
+    if (dto.rate !== undefined) rate.ratePercentage = dto.rate;
+    if (dto.taxType !== undefined) rate.taxType = dto.taxType as any;
+    if (dto.effectiveFrom !== undefined) rate.effectiveFrom = new Date(dto.effectiveFrom);
+    if (dto.effectiveTo !== undefined)
+      rate.effectiveTo = (
+        dto.effectiveTo ? new Date(dto.effectiveTo) : null
+      ) as Date;
+    if (dto.isActive !== undefined) rate.isActive = dto.isActive;
+    return rateRepo.save(rate);
   }
 
   async createRate(dto: CreateTaxRateDto) {

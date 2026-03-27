@@ -9,7 +9,7 @@ import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { Brand } from '@entities/tenant/inventory/brand.entity';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
-import { PaginationDto } from '@common/dto/pagination.dto';
+import { BrandFilterDto } from './dto/brand-filter.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 
@@ -51,24 +51,42 @@ export class BrandsService {
   /**
    * Find all brands with pagination
    */
-  async findAll(paginationDto: PaginationDto): Promise<PaginatedResult<Brand>> {
+  async findAll(filterDto: BrandFilterDto): Promise<PaginatedResult<Brand>> {
     const brandRepo = await this.getBrandRepository();
 
     const queryBuilder = brandRepo.createQueryBuilder('brand');
 
-    if (paginationDto.search) {
-      queryBuilder.where(
+    if (filterDto.search) {
+      queryBuilder.andWhere(
         '(brand.brandCode LIKE :search OR brand.brandName LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'brandName';
-      paginationDto.sortOrder = 'ASC';
+    if (filterDto.brandCode) {
+      queryBuilder.andWhere('brand.brandCode LIKE :brandCode', {
+        brandCode: `%${filterDto.brandCode}%`,
+      });
     }
 
-    return paginate(queryBuilder, paginationDto);
+    if (filterDto.brandName) {
+      queryBuilder.andWhere('brand.brandName LIKE :brandName', {
+        brandName: `%${filterDto.brandName}%`,
+      });
+    }
+
+    if (filterDto.isActive !== undefined) {
+      queryBuilder.andWhere('brand.isActive = :isActive', {
+        isActive: filterDto.isActive,
+      });
+    }
+
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'brandName';
+      filterDto.sortOrder = 'ASC';
+    }
+
+    return paginate(queryBuilder, filterDto);
   }
 
   /**

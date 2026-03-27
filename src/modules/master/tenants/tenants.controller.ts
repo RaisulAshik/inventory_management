@@ -24,7 +24,6 @@ import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantFilterDto } from './dto/tenant-filter.dto';
 import { AddTenantUserDto } from './dto/add-tenant-user.dto';
 import { TenantResponseDto } from './dto/tenant-response.dto';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
 
@@ -52,10 +51,9 @@ export class TenantsController {
   @ApiOperation({ summary: 'Get all tenants with filters and pagination' })
   @ApiPaginatedResponse(TenantResponseDto)
   async findAll(
-    @Query() paginationDto: PaginationDto,
     @Query() filterDto: TenantFilterDto,
   ) {
-    const result = await this.tenantsService.findAll(paginationDto, filterDto);
+    const result = await this.tenantsService.findAll(filterDto);
     return {
       data: result.data.map((t) => new TenantResponseDto(t)),
       meta: result.meta,

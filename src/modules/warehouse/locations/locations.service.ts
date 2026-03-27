@@ -6,7 +6,6 @@ import {
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { LocationStatus } from '@common/enums';
@@ -68,7 +67,6 @@ export class LocationsService {
    * Find all locations with filters and pagination
    */
   async findAll(
-    paginationDto: PaginationDto,
     filterDto: LocationFilterDto,
   ): Promise<PaginatedResult<WarehouseLocation>> {
     const locationRepo = await this.getLocationRepository();
@@ -116,19 +114,19 @@ export class LocationsService {
     }
 
     // Apply search
-    if (paginationDto.search) {
+    if (filterDto.search) {
       queryBuilder.andWhere(
         '(location.locationCode LIKE :search OR location.locationName LIKE :search OR location.barcode LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'locationCode';
-      paginationDto.sortOrder = 'ASC';
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'locationCode';
+      filterDto.sortOrder = 'ASC';
     }
 
-    return paginate(queryBuilder, paginationDto);
+    return paginate(queryBuilder, filterDto);
   }
 
   /**

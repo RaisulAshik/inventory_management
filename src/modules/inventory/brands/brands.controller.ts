@@ -22,7 +22,7 @@ import { BrandsService } from './brands.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { BrandResponseDto } from './dto/brand-response.dto';
-import { PaginationDto } from '@common/dto/pagination.dto';
+import { BrandFilterDto } from './dto/brand-filter.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
 
@@ -49,8 +49,8 @@ export class BrandsController {
   @Permissions('brands.read')
   @ApiOperation({ summary: 'Get all brands with pagination' })
   @ApiPaginatedResponse(BrandResponseDto)
-  async findAll(@Query() paginationDto: PaginationDto) {
-    const result = await this.brandsService.findAll(paginationDto);
+  async findAll(@Query() filterDto: BrandFilterDto) {
+    const result = await this.brandsService.findAll(filterDto);
     return {
       data: result.data.map((brand) => new BrandResponseDto(brand)),
       meta: result.meta,

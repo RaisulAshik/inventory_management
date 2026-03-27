@@ -43,7 +43,11 @@ export class PaginationDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true || value === 1 || value === '1')
+  @Transform(({ obj, key }) => {
+    const raw = obj?.[key];
+    if (raw === undefined || raw === null || raw === '') return undefined;
+    return ['true', '1', 1, true].includes(raw as string | number | boolean);
+  })
   @IsBoolean()
   isActive?: boolean;
 }

@@ -32,8 +32,8 @@ import {
   StockMovement,
   CustomerDue,
   OrderPayment,
-  //SalesOrderPayment,
 } from '@entities/tenant';
+import { OrderPaymentStatus } from '@entities/tenant/eCommerce/order-payment.entity';
 import { AddPaymentDto } from './dto/add-payment.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderFilterDto } from './dto/order-filter.dto';
@@ -831,16 +831,16 @@ export class OrdersService {
 
       const payment = paymentRepo.create({
         id: uuidv4(),
-        salesOrderId: id,
+        orderId: id,
         paymentMethodId: paymentDto.paymentMethodId,
         amount: paymentDto.amount,
         currency: order.currency,
         paymentDate: paymentDto.paymentDate || new Date(),
-        referenceNumber: paymentDto.referenceNumber || paymentReference,
+        paymentReference: paymentDto.referenceNumber || paymentReference,
         transactionId: paymentDto.transactionId,
-        status: 'COMPLETED',
+        status: OrderPaymentStatus.COMPLETED,
         notes: paymentDto.notes,
-        receivedBy: userId,
+        processedBy: userId,
       } as DeepPartial<OrderPayment>);
       await paymentRepo.save(payment);
 

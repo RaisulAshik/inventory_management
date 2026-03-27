@@ -2,14 +2,14 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from '@common/dto/pagination.dto';
 
-export class SupplierFilterDto extends PaginationDto {
+export class BrandFilterDto extends PaginationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  country?: string;
+  brandCode?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  state?: string;
+  brandName?: string;
 }

@@ -19,7 +19,6 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { PurchaseReturnsService } from './purchase-returns.service';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
@@ -64,13 +63,9 @@ export class PurchaseReturnsController {
   })
   @ApiPaginatedResponse(PurchaseReturnResponseDto)
   async findAll(
-    @Query() paginationDto: PaginationDto,
     @Query() filterDto: PurchaseReturnFilterDto,
   ) {
-    const result = await this.purchaseReturnsService.findAll(
-      paginationDto,
-      filterDto,
-    );
+    const result = await this.purchaseReturnsService.findAll(filterDto);
     return {
       data: result.data.map((r) => new PurchaseReturnResponseDto(r)),
       meta: result.meta,

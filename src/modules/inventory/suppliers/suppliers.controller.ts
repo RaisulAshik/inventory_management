@@ -19,7 +19,6 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { SuppliersService } from './suppliers.service';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
@@ -61,13 +60,9 @@ export class SuppliersController {
   @ApiOperation({ summary: 'Get all suppliers with pagination and filters' })
   @ApiPaginatedResponse(SupplierResponseDto)
   async findAll(
-    @Query() paginationDto: PaginationDto,
     @Query() filterDto: SupplierFilterDto,
   ) {
-    const result = await this.suppliersService.findAll(
-      paginationDto,
-      filterDto,
-    );
+    const result = await this.suppliersService.findAll(filterDto);
     return {
       data: result.data.map((supplier) => new SupplierResponseDto(supplier)),
       meta: result.meta,

@@ -45,7 +45,7 @@ export class WarehousesService {
 
     // If this is set as default, unset other defaults
     if (createWarehouseDto.isDefault) {
-      await warehouseRepo.update({}, { isDefault: false });
+      await warehouseRepo.update({ isDefault: true }, { isDefault: false });
     }
 
     const id = uuidv4();
@@ -191,7 +191,7 @@ export class WarehousesService {
 
     // If this is set as default, unset other defaults
     if (updateWarehouseDto.isDefault && !warehouse.isDefault) {
-      await warehouseRepo.update({}, { isDefault: false });
+      await warehouseRepo.update({ isDefault: true }, { isDefault: false });
     }
 
     Object.assign(warehouse, updateWarehouseDto);

@@ -120,6 +120,7 @@ export class Product {
     precision: 18,
     scale: 4,
     nullable: true,
+    default: 0,
   })
   mrp: number;
 
@@ -129,6 +130,7 @@ export class Product {
     precision: 18,
     scale: 4,
     nullable: true,
+    default: 0,
   })
   minimumPrice: number;
 
@@ -138,22 +140,47 @@ export class Product {
     precision: 18,
     scale: 4,
     nullable: true,
+    default: 0,
   })
   wholesalePrice: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 4, nullable: true })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 4,
+    nullable: true,
+    default: 0,
+  })
   weight: number;
 
   @Column({ name: 'weight_unit', length: 20, nullable: true })
   weightUnit: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 4, nullable: true })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 4,
+    nullable: true,
+    default: 0,
+  })
   length: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 4, nullable: true })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 4,
+    nullable: true,
+    default: 0,
+  })
   width: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 4, nullable: true })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 4,
+    nullable: true,
+    default: 0,
+  })
   height: number;
 
   @Column({ name: 'dimension_unit', length: 20, nullable: true })
@@ -192,13 +219,14 @@ export class Product {
     precision: 18,
     scale: 4,
     nullable: true,
+    default: 0,
   })
   maximumOrderQuantity: number;
 
-  @Column({ name: 'lead_time_days', type: 'int', nullable: true })
+  @Column({ name: 'lead_time_days', type: 'int', nullable: true, default: 0 })
   leadTimeDays: number;
 
-  @Column({ name: 'warranty_months', type: 'int', nullable: true })
+  @Column({ name: 'warranty_months', type: 'int', nullable: true, default: 0 })
   warrantyMonths: number;
 
   @Column({ type: 'text', nullable: true })

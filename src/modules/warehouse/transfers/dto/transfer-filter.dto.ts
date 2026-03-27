@@ -1,8 +1,9 @@
 import { TransferStatus } from '@entities/tenant';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsEnum, IsUUID, IsDateString } from 'class-validator';
+import { PaginationDto } from '@common/dto/pagination.dto';
 
-export class TransferFilterDto {
+export class TransferFilterDto extends PaginationDto {
   @ApiPropertyOptional({ enum: TransferStatus })
   @IsOptional()
   @IsEnum(TransferStatus)

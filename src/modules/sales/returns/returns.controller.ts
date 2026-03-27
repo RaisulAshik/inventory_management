@@ -19,7 +19,6 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { ReturnsService } from './returns.service';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
@@ -59,10 +58,9 @@ export class ReturnsController {
   @ApiOperation({ summary: 'Get all returns with filters and pagination' })
   @ApiPaginatedResponse(ReturnResponseDto)
   async findAll(
-    @Query() paginationDto: PaginationDto,
     @Query() filterDto: ReturnFilterDto,
   ) {
-    const result = await this.returnsService.findAll(paginationDto, filterDto);
+    const result = await this.returnsService.findAll(filterDto);
     return {
       data: result.data.map((r) => new ReturnResponseDto(r)),
       meta: result.meta,

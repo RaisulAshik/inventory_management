@@ -6,7 +6,6 @@ import {
 import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { getNextSequence } from '@common/utils/sequence.util';
@@ -100,7 +99,6 @@ export class SuppliersService {
    * Find all suppliers with pagination and filters
    */
   async findAll(
-    paginationDto: PaginationDto,
     filterDto: SupplierFilterDto,
   ): Promise<PaginatedResult<Supplier>> {
     const supplierRepo = await this.getSupplierRepository();
@@ -130,19 +128,19 @@ export class SuppliersService {
     }
 
     // Apply search
-    if (paginationDto.search) {
+    if (filterDto.search) {
       queryBuilder.andWhere(
         '(supplier.supplierCode LIKE :search OR supplier.companyName LIKE :search OR supplier.email LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'companyName';
-      paginationDto.sortOrder = 'ASC';
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'companyName';
+      filterDto.sortOrder = 'ASC';
     }
 
-    return paginate(queryBuilder, paginationDto);
+    return paginate(queryBuilder, filterDto);
   }
 
   /**

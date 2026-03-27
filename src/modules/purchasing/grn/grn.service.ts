@@ -12,7 +12,6 @@ import {
 } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { getNextSequence } from '@common/utils/sequence.util';
@@ -221,7 +220,6 @@ export class GrnService {
    * Find all GRNs with filters and pagination
    */
   async findAll(
-    paginationDto: PaginationDto,
     filterDto: GrnFilterDto,
   ): Promise<PaginatedResult<GoodsReceivedNote>> {
     const grnRepo = await this.getGrnRepository();
@@ -271,19 +269,19 @@ export class GrnService {
     }
 
     // Apply search
-    if (paginationDto.search) {
+    if (filterDto.search) {
       queryBuilder.andWhere(
         '(grn.grnNumber LIKE :search OR grn.supplierInvoiceNumber LIKE :search OR purchaseOrder.poNumber LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'receiptDate';
-      paginationDto.sortOrder = 'DESC';
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'receiptDate';
+      filterDto.sortOrder = 'DESC';
     }
 
-    return paginate(queryBuilder, paginationDto);
+    return paginate(queryBuilder, filterDto);
   }
 
   /**

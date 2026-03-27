@@ -20,7 +20,6 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { LocationsService } from './locations.service';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
 import { LocationStatus } from '@common/enums';
@@ -66,13 +65,9 @@ export class LocationsController {
   @ApiOperation({ summary: 'Get all locations with filters and pagination' })
   @ApiPaginatedResponse(LocationResponseDto)
   async findAll(
-    @Query() paginationDto: PaginationDto,
     @Query() filterDto: LocationFilterDto,
   ) {
-    const result = await this.locationsService.findAll(
-      paginationDto,
-      filterDto,
-    );
+    const result = await this.locationsService.findAll(filterDto);
     return {
       data: result.data.map((loc) => new LocationResponseDto(loc)),
       meta: result.meta,

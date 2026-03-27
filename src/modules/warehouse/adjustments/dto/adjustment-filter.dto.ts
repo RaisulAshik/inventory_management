@@ -1,8 +1,9 @@
 import { AdjustmentStatus, AdjustmentType } from '@entities/tenant';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsEnum, IsUUID, IsDateString } from 'class-validator';
+import { PaginationDto } from '@common/dto/pagination.dto';
 
-export class AdjustmentFilterDto {
+export class AdjustmentFilterDto extends PaginationDto {
   @ApiPropertyOptional({ enum: AdjustmentStatus })
   @IsOptional()
   @IsEnum(AdjustmentStatus)

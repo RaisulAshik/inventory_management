@@ -19,7 +19,6 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { GrnService } from './grn.service';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
@@ -56,10 +55,9 @@ export class GrnController {
   @ApiOperation({ summary: 'Get all GRNs with filters and pagination' })
   @ApiPaginatedResponse(GrnResponseDto)
   async findAll(
-    @Query() paginationDto: PaginationDto,
     @Query() filterDto: GrnFilterDto,
   ) {
-    const result = await this.grnService.findAll(paginationDto, filterDto);
+    const result = await this.grnService.findAll(filterDto);
     return {
       data: result.data.map((grn) => new GrnResponseDto(grn)),
       meta: result.meta,

@@ -27,6 +27,7 @@ import { FiscalPeriodsController } from './controller/fiscal-periods.controller'
 import { FiscalYearsController } from './controller/fiscal-years.controller';
 import { GeneralLedgerController } from './controller/general-ledger.controller';
 import { JournalEntriesController } from './controller/journal-entries.controller';
+import { InvoicesController } from './controller/invoices.controller';
 
 @Module({
   imports: [DatabaseModule, SettingsModule],
@@ -42,6 +43,7 @@ import { JournalEntriesController } from './controller/journal-entries.controlle
     BankReconciliationsController,
     BudgetsController,
     FinancialReportsController,
+    InvoicesController,
   ],
   providers: [
     AccountingIntegrationService,

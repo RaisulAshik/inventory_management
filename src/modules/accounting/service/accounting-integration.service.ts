@@ -9,6 +9,7 @@ import {
   ChartOfAccounts,
   TenantSetting,
   SalesOrder,
+  Expense,
 } from '@/entities/tenant';
 import {
   JournalEntryType,
@@ -152,7 +153,7 @@ export class AccountingIntegrationService {
 
   // ── Core posting engine ───────────────────────────────────────────────
 
-  private async postEntry(params: PostJEParams): Promise<void> {
+  private async postEntry(params: PostJEParams): Promise<string | null> {
     const ds = await this.tenantConnectionManager.getDataSource();
 
     const period = await this.findOpenPeriod(params.date);
@@ -161,13 +162,13 @@ export class AccountingIntegrationService {
         `Auto-accounting skipped for ${params.referenceNumber}: ` +
           `no open fiscal period covers ${params.date.toISOString().split('T')[0]}.`,
       );
-      return;
+      return null;
     }
 
     const fy = await ds
       .getRepository(FiscalYear)
       .findOne({ where: { id: period.fiscalYearId } });
-    if (!fy) return;
+    if (!fy) return null;
 
     const entryNumber = await this.generateEntryNumber();
     const totalDebit = params.lines.reduce((s, l) => s + l.debit, 0);
@@ -250,6 +251,7 @@ export class AccountingIntegrationService {
       this.logger.log(
         `Auto-posted ${entryNumber} (${params.type}) for ${params.referenceNumber}`,
       );
+      return savedEntry.id;
     } catch (err) {
       await qr.rollbackTransaction();
       throw err;
@@ -379,6 +381,54 @@ export class AccountingIntegrationService {
       this.logger.error(
         `Failed to post COGS JE for ${order.orderNumber}: ${(err as Error).message}`,
       );
+    }
+  }
+
+  /**
+   * Call after an expense is saved.
+   * DR Expense Account  /  CR Paid-From Account (Bank/Cash/Payable)
+   * Returns the journal entry ID, or null if posting was skipped.
+   */
+  async postExpense(expense: Expense): Promise<string | null> {
+    try {
+      const period = await this.findOpenPeriod(new Date(expense.expenseDate));
+      if (!period) {
+        this.logger.warn(
+          `Expense JE skipped for ${expense.expenseNumber}: no open fiscal period covers ${expense.expenseDate}.`,
+        );
+        return null;
+      }
+
+      const totalAmount = Number(expense.totalAmount);
+
+      return await this.postEntry({
+        date: new Date(expense.expenseDate),
+        type: JournalEntryType.MANUAL,
+        referenceType: 'EXPENSE',
+        referenceId: expense.id,
+        referenceNumber: expense.expenseNumber,
+        description: expense.description,
+        currency: 'INR',
+        lines: [
+          {
+            accountId: expense.expenseAccountId,
+            debit: totalAmount,
+            credit: 0,
+            description: expense.description,
+          },
+          {
+            accountId: expense.paidFromAccountId,
+            debit: 0,
+            credit: totalAmount,
+            description: `Paid – ${expense.expenseNumber}`,
+          },
+        ],
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to post expense JE for ${expense.expenseNumber}: ${(err as Error).message}`,
+      );
+      return null;
     }
   }
 

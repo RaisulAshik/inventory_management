@@ -8,8 +8,9 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ProductType } from '@common/enums';
+import { PaginationDto } from '@common/dto/pagination.dto';
 
-export class ProductFilterDto {
+export class ProductFilterDto extends PaginationDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
@@ -24,12 +25,6 @@ export class ProductFilterDto {
   @IsOptional()
   @IsEnum(ProductType)
   productType?: ProductType;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  isActive?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

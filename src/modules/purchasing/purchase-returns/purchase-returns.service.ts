@@ -6,7 +6,6 @@ import {
 import { Repository, DataSource, DeepPartial, IsNull } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { getNextSequence } from '@common/utils/sequence.util';
@@ -273,7 +272,6 @@ export class PurchaseReturnsService {
    * Find all purchase returns with filters and pagination
    */
   async findAll(
-    paginationDto: PaginationDto,
     filterDto: PurchaseReturnFilterDto,
   ): Promise<PaginatedResult<PurchaseReturn>> {
     const returnRepo = await this.getPurchaseReturnRepository();
@@ -318,19 +316,19 @@ export class PurchaseReturnsService {
     }
 
     // Apply search
-    if (paginationDto.search) {
+    if (filterDto.search) {
       queryBuilder.andWhere(
         '(return.returnNumber LIKE :search OR purchaseOrder.poNumber LIKE :search OR supplier.companyName LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'returnDate';
-      paginationDto.sortOrder = 'DESC';
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'returnDate';
+      filterDto.sortOrder = 'DESC';
     }
 
-    return paginate(queryBuilder, paginationDto);
+    return paginate(queryBuilder, filterDto);
   }
 
   /**

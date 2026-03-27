@@ -20,6 +20,8 @@ import { TaxService } from './tax.service';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CreateTaxRateDto } from './dto/taxRate.dto';
 import { CreateTaxCategoryDto } from './dto/taxCategory.dto';
+import { TaxCategoryFilterDto } from './dto/tax-category-filter.dto';
+import { TaxRateFilterDto } from './dto/tax-rate-filter.dto';
 
 @ApiTags('Tax')
 @ApiBearerAuth()
@@ -40,8 +42,8 @@ export class TaxController {
   @Get('categories')
   @Permissions('tax.read')
   @ApiOperation({ summary: 'Get all tax categories with their rates' })
-  getAllCategories() {
-    return this.taxService.findAllCategories();
+  getAllCategories(@Query() filterDto: TaxCategoryFilterDto) {
+    return this.taxService.findAllCategories(filterDto);
   }
 
   @Get('categories/dropdown')
@@ -79,13 +81,8 @@ export class TaxController {
   @Get('rates')
   @Permissions('tax.read')
   @ApiOperation({ summary: 'Get all tax rates' })
-  @ApiQuery({
-    name: 'categoryId',
-    required: false,
-    description: 'Filter by tax category ID',
-  })
-  getAllRates(@Query('categoryId') categoryId?: string) {
-    return this.taxService.findAllRates(categoryId);
+  getAllRates(@Query() filterDto: TaxRateFilterDto) {
+    return this.taxService.findAllRates(filterDto);
   }
 
   @Get('rates/active')
@@ -116,5 +113,16 @@ export class TaxController {
   @ApiResponse({ status: 201, description: 'Tax rate created successfully' })
   createRate(@Body() createRateDto: CreateTaxRateDto) {
     return this.taxService.createRate(createRateDto);
+  }
+
+  @Patch('rates/:id')
+  @Permissions('tax.write')
+  @ApiOperation({ summary: 'Update a tax rate by ID' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  updateRate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: Partial<CreateTaxRateDto>,
+  ) {
+    return this.taxService.updateRate(id, dto);
   }
 }

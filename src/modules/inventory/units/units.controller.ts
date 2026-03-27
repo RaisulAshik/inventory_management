@@ -20,7 +20,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { UnitsService } from './units.service';
-import { PaginationDto } from '@common/dto/pagination.dto';
+import { UnitFilterDto } from './dto/unit-filter.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
 import { CreateUnitDto } from './dto/create-unit.dto';
@@ -51,8 +51,8 @@ export class UnitsController {
   @Permissions('units.read')
   @ApiOperation({ summary: 'Get all units with pagination' })
   @ApiPaginatedResponse(UnitResponseDto)
-  async findAll(@Query() paginationDto: PaginationDto) {
-    const result = await this.unitsService.findAll(paginationDto);
+  async findAll(@Query() filterDto: UnitFilterDto) {
+    const result = await this.unitsService.findAll(filterDto);
     return {
       data: result.data.map((unit) => new UnitResponseDto(unit)),
       meta: result.meta,

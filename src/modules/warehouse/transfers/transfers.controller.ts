@@ -19,7 +19,6 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { TransfersService } from './transfers.service';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
@@ -61,13 +60,9 @@ export class TransfersController {
   @ApiOperation({ summary: 'Get all transfers with filters and pagination' })
   @ApiPaginatedResponse(TransferResponseDto)
   async findAll(
-    @Query() paginationDto: PaginationDto,
     @Query() filterDto: TransferFilterDto,
   ) {
-    const result = await this.transfersService.findAll(
-      paginationDto,
-      filterDto,
-    );
+    const result = await this.transfersService.findAll(filterDto);
     return {
       data: result.data.map((t) => new TransferResponseDto(t)),
       meta: result.meta,

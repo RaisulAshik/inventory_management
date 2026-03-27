@@ -12,7 +12,6 @@ import {
 } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { getNextSequence } from '@common/utils/sequence.util';
@@ -101,7 +100,6 @@ export class AdjustmentsService {
    * Find all adjustments with filters and pagination
    */
   async findAll(
-    paginationDto: PaginationDto,
     filterDto: AdjustmentFilterDto,
   ): Promise<PaginatedResult<StockAdjustment>> {
     const adjustmentRepo = await this.getAdjustmentRepository();
@@ -144,19 +142,19 @@ export class AdjustmentsService {
     }
 
     // Apply search
-    if (paginationDto.search) {
+    if (filterDto.search) {
       queryBuilder.andWhere(
         '(adjustment.adjustmentNumber LIKE :search OR adjustment.reason LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'createdAt';
-      paginationDto.sortOrder = 'DESC';
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'createdAt';
+      filterDto.sortOrder = 'DESC';
     }
 
-    return paginate(queryBuilder, paginationDto);
+    return paginate(queryBuilder, filterDto);
   }
 
   /**

@@ -12,7 +12,6 @@ import { Tenant } from '@entities/master/tenant.entity';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantFilterDto } from './dto/tenant-filter.dto';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { TenantStatus, SubscriptionStatus } from '@common/enums';
 import { ConfigService } from '@nestjs/config';
@@ -185,7 +184,6 @@ export class TenantsService {
    * Find all tenants with filters and pagination
    */
   async findAll(
-    paginationDto: PaginationDto,
     filterDto: TenantFilterDto,
   ): Promise<PaginatedResult<Tenant>> {
     const queryBuilder = this.tenantRepository
@@ -214,25 +212,25 @@ export class TenantsService {
     }
 
     // Apply search
-    if (paginationDto.search) {
+    if (filterDto.search) {
       queryBuilder.andWhere(
         '(tenant.tenantCode LIKE :search OR tenant.companyName LIKE :search OR tenant.email LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
     // Apply sorting
-    const sortBy = paginationDto.sortBy || 'createdAt';
+    const sortBy = filterDto.sortBy || 'createdAt';
     const sortOrder =
-      paginationDto.sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      filterDto.sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
     queryBuilder.orderBy(`tenant.${sortBy}`, sortOrder);
 
     // Get total count
     const total = await queryBuilder.getCount();
 
     // Apply pagination
-    const page = paginationDto.page || 1;
-    const limit = paginationDto.limit || 20;
+    const page = filterDto.page || 1;
+    const limit = filterDto.limit || 20;
     queryBuilder.skip((page - 1) * limit).take(limit);
 
     const data = await queryBuilder.getMany();

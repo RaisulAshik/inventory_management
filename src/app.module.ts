@@ -44,6 +44,7 @@ import { QuotationsModule } from './modules/quotations/quotations.module';
 import { AccountingModule } from '@modules/accounting/accounting.module';
 import { FinancialModule } from '@modules/due-management/financial.module';
 import { SettingsModule } from '@modules/settings/settings.module';
+import { ExpensesModule } from '@modules/expenses/expenses.module';
 
 @Module({
   imports: [
@@ -103,6 +104,7 @@ import { SettingsModule } from '@modules/settings/settings.module';
     AccountingModule, // Tenant DB
     FinancialModule, // Tenant DB - Due Management
     SettingsModule, // Tenant DB - Tenant Settings
+    ExpensesModule, // Tenant DB - Expenses
   ],
   providers: [
     // Global guards (order matters!)

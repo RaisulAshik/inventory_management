@@ -6,7 +6,7 @@ import {
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { PaginationDto } from '@common/dto/pagination.dto';
+import { UnitFilterDto } from './dto/unit-filter.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { UnitOfMeasure } from '@entities/tenant';
@@ -54,25 +54,49 @@ export class UnitsService {
    * Find all units with pagination
    */
   async findAll(
-    paginationDto: PaginationDto,
+    filterDto: UnitFilterDto,
   ): Promise<PaginatedResult<UnitOfMeasure>> {
     const uomRepo = await this.getUomRepository();
 
     const queryBuilder = uomRepo.createQueryBuilder('uom');
 
-    if (paginationDto.search) {
-      queryBuilder.where(
+    if (filterDto.search) {
+      queryBuilder.andWhere(
         '(uom.uomCode LIKE :search OR uom.uomName LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'uomName';
-      paginationDto.sortOrder = 'ASC';
+    if (filterDto.uomCode) {
+      queryBuilder.andWhere('uom.uomCode LIKE :uomCode', {
+        uomCode: `%${filterDto.uomCode}%`,
+      });
     }
 
-    return paginate(queryBuilder, paginationDto);
+    if (filterDto.uomName) {
+      queryBuilder.andWhere('uom.uomName LIKE :uomName', {
+        uomName: `%${filterDto.uomName}%`,
+      });
+    }
+
+    if (filterDto.uomType) {
+      queryBuilder.andWhere('uom.uomType = :uomType', {
+        uomType: filterDto.uomType,
+      });
+    }
+
+    if (filterDto.isActive !== undefined) {
+      queryBuilder.andWhere('uom.isActive = :isActive', {
+        isActive: filterDto.isActive,
+      });
+    }
+
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'uomName';
+      filterDto.sortOrder = 'ASC';
+    }
+
+    return paginate(queryBuilder, filterDto);
   }
 
   /**

@@ -16,7 +16,6 @@ import {
 } from '@entities/tenant/eCommerce/sales-return-item.entity';
 import { SalesOrder } from '@entities/tenant/eCommerce/sales-order.entity';
 import { SalesOrderItem } from '@entities/tenant/eCommerce/sales-order-item.entity';
-import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { getNextSequence } from '@common/utils/sequence.util';
@@ -254,7 +253,6 @@ export class ReturnsService {
    * Find all returns with filters and pagination
    */
   async findAll(
-    paginationDto: PaginationDto,
     filterDto: ReturnFilterDto,
   ): Promise<PaginatedResult<SalesReturn>> {
     const returnRepo = await this.getReturnRepository();
@@ -297,19 +295,19 @@ export class ReturnsService {
     }
 
     // Apply search
-    if (paginationDto.search) {
+    if (filterDto.search) {
       queryBuilder.andWhere(
         '(return.returnNumber LIKE :search OR salesOrder.orderNumber LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'returnDate';
-      paginationDto.sortOrder = 'DESC';
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'returnDate';
+      filterDto.sortOrder = 'DESC';
     }
 
-    return paginate(queryBuilder, paginationDto);
+    return paginate(queryBuilder, filterDto);
   }
 
   /**
