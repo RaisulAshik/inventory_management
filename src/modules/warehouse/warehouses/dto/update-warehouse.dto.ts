@@ -1,6 +1,4 @@
-import { PartialType, OmitType } from '@nestjs/swagger';
+import { PartialType } from '@nestjs/swagger';
 import { CreateWarehouseDto } from './create-warehouse.dto';
 
-export class UpdateWarehouseDto extends PartialType(
-  OmitType(CreateWarehouseDto, ['zones'] as const),
-) {}
+export class UpdateWarehouseDto extends PartialType(CreateWarehouseDto) {}

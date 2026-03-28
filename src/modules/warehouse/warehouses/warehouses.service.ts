@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { CreateWarehouseDto } from './dto/create-warehouse.dto';
 import { UpdateWarehouseDto } from './dto/update-warehouse.dto';
-import { PaginationDto } from '@common/dto/pagination.dto';
+import { WarehouseFilterDto } from './dto/warehouse-filter.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { Warehouse, WarehouseZone, WarehouseLocation } from '@entities/tenant';
@@ -92,7 +92,7 @@ export class WarehousesService {
    * Find all warehouses with pagination
    */
   async findAll(
-    paginationDto: PaginationDto,
+    filterDto: WarehouseFilterDto,
   ): Promise<PaginatedResult<Warehouse>> {
     const warehouseRepo = await this.getWarehouseRepository();
 
@@ -100,19 +100,43 @@ export class WarehousesService {
       .createQueryBuilder('warehouse')
       .leftJoinAndSelect('warehouse.zones', 'zones');
 
-    if (paginationDto.search) {
-      queryBuilder.where(
+    if (filterDto.search) {
+      queryBuilder.andWhere(
         '(warehouse.warehouseCode LIKE :search OR warehouse.warehouseName LIKE :search)',
-        { search: `%${paginationDto.search}%` },
+        { search: `%${filterDto.search}%` },
       );
     }
 
-    if (!paginationDto.sortBy) {
-      paginationDto.sortBy = 'warehouseName';
-      paginationDto.sortOrder = 'ASC';
+    if (filterDto.warehouseCode) {
+      queryBuilder.andWhere('warehouse.warehouseCode LIKE :warehouseCode', {
+        warehouseCode: `%${filterDto.warehouseCode}%`,
+      });
     }
 
-    return paginate(queryBuilder, paginationDto);
+    if (filterDto.warehouseName) {
+      queryBuilder.andWhere('warehouse.warehouseName LIKE :warehouseName', {
+        warehouseName: `%${filterDto.warehouseName}%`,
+      });
+    }
+
+    if (filterDto.warehouseType) {
+      queryBuilder.andWhere('warehouse.warehouseType = :warehouseType', {
+        warehouseType: filterDto.warehouseType,
+      });
+    }
+
+    if (filterDto.isActive !== undefined) {
+      queryBuilder.andWhere('warehouse.isActive = :isActive', {
+        isActive: filterDto.isActive,
+      });
+    }
+
+    if (!filterDto.sortBy) {
+      filterDto.sortBy = 'warehouseName';
+      filterDto.sortOrder = 'ASC';
+    }
+
+    return paginate(queryBuilder, filterDto);
   }
 
   /**

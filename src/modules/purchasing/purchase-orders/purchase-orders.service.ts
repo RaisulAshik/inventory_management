@@ -17,9 +17,13 @@ import {
   Product,
   SupplierDue,
 } from '@entities/tenant';
-import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
+import {
+  CreatePurchaseOrderDto,
+  CreatePurchaseOrderItemDto,
+} from './dto/create-purchase-order.dto';
 import { PurchaseOrderFilterDto } from './dto/purchase-order-filter.dto';
 import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
+import { UpdatePurchaseOrderItemDto } from './dto/update-purchase-order-item.dto';
 
 @Injectable()
 export class PurchaseOrdersService {
@@ -156,7 +160,6 @@ export class PurchaseOrdersService {
       const item = itemRepo.create({
         id: uuidv4(),
         purchaseOrderId,
-        lineNumber: i + 1,
         productId: itemDto.productId,
         variantId: itemDto.variantId,
         productName: product.productName,
@@ -174,6 +177,45 @@ export class PurchaseOrdersService {
 
       await itemRepo.save(item);
     }
+  }
+
+  /**
+   * Recalculate PO header totals from its current saved line items
+   */
+  private async recalculateTotals(
+    purchaseOrderId: string,
+    dataSource: DataSource,
+  ): Promise<void> {
+    const poRepo = dataSource.getRepository(PurchaseOrder);
+    const itemRepo = dataSource.getRepository(PurchaseOrderItem);
+
+    const po = await poRepo.findOne({ where: { id: purchaseOrderId } });
+    if (!po) return;
+
+    const items = await itemRepo.find({ where: { purchaseOrderId } });
+
+    const subtotal = items.reduce(
+      (sum, i) => sum + Number(i.lineTotal) - Number(i.taxAmount),
+      0,
+    );
+    const taxAmount = items.reduce((sum, i) => sum + Number(i.taxAmount), 0);
+    const discountAmount = items.reduce(
+      (sum, i) => sum + Number(i.discountAmount),
+      0,
+    );
+    const totalAmount =
+      subtotal +
+      taxAmount -
+      Number(po.discountAmount ?? 0) +
+      Number(po.shippingAmount ?? 0) +
+      Number(po.otherCharges ?? 0);
+
+    await poRepo.update(purchaseOrderId, {
+      subtotal,
+      taxAmount,
+      discountAmount,
+      totalAmount,
+    });
   }
 
   /**
@@ -262,6 +304,12 @@ export class PurchaseOrdersService {
       .leftJoinAndSelect('items.product', 'product');
 
     // Apply filters
+    if (filterDto.poNumber) {
+      queryBuilder.andWhere('po.poNumber LIKE :poNumber', {
+        poNumber: `%${filterDto.poNumber}%`,
+      });
+    }
+
     if (filterDto.status) {
       queryBuilder.andWhere('po.status = :status', {
         status: filterDto.status,
@@ -648,6 +696,190 @@ export class PurchaseOrdersService {
   /**
    * Get overdue orders
    */
+  /**
+   * Add a new line item to an existing purchase order
+   */
+  async addItem(
+    purchaseOrderId: string,
+    dto: CreatePurchaseOrderItemDto,
+  ): Promise<PurchaseOrderItem> {
+    const po = await this.findById(purchaseOrderId);
+
+    if (
+      ![
+        PurchaseOrderStatus.DRAFT,
+        PurchaseOrderStatus.PENDING_APPROVAL,
+      ].includes(po.status)
+    ) {
+      throw new BadRequestException(
+        'Only draft or pending approval orders can be modified',
+      );
+    }
+
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+    const itemRepo = dataSource.getRepository(PurchaseOrderItem);
+    const productRepo = dataSource.getRepository(Product);
+
+    const product = await productRepo.findOne({
+      where: { id: dto.productId },
+      relations: ['taxCategory', 'taxCategory.taxRates'],
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${dto.productId} not found`);
+    }
+
+    const quantityOrdered = dto.quantityOrdered;
+    const unitPrice = dto.unitPrice ?? Number(product.costPrice);
+    const discountPercent = dto.discountPercentage ?? 0;
+    const discountAmt = dto.discountAmount ?? 0;
+
+    const grossAmount = quantityOrdered * unitPrice;
+    const lineDiscount = (grossAmount * discountPercent) / 100 + discountAmt;
+    const taxableAmount = grossAmount - lineDiscount;
+
+    let taxAmount = 0;
+    let taxPercentage = 0;
+    if (product.taxCategory?.taxRates) {
+      const activeTaxRate = product.taxCategory.taxRates.find((r) => r.isActive);
+      if (activeTaxRate) {
+        taxPercentage = Number(activeTaxRate.ratePercentage);
+        taxAmount = (taxableAmount * taxPercentage) / 100;
+      }
+    }
+
+    const lineTotal = taxableAmount + taxAmount;
+
+    const item = itemRepo.create({
+      id: uuidv4(),
+      purchaseOrderId,
+      productId: dto.productId,
+      variantId: dto.variantId,
+      productName: product.productName,
+      productSku: product.sku,
+      quantityOrdered,
+      uomId: dto.uomId ?? product.baseUomId,
+      unitPrice,
+      discountPercentage: discountPercent,
+      discountAmount: lineDiscount,
+      taxPercentage,
+      taxAmount,
+      lineTotal,
+      notes: dto.notes,
+    } as DeepPartial<PurchaseOrderItem>);
+
+    const saved = await itemRepo.save(item);
+    await this.recalculateTotals(purchaseOrderId, dataSource);
+    return saved;
+  }
+
+  /**
+   * Update a single line item on a purchase order
+   */
+  async updateItem(
+    purchaseOrderId: string,
+    itemId: string,
+    dto: UpdatePurchaseOrderItemDto,
+  ): Promise<PurchaseOrderItem> {
+    const po = await this.findById(purchaseOrderId);
+
+    if (
+      ![
+        PurchaseOrderStatus.DRAFT,
+        PurchaseOrderStatus.PENDING_APPROVAL,
+      ].includes(po.status)
+    ) {
+      throw new BadRequestException(
+        'Only draft or pending approval orders can be updated',
+      );
+    }
+
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+    const itemRepo = dataSource.getRepository(PurchaseOrderItem);
+
+    const item = await itemRepo.findOne({
+      where: { id: itemId, purchaseOrderId },
+      relations: ['product', 'product.taxCategory', 'product.taxCategory.taxRates'],
+    });
+
+    if (!item) {
+      throw new NotFoundException(
+        `Item ${itemId} not found on purchase order ${purchaseOrderId}`,
+      );
+    }
+
+    const quantityOrdered = dto.quantityOrdered ?? Number(item.quantityOrdered);
+    const unitPrice = dto.unitPrice ?? Number(item.unitPrice);
+    const discountPercent = dto.discountPercentage ?? Number(item.discountPercentage);
+    const discountAmt = dto.discountAmount ?? 0;
+
+    const grossAmount = quantityOrdered * unitPrice;
+    const lineDiscount = (grossAmount * discountPercent) / 100 + discountAmt;
+    const taxableAmount = grossAmount - lineDiscount;
+
+    let taxAmount = 0;
+    let taxPercentage = Number((item as any).taxPercentage ?? 0);
+    if (item.product?.taxCategory?.taxRates) {
+      const activeTaxRate = item.product.taxCategory.taxRates.find((r) => r.isActive);
+      if (activeTaxRate) {
+        taxPercentage = Number(activeTaxRate.ratePercentage);
+        taxAmount = (taxableAmount * taxPercentage) / 100;
+      }
+    }
+
+    const lineTotal = taxableAmount + taxAmount;
+
+    Object.assign(item, {
+      ...(dto.uomId && { uomId: dto.uomId }),
+      quantityOrdered,
+      unitPrice,
+      discountPercentage: discountPercent,
+      discountAmount: lineDiscount,
+      taxPercentage,
+      taxAmount,
+      lineTotal,
+      notes: dto.notes ?? item.notes,
+    });
+
+    const saved = await itemRepo.save(item);
+    await this.recalculateTotals(purchaseOrderId, dataSource);
+    return saved;
+  }
+
+  /**
+   * Remove a line item from a purchase order
+   */
+  async removeItem(purchaseOrderId: string, itemId: string): Promise<void> {
+    const po = await this.findById(purchaseOrderId);
+
+    if (
+      ![
+        PurchaseOrderStatus.DRAFT,
+        PurchaseOrderStatus.PENDING_APPROVAL,
+      ].includes(po.status)
+    ) {
+      throw new BadRequestException(
+        'Only draft or pending approval orders can be modified',
+      );
+    }
+
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+    const itemRepo = dataSource.getRepository(PurchaseOrderItem);
+
+    const item = await itemRepo.findOne({
+      where: { id: itemId, purchaseOrderId },
+    });
+
+    if (!item) {
+      throw new NotFoundException(
+        `Item ${itemId} not found on purchase order ${purchaseOrderId}`,
+      );
+    }
+
+    await itemRepo.delete(itemId);
+    await this.recalculateTotals(purchaseOrderId, dataSource);
+  }
+
   async getOverdueOrders(): Promise<PurchaseOrder[]> {
     const poRepo = await this.getPurchaseOrderRepository();
     const today = new Date();

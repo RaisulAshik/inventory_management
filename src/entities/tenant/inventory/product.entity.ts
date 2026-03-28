@@ -8,6 +8,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { ProductType } from '@common/enums';
 import { ProductCategory } from './product-category.entity';
@@ -19,6 +20,9 @@ import { ProductImage } from './product-image.entity';
 import { InventoryStock } from '../warehouse/inventory-stock.entity';
 
 @Entity('products')
+@Index('IDX_PRODUCTS_FULLTEXT', ['sku', 'productName', 'barcode'], {
+  fulltext: true,
+})
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;

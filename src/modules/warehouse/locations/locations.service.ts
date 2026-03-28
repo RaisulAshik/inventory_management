@@ -113,6 +113,18 @@ export class LocationsService {
       });
     }
 
+    if (filterDto.locationCode) {
+      queryBuilder.andWhere('location.locationCode LIKE :locationCode', {
+        locationCode: `%${filterDto.locationCode}%`,
+      });
+    }
+
+    if (filterDto.locationName) {
+      queryBuilder.andWhere('location.locationName LIKE :locationName', {
+        locationName: `%${filterDto.locationName}%`,
+      });
+    }
+
     // Apply search
     if (filterDto.search) {
       queryBuilder.andWhere(

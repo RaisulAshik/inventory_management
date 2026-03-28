@@ -13,6 +13,12 @@ class PurchaseOrderItemDto {
   productId: string;
 
   @ApiProperty()
+  uomId: string;
+
+  @ApiProperty()
+  uomName: string;
+
+  @ApiProperty()
   productName: string;
 
   @ApiProperty()
@@ -203,6 +209,8 @@ export class PurchaseOrderResponseDto {
         lineNumber: item.lineNumber,
         productId: item.productId,
         productName: item.product?.productName || item.productName,
+        uomId: item.product?.uomId || item.uomId,
+        uomName: item.product?.uom?.uomName || item.uomName,
         productSku: item.product?.sku || item.sku,
         variantId: item.variantId,
         quantityOrdered: Number(item.quantityOrdered),
@@ -372,6 +380,9 @@ export class PurchaseOrderDetailResponseDto {
         productId: item.productId,
         productName: item.product?.productName || item.productName, // ← fix
         productSku: item.product?.sku || item.sku,
+        uomId: item.product?.uomId || item.uomId,
+        uomName: item.product?.uom?.uomName || item.uomName,
+
         // productSku: item.sku,
         variantId: item.variantId,
         quantityOrdered: Number(item.quantityOrdered),

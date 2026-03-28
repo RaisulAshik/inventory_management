@@ -139,6 +139,32 @@ export class ProductsController {
     res.end(buffer);
   }
 
+  @Get('lookup')
+  @Permissions('products.read')
+  @ApiOperation({
+    summary: 'Lightweight product search for line item typeahead',
+    description:
+      'Returns id, sku, productName, prices, and UOM only. Use this for search-as-you-type in quotations/orders.',
+  })
+  @ApiQuery({
+    name: 'q',
+    required: true,
+    description: 'Search term (SKU, name, or barcode)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Max results (default 20, max 50)',
+  })
+  async lookup(@Query('q') q: string, @Query('limit') limit?: string) {
+    if (!q || q.trim().length < 1) {
+      return { data: [] };
+    }
+    const maxLimit = Math.min(parseInt(limit ?? '20', 10) || 20, 50);
+    const results = await this.productsService.lookup(q.trim(), maxLimit);
+    return { data: results };
+  }
+
   @Get('low-stock')
   @Permissions('products.read')
   @ApiOperation({ summary: 'Get low stock products' })

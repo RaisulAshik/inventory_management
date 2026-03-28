@@ -41,12 +41,17 @@ export class TaxService {
     return categoryRepo.save(category);
   }
 
-  async updateCategory(id: string, dto: Partial<CreateTaxCategoryDto>): Promise<TaxCategory> {
+  async updateCategory(
+    id: string,
+    dto: Partial<CreateTaxCategoryDto>,
+  ): Promise<TaxCategory> {
     const categoryRepo = await this.getTaxCategoryRepository();
     const category = await categoryRepo.findOne({ where: { id } });
     if (!category) throw new NotFoundException(`Tax category ${id} not found`);
-    if (dto.taxCategoryCode !== undefined) category.taxCode = dto.taxCategoryCode;
-    if (dto.taxCategoryName !== undefined) category.taxName = dto.taxCategoryName;
+    if (dto.taxCategoryCode !== undefined)
+      category.taxCode = dto.taxCategoryCode;
+    if (dto.taxCategoryName !== undefined)
+      category.taxName = dto.taxCategoryName;
     if (dto.description !== undefined) category.description = dto.description;
     if (dto.isActive !== undefined) category.isActive = dto.isActive;
     return categoryRepo.save(category);
@@ -140,7 +145,9 @@ export class TaxService {
     }
 
     if (filterDto.isActive !== undefined) {
-      qb.andWhere('rate.isActive = :isActive', { isActive: filterDto.isActive });
+      qb.andWhere('rate.isActive = :isActive', {
+        isActive: filterDto.isActive,
+      });
     }
 
     if (filterDto.search) {
@@ -197,7 +204,8 @@ export class TaxService {
     if (dto.name !== undefined) rate.rateName = dto.name;
     if (dto.rate !== undefined) rate.ratePercentage = dto.rate;
     if (dto.taxType !== undefined) rate.taxType = dto.taxType as any;
-    if (dto.effectiveFrom !== undefined) rate.effectiveFrom = new Date(dto.effectiveFrom);
+    if (dto.effectiveFrom !== undefined)
+      rate.effectiveFrom = new Date(dto.effectiveFrom);
     if (dto.effectiveTo !== undefined)
       rate.effectiveTo = (
         dto.effectiveTo ? new Date(dto.effectiveTo) : null
@@ -214,7 +222,8 @@ export class TaxService {
       taxType: dto.taxType ?? 'PERCENTAGE',
       rateName: dto.name,
       ratePercentage: dto.rate,
-      effectiveFrom: dto.effectiveFrom ?? new Date().toISOString().split('T')[0],
+      effectiveFrom:
+        dto.effectiveFrom ?? new Date().toISOString().split('T')[0],
       effectiveTo: dto.effectiveTo ?? null,
       isActive: dto.isActive ?? true,
     } as DeepPartial<TaxRate>);

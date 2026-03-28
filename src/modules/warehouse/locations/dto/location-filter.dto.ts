@@ -4,6 +4,16 @@ import { LocationType, LocationStatus } from '@common/enums';
 import { PaginationDto } from '@common/dto/pagination.dto';
 
 export class LocationFilterDto extends PaginationDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  locationCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  locationName?: string;
+
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()

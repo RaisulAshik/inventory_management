@@ -223,6 +223,12 @@ export class ProductsService {
       });
     }
 
+    if (filterDto.sku) {
+      queryBuilder.andWhere('product.sku LIKE :sku', {
+        sku: `%${filterDto.sku}%`,
+      });
+    }
+
     if (filterDto.isActive !== undefined) {
       queryBuilder.andWhere('product.isActive = :isActive', {
         isActive: filterDto.isActive,
@@ -300,6 +306,116 @@ export class ProductsService {
     }
 
     return product;
+  }
+
+  /**
+   * Lightweight product search for line item selection (typeahead).
+   * Returns only the fields needed to populate a line item — no heavy joins.
+   *
+   * Strategy:
+   *  - search >= 3 chars → FULLTEXT MATCH...AGAINST (uses index, fast on 5M rows)
+   *  - search < 3 chars  → prefix LIKE on sku only (sku has a unique index)
+   */
+  async lookup(
+    search: string,
+    limit = 20,
+  ): Promise<
+    {
+      id: string;
+      sku: string;
+      productName: string;
+      barcode: string | null;
+      sellingPrice: number;
+      costPrice: number;
+      uomId: string | null;
+      uomName: string | null;
+      taxCategoryId: string | null;
+    }[]
+  > {
+    const productRepo = await this.getProductRepository();
+
+    const qb = productRepo
+      .createQueryBuilder('p')
+      .leftJoin('p.baseUom', 'uom')
+      .select([
+        'p.id',
+        'p.sku',
+        'p.productName',
+        'p.barcode',
+        'p.sellingPrice',
+        'p.costPrice',
+        'p.baseUomId',
+        'p.taxCategoryId',
+        'uom.id',
+        'uom.uomName',
+      ])
+      .where('p.deletedAt IS NULL')
+      .andWhere('p.isActive = :active', { active: true });
+
+    if (search.length >= 3) {
+      // Build boolean-mode search string: each word gets a prefix wildcard
+      // e.g. "blue shirt" → "+blue* +shirt*"
+      const booleanQuery = search
+        .trim()
+        .split(/\s+/)
+        .map((word) => `+${word}*`)
+        .join(' ');
+      qb.andWhere(
+        'MATCH(p.sku, p.product_name, p.barcode) AGAINST (:q IN BOOLEAN MODE)',
+        { q: booleanQuery },
+      );
+    } else {
+      // Short search: prefix match on sku (has unique B-tree index)
+      qb.andWhere('p.sku LIKE :q', { q: `${search}%` });
+    }
+
+    let rows: Product[];
+    try {
+      rows = await qb.orderBy('p.productName', 'ASC').limit(limit).getMany();
+    } catch (err: any) {
+      // FULLTEXT index missing (migration not yet run) — fall back to LIKE
+      if (err?.code === 'ER_FT_MATCHING_KEY_NOT_FOUND') {
+        const fallbackRepo = await this.getProductRepository();
+        rows = await fallbackRepo
+          .createQueryBuilder('p')
+          .leftJoin('p.baseUom', 'uom')
+          .select([
+            'p.id',
+            'p.sku',
+            'p.productName',
+            'p.barcode',
+            'p.sellingPrice',
+            'p.costPrice',
+            'p.baseUomId',
+            'p.taxCategoryId',
+            'uom.id',
+            'uom.uomName',
+          ])
+          .where('p.deletedAt IS NULL')
+          .andWhere('p.isActive = :active', { active: true })
+          .andWhere(
+            '(p.sku LIKE :q OR p.productName LIKE :q OR p.barcode LIKE :q)',
+            { q: `%${search}%` },
+          )
+          .orderBy('p.productName', 'ASC')
+          .limit(limit)
+          .getMany();
+      } else {
+        throw err;
+      }
+    }
+
+    return rows.map((p) => ({
+      id: p.id,
+      sku: p.sku,
+      productName: p.productName,
+      barcode: p.barcode ?? null,
+      sellingPrice: Number(p.sellingPrice),
+      costPrice: Number(p.costPrice),
+      uomId: p.baseUom?.id ?? null,
+      uomName: p.baseUom?.uomName ?? null,
+      taxCategoryId: p.taxCategoryId ?? null,
+    }));
   }
 
   /**

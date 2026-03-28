@@ -82,6 +82,18 @@ export class SupplierResponseDto {
   @ApiPropertyOptional()
   creditLimit?: number;
 
+  @ApiPropertyOptional()
+  bankName?: string;
+
+  @ApiPropertyOptional()
+  bankAccountNumber?: string;
+
+  @ApiPropertyOptional()
+  bankIfscCode?: string;
+
+  @ApiPropertyOptional()
+  bankBranch?: string;
+
   @ApiProperty()
   currency: string;
 
@@ -114,6 +126,10 @@ export class SupplierResponseDto {
     this.country = supplier.country;
     this.postalCode = supplier.postalCode;
     this.paymentTermsDays = supplier.paymentTermsDays;
+    this.bankName = supplier.bankName;
+    this.bankAccountNumber = supplier.bankAccountNumber;
+    this.bankIfscCode = supplier.bankIfscCode;
+    this.bankBranch = supplier.bankBranch;
     this.creditLimit = supplier.creditLimit
       ? Number(supplier.creditLimit)
       : undefined;

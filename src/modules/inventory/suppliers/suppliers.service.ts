@@ -115,6 +115,18 @@ export class SuppliersService {
       });
     }
 
+    if (filterDto.supplierCode) {
+      queryBuilder.andWhere('supplier.supplierCode LIKE :supplierCode', {
+        supplierCode: `%${filterDto.supplierCode}%`,
+      });
+    }
+
+    if (filterDto.companyName) {
+      queryBuilder.andWhere('supplier.companyName LIKE :companyName', {
+        companyName: `%${filterDto.companyName}%`,
+      });
+    }
+
     if (filterDto.country) {
       queryBuilder.andWhere('supplier.country = :country', {
         country: filterDto.country,

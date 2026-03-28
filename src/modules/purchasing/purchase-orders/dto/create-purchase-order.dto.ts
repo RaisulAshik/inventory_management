@@ -12,7 +12,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class CreatePurchaseOrderItemDto {
+export class CreatePurchaseOrderItemDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   @IsNotEmpty()

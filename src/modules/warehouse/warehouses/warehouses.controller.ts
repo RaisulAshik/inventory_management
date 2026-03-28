@@ -23,7 +23,7 @@ import { CreateWarehouseDto } from './dto/create-warehouse.dto';
 import { UpdateWarehouseDto } from './dto/update-warehouse.dto';
 import { WarehouseResponseDto } from './dto/warehouse-response.dto';
 import { CreateZoneDto } from './dto/create-zone.dto';
-import { PaginationDto } from '@common/dto/pagination.dto';
+import { WarehouseFilterDto } from './dto/warehouse-filter.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
@@ -58,8 +58,8 @@ export class WarehousesController {
   @Permissions('warehouses.read')
   @ApiOperation({ summary: 'Get all warehouses with pagination' })
   @ApiPaginatedResponse(WarehouseResponseDto)
-  async findAll(@Query() paginationDto: PaginationDto) {
-    const result = await this.warehousesService.findAll(paginationDto);
+  async findAll(@Query() filterDto: WarehouseFilterDto) {
+    const result = await this.warehousesService.findAll(filterDto);
     return {
       data: result.data.map((w) => new WarehouseResponseDto(w)),
       meta: result.meta,

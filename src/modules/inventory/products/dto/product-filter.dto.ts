@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsBoolean,
   IsNumber,
+  IsString,
   IsUUID,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
@@ -11,6 +12,11 @@ import { ProductType } from '@common/enums';
 import { PaginationDto } from '@common/dto/pagination.dto';
 
 export class ProductFilterDto extends PaginationDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()

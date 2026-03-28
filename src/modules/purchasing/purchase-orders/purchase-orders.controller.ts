@@ -30,6 +30,8 @@ import {
   PurchaseOrderResponseDto,
 } from './dto/purchase-order-response.dto';
 import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
+import { CreatePurchaseOrderItemDto } from './dto/create-purchase-order.dto';
+import { UpdatePurchaseOrderItemDto } from './dto/update-purchase-order-item.dto';
 
 @ApiTags('Purchase Orders')
 @ApiBearerAuth()
@@ -129,6 +131,45 @@ export class PurchaseOrdersController {
   ) {
     const po = await this.purchaseOrdersService.update(id, updateDto);
     return new PurchaseOrderResponseDto(po);
+  }
+
+  @Post(':id/items')
+  @Permissions('purchase-orders.update')
+  @ApiOperation({ summary: 'Add a line item to a purchase order' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  async addItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: CreatePurchaseOrderItemDto,
+  ) {
+    const item = await this.purchaseOrdersService.addItem(id, body);
+    return { data: item };
+  }
+
+  @Patch(':id/items/:itemId')
+  @Permissions('purchase-orders.update')
+  @ApiOperation({ summary: 'Update a line item on a purchase order' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'itemId', type: 'string', format: 'uuid' })
+  async updateItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body() body: UpdatePurchaseOrderItemDto,
+  ) {
+    const item = await this.purchaseOrdersService.updateItem(id, itemId, body);
+    return { data: item };
+  }
+
+  @Delete(':id/items/:itemId')
+  @Permissions('purchase-orders.update')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a line item from a purchase order' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'itemId', type: 'string', format: 'uuid' })
+  async removeItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+  ) {
+    await this.purchaseOrdersService.removeItem(id, itemId);
   }
 
   @Post(':id/submit')

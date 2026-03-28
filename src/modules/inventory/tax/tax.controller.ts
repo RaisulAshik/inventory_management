@@ -34,7 +34,10 @@ export class TaxController {
   @Post('categories')
   @Permissions('tax.write')
   @ApiOperation({ summary: 'Create a new tax category' })
-  @ApiResponse({ status: 201, description: 'Tax category created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Tax category created successfully',
+  })
   createCategory(@Body() dto: CreateTaxCategoryDto) {
     return this.taxService.createCategory(dto);
   }
@@ -48,7 +51,9 @@ export class TaxController {
 
   @Get('categories/dropdown')
   @Permissions('tax.read')
-  @ApiOperation({ summary: 'Get tax categories as id/label pairs for dropdowns' })
+  @ApiOperation({
+    summary: 'Get tax categories as id/label pairs for dropdowns',
+  })
   getCategoriesDropdown() {
     return this.taxService.findCategoriesDropdown();
   }

@@ -149,6 +149,24 @@ export class ProductResponseDto {
   @ApiPropertyOptional()
   hsnCode?: string;
 
+  @ApiPropertyOptional()
+  weight?: number;
+
+  @ApiPropertyOptional()
+  weightUnit?: string;
+
+  @ApiPropertyOptional()
+  length?: number;
+
+  @ApiPropertyOptional()
+  width?: number;
+
+  @ApiPropertyOptional()
+  height?: number;
+
+  @ApiPropertyOptional()
+  dimensionUnit?: string;
+
   @ApiProperty()
   costPrice: number;
 
@@ -175,6 +193,12 @@ export class ProductResponseDto {
 
   @ApiPropertyOptional()
   maximumOrderQuantity?: number;
+
+  @ApiPropertyOptional()
+  leadTimeDays?: number;
+
+  @ApiPropertyOptional()
+  warrantyMonths?: number;
 
   @ApiPropertyOptional({ type: CategoryDto })
   category?: CategoryDto;
@@ -217,6 +241,14 @@ export class ProductResponseDto {
     this.trackExpiry = product.trackExpiry;
     this.shelfLifeDays = product.shelfLifeDays;
     this.hsnCode = product.hsnCode;
+
+    this.weight = product.weight ?? 0;
+    this.weightUnit = product.weightUnit ?? undefined;
+    this.length = product.length ?? 0;
+    this.width = product.width ?? 0;
+    this.height = product.height ?? 0;
+    this.dimensionUnit = product.dimensionUnit ?? undefined;
+
     this.costPrice = Number(product.costPrice);
     this.sellingPrice = Number(product.sellingPrice);
     this.mrp = product.mrp ? Number(product.mrp) : undefined;
@@ -232,6 +264,10 @@ export class ProductResponseDto {
     this.maximumOrderQuantity = product.maximumOrderQuantity
       ? Number(product.maximumOrderQuantity)
       : undefined;
+    this.leadTimeDays = product.leadTimeDays ? Number(product.leadTimeDays) : 0;
+    this.warrantyMonths = product.warrantyMonths
+      ? Number(product.warrantyMonths)
+      : 0;
     this.createdAt = product.createdAt;
     this.updatedAt = product.updatedAt;
 
