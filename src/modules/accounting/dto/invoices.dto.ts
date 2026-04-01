@@ -237,9 +237,14 @@ export class RecordPaymentDto {
   @IsDateString()
   paymentDate: string;
 
-  @ApiProperty({ description: 'Payment method' })
+  @ApiProperty({ description: 'Payment method type (CASH, CHEQUE, BANK_TRANSFER, etc.)' })
   @IsString()
   paymentMethod: string;
+
+  @ApiPropertyOptional({ description: 'Payment method ID (UUID) — if provided, overrides paymentMethod lookup' })
+  @IsOptional()
+  @IsUUID()
+  paymentMethodId?: string;
 
   @ApiPropertyOptional({ description: 'Bank account ID' })
   @IsOptional()

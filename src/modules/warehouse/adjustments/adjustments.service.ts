@@ -26,11 +26,13 @@ import {
 import { AdjustmentFilterDto } from './dto/adjustment-filter.dto';
 import { CreateAdjustmentDto } from './dto/create-adjustment.dto';
 import { UpdateAdjustmentDto } from './dto/update-adjustment.dto';
+import { AccountingIntegrationService } from '@modules/accounting/service/accounting-integration.service';
 
 @Injectable()
 export class AdjustmentsService {
   constructor(
     private readonly tenantConnectionManager: TenantConnectionManager,
+    private readonly accountingIntegration: AccountingIntegrationService,
   ) {}
 
   private async getAdjustmentRepository(): Promise<
@@ -322,7 +324,9 @@ export class AdjustmentsService {
       await manager.getRepository(StockAdjustment).save(adjustment);
     });
 
-    return this.findById(id);
+    const approved = await this.findById(id);
+    void this.accountingIntegration.postInventoryAdjustment(approved);
+    return approved;
   }
 
   /**

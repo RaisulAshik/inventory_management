@@ -9,6 +9,7 @@ import { DatabaseModule } from '@database/database.module';
 import { InventoryModule } from '@modules/inventory/inventory.module';
 import { WarehouseModule } from '@modules/warehouse/warehouse.module';
 import { SupplierDuesModule } from '../due-management';
+import { AccountingModule } from '../accounting/accounting.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { SupplierDuesModule } from '../due-management';
     InventoryModule,
     WarehouseModule,
     SupplierDuesModule,
+    AccountingModule,
   ],
   controllers: [
     PurchaseOrdersController,

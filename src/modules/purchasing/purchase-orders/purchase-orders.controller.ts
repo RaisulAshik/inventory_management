@@ -10,14 +10,26 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
+  Res,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { SkipThrottle } from '@nestjs/throttler';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
+import {
+  BulkUploadFileDto,
+  BulkValidateItemInput,
+} from './dto/bulk-upload-items.dto';
 import { PurchaseOrdersService } from './purchase-orders.service';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
@@ -134,6 +146,7 @@ export class PurchaseOrdersController {
   }
 
   @Post(':id/items')
+  @SkipThrottle()
   @Permissions('purchase-orders.update')
   @ApiOperation({ summary: 'Add a line item to a purchase order' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
@@ -288,5 +301,64 @@ export class PurchaseOrdersController {
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.purchaseOrdersService.remove(id);
+  }
+
+  // ── Bulk validate ────────────────────────────────────────────────────────
+
+  @Post('items/bulk-validate')
+  @SkipThrottle()
+  @Permissions('purchase-orders.read')
+  @ApiOperation({
+    summary: 'Validate a batch of SKUs before bulk import',
+    description:
+      'Returns found/not_found status for each SKU. ' +
+      'Call this before creating a PO to preview which items will succeed.',
+  })
+  async bulkValidateItems(@Body() body: { items: BulkValidateItemInput[] }) {
+    return this.purchaseOrdersService.bulkValidateItems(body.items ?? []);
+  }
+
+  // ── Bulk upload ──────────────────────────────────────────────────────────
+
+  @Get('bulk-upload/template')
+  @SkipThrottle()
+  @Permissions('purchase-orders.read')
+  @ApiOperation({
+    summary: 'Download Excel template for bulk item upload',
+    description:
+      'Returns an .xlsx file with the correct column headers and a sample row.',
+  })
+  async downloadTemplate(@Res() res: Response) {
+    const buffer = await this.purchaseOrdersService.generateUploadTemplate();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="po-items-template.xlsx"',
+    );
+    res.send(buffer);
+  }
+
+  @Post(':id/items/bulk-upload')
+  @SkipThrottle()
+  @Permissions('purchase-orders.update')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: BulkUploadFileDto })
+  @ApiOperation({
+    summary: 'Bulk upload line items from Excel or CSV',
+    description:
+      'Upload an .xlsx or .csv file to add multiple line items at once. ' +
+      'Download the template from GET /purchase-orders/bulk-upload/template. ' +
+      'Returns a summary of succeeded / failed rows with per-row error details.',
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  async bulkUploadItems(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.purchaseOrdersService.bulkUploadItems(id, file);
   }
 }

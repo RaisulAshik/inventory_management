@@ -10,9 +10,10 @@ import { LocationsController } from './locations/locations.controller';
 import { LocationsService } from './locations/locations.service';
 import { TransfersController } from './transfers/transfers.controller';
 import { TransfersService } from './transfers/transfers.service';
+import { AccountingModule } from '@modules/accounting/accounting.module';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, AccountingModule],
   controllers: [
     WarehousesController,
     LocationsController,

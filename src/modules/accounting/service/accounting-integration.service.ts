@@ -11,6 +11,10 @@ import {
   SalesOrder,
   Expense,
 } from '@/entities/tenant';
+import { GoodsReceivedNote } from '@entities/tenant/purchase/goods-received-note.entity';
+import { StockAdjustment } from '@entities/tenant/warehouse/stock-adjustment.entity';
+import { SalesReturn } from '@entities/tenant/eCommerce/sales-return.entity';
+import { ReturnItemCondition } from '@entities/tenant/eCommerce/sales-return-item.entity';
 import {
   JournalEntryType,
   JournalEntryStatus,
@@ -429,6 +433,217 @@ export class AccountingIntegrationService {
         `Failed to post expense JE for ${expense.expenseNumber}: ${(err as Error).message}`,
       );
       return null;
+    }
+  }
+
+  /**
+   * Call after GRN approve() commits.
+   * DR Inventory  /  CR Accounts Payable
+   * Requires: acc.default_inventory_account, acc.default_ap_account
+   */
+  async postGRNApproval(grn: GoodsReceivedNote): Promise<void> {
+    try {
+      const [inventory, ap] = await Promise.all([
+        this.getSetting('acc.default_inventory_account'),
+        this.getSetting('acc.default_ap_account'),
+      ]);
+
+      if (!inventory || !ap) {
+        this.logger.warn(
+          `GRN auto-accounting skipped for ${grn.grnNumber}: ` +
+            `configure acc.default_inventory_account and acc.default_ap_account`,
+        );
+        return;
+      }
+
+      const amount = Number(grn.totalValue);
+      if (amount <= 0) return;
+
+      await this.postEntry({
+        date: grn.receiptDate ? new Date(grn.receiptDate) : new Date(),
+        type: JournalEntryType.PURCHASE,
+        referenceType: 'GRN',
+        referenceId: grn.id,
+        referenceNumber: grn.grnNumber,
+        description: `Goods received – ${grn.grnNumber}`,
+        currency: grn.currency || 'USD',
+        lines: [
+          {
+            accountId: inventory,
+            debit: amount,
+            credit: 0,
+            description: `Inventory received – ${grn.grnNumber}`,
+          },
+          {
+            accountId: ap,
+            debit: 0,
+            credit: amount,
+            description: `Payable to supplier – ${grn.grnNumber}`,
+          },
+        ],
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to post GRN JE for ${grn.grnNumber}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  /**
+   * Call after StockAdjustment approve() commits.
+   * Positive adjustment:  DR Inventory  /  CR Inventory Adjustment (Gain)
+   * Negative adjustment:  DR Inventory Adjustment (Loss)  /  CR Inventory
+   * Requires: acc.default_inventory_account, acc.default_inventory_adjustment_account
+   */
+  async postInventoryAdjustment(adjustment: StockAdjustment): Promise<void> {
+    try {
+      const [inventory, adjAccount] = await Promise.all([
+        this.getSetting('acc.default_inventory_account'),
+        this.getSetting('acc.default_inventory_adjustment_account'),
+      ]);
+
+      if (!inventory || !adjAccount) {
+        this.logger.warn(
+          `Adjustment auto-accounting skipped for ${adjustment.adjustmentNumber}: ` +
+            `configure acc.default_inventory_account and acc.default_inventory_adjustment_account`,
+        );
+        return;
+      }
+
+      const amount = Math.abs(Number(adjustment.totalValueImpact));
+      if (amount <= 0) return;
+
+      const isPositive = Number(adjustment.totalValueImpact) >= 0;
+
+      await this.postEntry({
+        date: adjustment.approvedAt ? new Date(adjustment.approvedAt) : new Date(),
+        type: JournalEntryType.ADJUSTMENT,
+        referenceType: 'STOCK_ADJUSTMENT',
+        referenceId: adjustment.id,
+        referenceNumber: adjustment.adjustmentNumber,
+        description: `Stock adjustment – ${adjustment.adjustmentNumber}`,
+        currency: 'USD',
+        lines: [
+          {
+            accountId: isPositive ? inventory : adjAccount,
+            debit: amount,
+            credit: 0,
+            description: isPositive
+              ? `Inventory increase – ${adjustment.adjustmentNumber}`
+              : `Inventory loss – ${adjustment.adjustmentNumber}`,
+          },
+          {
+            accountId: isPositive ? adjAccount : inventory,
+            debit: 0,
+            credit: amount,
+            description: isPositive
+              ? `Adjustment gain – ${adjustment.adjustmentNumber}`
+              : `Inventory decrease – ${adjustment.adjustmentNumber}`,
+          },
+        ],
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to post adjustment JE for ${adjustment.adjustmentNumber}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  /**
+   * Call after SalesReturn receive() commits.
+   * 1. DR Sales Returns  /  CR Accounts Receivable  (full return amount)
+   * 2. DR Inventory  /  CR COGS  (restocked items only)
+   * Requires: acc.default_sales_returns_account, acc.default_ar_account,
+   *           acc.default_inventory_account, acc.default_cogs_account
+   */
+  async postSalesReturn(salesReturn: SalesReturn): Promise<void> {
+    try {
+      const [returnsAccount, ar, inventory, cogs] = await Promise.all([
+        this.getSetting('acc.default_sales_returns_account'),
+        this.getSetting('acc.default_ar_account'),
+        this.getSetting('acc.default_inventory_account'),
+        this.getSetting('acc.default_cogs_account'),
+      ]);
+
+      if (!returnsAccount || !ar) {
+        this.logger.warn(
+          `Sales return auto-accounting skipped for ${salesReturn.returnNumber}: ` +
+            `configure acc.default_sales_returns_account and acc.default_ar_account`,
+        );
+        return;
+      }
+
+      const returnAmount = Number(salesReturn.totalAmount);
+      if (returnAmount > 0) {
+        await this.postEntry({
+          date: salesReturn.receivedDate ? new Date(salesReturn.receivedDate) : new Date(),
+          type: JournalEntryType.SALES,
+          referenceType: 'SALES_RETURN',
+          referenceId: salesReturn.id,
+          referenceNumber: salesReturn.returnNumber,
+          description: `Sales return – ${salesReturn.returnNumber}`,
+          currency: salesReturn.currency || 'USD',
+          lines: [
+            {
+              accountId: returnsAccount,
+              debit: returnAmount,
+              credit: 0,
+              description: `Return reversal – ${salesReturn.returnNumber}`,
+            },
+            {
+              accountId: ar,
+              debit: 0,
+              credit: returnAmount,
+              description: `AR reduced – ${salesReturn.returnNumber}`,
+            },
+          ],
+        });
+      }
+
+      // Reverse COGS for restocked items
+      if (inventory && cogs) {
+        const restockedItems = (salesReturn.items ?? []).filter(
+          (i) =>
+            i.isRestocked &&
+            (i.condition === ReturnItemCondition.GOOD ||
+              i.condition === ReturnItemCondition.LIKE_NEW),
+        );
+
+        const restockValue = restockedItems.reduce(
+          (sum, i) => sum + Number(i.unitPrice) * Number(i.quantityReturned),
+          0,
+        );
+
+        if (restockValue > 0) {
+          await this.postEntry({
+            date: salesReturn.receivedDate ? new Date(salesReturn.receivedDate) : new Date(),
+            type: JournalEntryType.SALES,
+            referenceType: 'SALES_RETURN',
+            referenceId: salesReturn.id,
+            referenceNumber: `${salesReturn.returnNumber}-COGS`,
+            description: `COGS reversal – ${salesReturn.returnNumber}`,
+            currency: salesReturn.currency || 'USD',
+            lines: [
+              {
+                accountId: inventory,
+                debit: restockValue,
+                credit: 0,
+                description: `Inventory restocked – ${salesReturn.returnNumber}`,
+              },
+              {
+                accountId: cogs,
+                debit: 0,
+                credit: restockValue,
+                description: `COGS reversed – ${salesReturn.returnNumber}`,
+              },
+            ],
+          });
+        }
+      }
+    } catch (err) {
+      this.logger.error(
+        `Failed to post sales return JE for ${salesReturn.returnNumber}: ${(err as Error).message}`,
+      );
     }
   }
 

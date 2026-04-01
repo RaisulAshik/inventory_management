@@ -5,9 +5,18 @@ import {
   IsUUID,
   IsDateString,
   IsIn,
+  IsString,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { SalesOrderStatus } from '@common/enums';
 import { PaginationDto } from '@/common/dto/pagination.dto';
+
+class CustomerFilterDto {
+  @IsOptional()
+  @IsString()
+  displayName?: string;
+}
 
 export class OrderFilterDto extends PaginationDto {
   @ApiPropertyOptional({ enum: SalesOrderStatus })
@@ -39,4 +48,15 @@ export class OrderFilterDto extends PaginationDto {
   @IsOptional()
   @IsIn(['PAID', 'UNPAID', 'PARTIAL'])
   paymentStatus?: 'PAID' | 'UNPAID' | 'PARTIAL';
+
+  @ApiPropertyOptional({ description: 'Filter by order number (partial match)' })
+  @IsOptional()
+  @IsString()
+  orderNumber?: string;
+
+  @ApiPropertyOptional({ type: CustomerFilterDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CustomerFilterDto)
+  customer?: CustomerFilterDto;
 }

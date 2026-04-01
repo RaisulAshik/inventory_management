@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Repository, DataSource, DeepPartial } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import * as ExcelJS from 'exceljs';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
@@ -15,8 +16,18 @@ import {
   Supplier,
   PurchaseOrderItem,
   Product,
+  ProductVariant,
+  UnitOfMeasure,
   SupplierDue,
 } from '@entities/tenant';
+import {
+  BulkItemRow,
+  BulkUploadResult,
+  BulkRowError,
+  BulkValidateItemInput,
+  BulkValidateItemResult,
+  BulkValidateResponse,
+} from './dto/bulk-upload-items.dto';
 import {
   CreatePurchaseOrderDto,
   CreatePurchaseOrderItemDto,
@@ -741,7 +752,9 @@ export class PurchaseOrdersService {
     let taxAmount = 0;
     let taxPercentage = 0;
     if (product.taxCategory?.taxRates) {
-      const activeTaxRate = product.taxCategory.taxRates.find((r) => r.isActive);
+      const activeTaxRate = product.taxCategory.taxRates.find(
+        (r) => r.isActive,
+      );
       if (activeTaxRate) {
         taxPercentage = Number(activeTaxRate.ratePercentage);
         taxAmount = (taxableAmount * taxPercentage) / 100;
@@ -799,7 +812,11 @@ export class PurchaseOrdersService {
 
     const item = await itemRepo.findOne({
       where: { id: itemId, purchaseOrderId },
-      relations: ['product', 'product.taxCategory', 'product.taxCategory.taxRates'],
+      relations: [
+        'product',
+        'product.taxCategory',
+        'product.taxCategory.taxRates',
+      ],
     });
 
     if (!item) {
@@ -810,7 +827,8 @@ export class PurchaseOrdersService {
 
     const quantityOrdered = dto.quantityOrdered ?? Number(item.quantityOrdered);
     const unitPrice = dto.unitPrice ?? Number(item.unitPrice);
-    const discountPercent = dto.discountPercentage ?? Number(item.discountPercentage);
+    const discountPercent =
+      dto.discountPercentage ?? Number(item.discountPercentage);
     const discountAmt = dto.discountAmount ?? 0;
 
     const grossAmount = quantityOrdered * unitPrice;
@@ -820,7 +838,9 @@ export class PurchaseOrdersService {
     let taxAmount = 0;
     let taxPercentage = Number((item as any).taxPercentage ?? 0);
     if (item.product?.taxCategory?.taxRates) {
-      const activeTaxRate = item.product.taxCategory.taxRates.find((r) => r.isActive);
+      const activeTaxRate = item.product.taxCategory.taxRates.find(
+        (r) => r.isActive,
+      );
       if (activeTaxRate) {
         taxPercentage = Number(activeTaxRate.ratePercentage);
         taxAmount = (taxableAmount * taxPercentage) / 100;
@@ -878,6 +898,419 @@ export class PurchaseOrdersService {
 
     await itemRepo.delete(itemId);
     await this.recalculateTotals(purchaseOrderId, dataSource);
+  }
+
+  // ── Bulk validate ──────────────────────────────────────────────────────
+
+  /**
+   * Validate a batch of SKUs without touching the database (read-only).
+   * Used by the frontend before the user confirms a bulk import.
+   */
+  async bulkValidateItems(
+    inputs: BulkValidateItemInput[],
+  ): Promise<BulkValidateResponse> {
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+    const productRepo = dataSource.getRepository(Product);
+    const variantRepo = dataSource.getRepository(ProductVariant);
+    const uomRepo = dataSource.getRepository(UnitOfMeasure);
+
+    const items: BulkValidateItemResult[] = await Promise.all(
+      inputs.map(async (input) => {
+        const sku = (input.product_sku ?? '').trim();
+        if (!sku) {
+          return {
+            product_sku: sku,
+            status: 'not_found' as const,
+            statusMsg: 'product_sku is required',
+          };
+        }
+
+        const product = await productRepo.findOne({
+          where: { sku },
+          relations: ['baseUom'],
+        });
+
+        if (!product) {
+          return {
+            product_sku: sku,
+            status: 'not_found' as const,
+            statusMsg: `SKU "${sku}" not found`,
+          };
+        }
+
+        if (!product.isPurchasable) {
+          return {
+            product_sku: sku,
+            status: 'not_found' as const,
+            statusMsg: `Product "${sku}" is not purchasable`,
+          };
+        }
+
+        // Resolve UOM
+        let uomId: string | null = product.baseUomId ?? null;
+        let uomName: string | null = (product as any).baseUom?.uomName ?? null;
+
+        if (input.uom_code) {
+          const uom = await uomRepo.findOne({
+            where: { uomCode: input.uom_code.toUpperCase() },
+          });
+          if (uom) {
+            uomId = uom.id;
+            uomName = uom.uomName;
+          }
+        }
+
+        // Validate variant if provided
+        if (input.variant_sku) {
+          const variant = await variantRepo.findOne({
+            where: { variantSku: input.variant_sku, productId: product.id },
+          });
+          if (!variant) {
+            return {
+              product_sku: sku,
+              status: 'not_found' as const,
+              statusMsg: `Variant SKU "${input.variant_sku}" not found for product "${sku}"`,
+            };
+          }
+        }
+
+        const resolvedUnitPrice =
+          input.unit_price ?? Number(product.costPrice ?? 0);
+
+        return {
+          product_sku: sku,
+          status: 'found' as const,
+          productId: product.id,
+          productName: product.productName,
+          resolvedUnitPrice,
+          uomId,
+          uomName,
+        };
+      }),
+    );
+
+    return { items };
+  }
+
+  // ── Bulk upload ────────────────────────────────────────────────────────
+
+  /**
+   * Parse an uploaded Excel (.xlsx) or CSV (.csv) file and add all valid rows
+   * as line items to the purchase order.
+   *
+   * Returns a summary: { total, succeeded, failed, errors[] }
+   */
+  async bulkUploadItems(
+    purchaseOrderId: string,
+    file: Express.Multer.File,
+  ): Promise<BulkUploadResult> {
+    const po = await this.findById(purchaseOrderId);
+
+    if (
+      ![
+        PurchaseOrderStatus.DRAFT,
+        PurchaseOrderStatus.PENDING_APPROVAL,
+      ].includes(po.status)
+    ) {
+      throw new BadRequestException(
+        'Items can only be bulk-uploaded to DRAFT or PENDING_APPROVAL orders',
+      );
+    }
+
+    const rows = await this.parseUploadFile(file);
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+
+    const productRepo = dataSource.getRepository(Product);
+    const variantRepo = dataSource.getRepository(ProductVariant);
+    const uomRepo = dataSource.getRepository(UnitOfMeasure);
+    const itemRepo = dataSource.getRepository(PurchaseOrderItem);
+
+    const errors: BulkRowError[] = [];
+    let succeeded = 0;
+
+    for (const row of rows) {
+      try {
+        // 1. Look up product by SKU
+        const product = await productRepo.findOne({
+          where: { sku: row.productSku },
+          relations: ['taxCategory', 'taxCategory.taxRates'],
+        });
+
+        if (!product) {
+          throw new Error(`Product SKU "${row.productSku}" not found`);
+        }
+
+        if (!product.isPurchasable) {
+          throw new Error(`Product "${row.productSku}" is not purchasable`);
+        }
+
+        // 2. Look up variant (optional)
+        let variantId: string | undefined;
+        if (row.variantSku) {
+          const variant = await variantRepo.findOne({
+            where: { variantSku: row.variantSku, productId: product.id },
+          });
+          if (!variant) {
+            throw new Error(
+              `Variant SKU "${row.variantSku}" not found for product "${row.productSku}"`,
+            );
+          }
+          variantId = variant.id;
+        }
+
+        // 3. Resolve UOM (optional — falls back to product base UOM)
+        let uomId = product.baseUomId;
+        if (row.uomCode) {
+          const uom = await uomRepo.findOne({
+            where: { uomCode: row.uomCode.toUpperCase() },
+          });
+          if (!uom) {
+            throw new Error(`UOM code "${row.uomCode}" not found`);
+          }
+          uomId = uom.id;
+        }
+
+        // 4. Calculate amounts (same logic as addItem)
+        const unitPrice = row.unitPrice ?? Number(product.costPrice ?? 0);
+        const discountPercent = row.discountPercent ?? 0;
+        const grossAmount = row.quantity * unitPrice;
+        const lineDiscount = (grossAmount * discountPercent) / 100;
+        const taxableAmount = grossAmount - lineDiscount;
+
+        let taxAmount = 0;
+        let taxPercentage = 0;
+        if (product.taxCategory?.taxRates) {
+          const activeRate = product.taxCategory.taxRates.find(
+            (r) => r.isActive,
+          );
+          if (activeRate) {
+            taxPercentage = Number(activeRate.ratePercentage);
+            taxAmount = (taxableAmount * taxPercentage) / 100;
+          }
+        }
+
+        const lineTotal = taxableAmount + taxAmount;
+
+        // 5. Save item
+        const item = itemRepo.create({
+          id: uuidv4(),
+          purchaseOrderId,
+          productId: product.id,
+          variantId,
+          productName: product.productName,
+          productSku: product.sku,
+          quantityOrdered: row.quantity,
+          uomId,
+          unitPrice,
+          discountPercentage: discountPercent,
+          discountAmount: lineDiscount,
+          taxPercentage,
+          taxAmount,
+          lineTotal,
+          notes: row.notes,
+        } as DeepPartial<PurchaseOrderItem>);
+
+        await itemRepo.save(item);
+        succeeded++;
+      } catch (err) {
+        errors.push({
+          row: row.rowNumber,
+          productSku: row.productSku,
+          error: (err as Error).message,
+        });
+      }
+    }
+
+    // Recalculate PO totals once after all inserts
+    if (succeeded > 0) {
+      await this.recalculateTotals(purchaseOrderId, dataSource);
+    }
+
+    return {
+      total: rows.length,
+      succeeded,
+      failed: errors.length,
+      errors,
+    };
+  }
+
+  /**
+   * Generate and return a filled Excel template buffer so users know
+   * the exact column format expected.
+   */
+  async generateUploadTemplate(): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('PO Items');
+
+    // Column headers
+    sheet.columns = [
+      { header: 'product_sku', key: 'product_sku', width: 20 },
+      { header: 'variant_sku', key: 'variant_sku', width: 20 },
+      { header: 'quantity', key: 'quantity', width: 12 },
+      { header: 'unit_price', key: 'unit_price', width: 14 },
+      { header: 'uom_code', key: 'uom_code', width: 14 },
+      { header: 'discount_percent', key: 'discount_percent', width: 18 },
+      { header: 'notes', key: 'notes', width: 30 },
+    ];
+
+    // Style header row
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9E1F2' },
+    };
+
+    // Sample row
+    sheet.addRow({
+      product_sku: 'PROD-001',
+      variant_sku: '',
+      quantity: 10,
+      unit_price: 250.0,
+      uom_code: 'PCS',
+      discount_percent: 5,
+      notes: 'Sample note',
+    });
+
+    // Instructions sheet
+    const info = workbook.addWorksheet('Instructions');
+    info.getColumn(1).width = 25;
+    info.getColumn(2).width = 60;
+    const instructions = [
+      ['Column', 'Description'],
+      ['product_sku', 'Required. The unique SKU of the product.'],
+      ['variant_sku', 'Optional. Leave blank if the product has no variants.'],
+      ['quantity', 'Required. Quantity to order (must be > 0).'],
+      ['unit_price', 'Optional. Overrides the product cost price if provided.'],
+      [
+        'uom_code',
+        'Optional. Unit of measure code (e.g. PCS, KG). Defaults to product base UOM.',
+      ],
+      [
+        'discount_percent',
+        'Optional. Discount percentage 0-100. Default is 0.',
+      ],
+      ['notes', 'Optional. Line item notes.'],
+    ];
+    instructions.forEach((r, i) => {
+      const row = info.addRow(r);
+      if (i === 0) row.font = { bold: true };
+    });
+
+    return Buffer.from(await workbook.xlsx.writeBuffer());
+  }
+
+  // ── Private: file parser ────────────────────────────────────────────────
+
+  private async parseUploadFile(
+    file: Express.Multer.File,
+  ): Promise<BulkItemRow[]> {
+    const ext = file.originalname.split('.').pop()?.toLowerCase();
+
+    if (!ext || !['xlsx', 'xls', 'csv'].includes(ext)) {
+      throw new BadRequestException(
+        'Unsupported file type. Please upload an .xlsx or .csv file.',
+      );
+    }
+
+    const workbook = new ExcelJS.Workbook();
+
+    if (ext === 'csv') {
+      const { Readable } = await import('stream');
+      const stream = Readable.from(file.buffer);
+      await workbook.csv.read(stream);
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      await workbook.xlsx.load(file.buffer as any);
+    }
+
+    const sheet = workbook.worksheets[0];
+    if (!sheet) {
+      throw new BadRequestException(
+        'The uploaded file contains no worksheets.',
+      );
+    }
+
+    // Safely extract a plain string from any ExcelJS CellValue type
+    const cellText = (v: ExcelJS.CellValue): string => {
+      if (v === null || v === undefined) return '';
+      if (v instanceof Date) return v.toISOString();
+      if (typeof v !== 'object') return String(v);
+      if ('richText' in v) return v.richText.map((rt) => rt.text).join('');
+      if ('result' in v) {
+        const res = v.result;
+        if (res === null || res === undefined) return '';
+        if (typeof res === 'object') return '';
+        return String(res);
+      }
+      return '';
+    };
+
+    // Normalise header names: lowercase, replace spaces/hyphens with underscore
+    const normalise = (s: string) =>
+      s
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, '_');
+
+    const headerRow = sheet.getRow(1);
+    const colMap: Record<string, number> = {};
+    headerRow.eachCell((cell, col) => {
+      colMap[normalise(cellText(cell.value))] = col;
+    });
+
+    const required = ['product_sku', 'quantity'];
+    for (const col of required) {
+      if (!colMap[col]) {
+        throw new BadRequestException(
+          `Missing required column: "${col}". ` +
+            'Download the template from GET /purchase-orders/bulk-upload/template',
+        );
+      }
+    }
+
+    const rows: BulkItemRow[] = [];
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // skip header
+
+      const get = (key: string): string =>
+        cellText(row.getCell(colMap[key] ?? 0).value).trim();
+
+      const productSku = get('product_sku');
+      if (!productSku) return; // skip blank rows
+
+      const qty = parseFloat(get('quantity'));
+      if (isNaN(qty) || qty <= 0) {
+        rows.push({
+          rowNumber,
+          productSku,
+          quantity: 0,
+          // mark as invalid — caught in the loop above
+        });
+        // We still push so error reporting includes the row
+        rows[rows.length - 1].notes = '__INVALID_QTY__';
+        return;
+      }
+
+      rows.push({
+        rowNumber,
+        productSku,
+        variantSku: get('variant_sku') || undefined,
+        quantity: qty,
+        unitPrice: colMap['unit_price']
+          ? parseFloat(get('unit_price')) || undefined
+          : undefined,
+        uomCode: get('uom_code') || undefined,
+        discountPercent: colMap['discount_percent']
+          ? parseFloat(get('discount_percent')) || 0
+          : 0,
+        notes: get('notes') || undefined,
+      });
+    });
+
+    return rows;
   }
 
   async getOverdueOrders(): Promise<PurchaseOrder[]> {

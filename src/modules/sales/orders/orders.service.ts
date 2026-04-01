@@ -88,7 +88,7 @@ export class OrdersService {
     }
 
     // Generate order number
-    const orderNumber = await getNextSequence(dataSource, 'SALES_ORDER');
+    const orderNumber = await getNextSequence(dataSource, 'SO');
 
     // Calculate totals
     const calculatedTotals = await this.calculateOrderTotals(
@@ -201,7 +201,7 @@ export class OrdersService {
       }
 
       // Calculate line totals
-      const quantity = itemDto.quantity;
+      const quantity = itemDto.quantityOrdered;
       const unitPrice = itemDto.unitPrice || Number(product.sellingPrice);
       const discountPercent = itemDto.discountPercentage || 0;
       const discountAmt = itemDto.discountAmount || 0;
@@ -287,7 +287,7 @@ export class OrdersService {
         unitPrice = await this.priceListsService.getProductPrice(
           priceListId,
           itemDto.productId,
-          itemDto.quantity,
+          itemDto.quantityOrdered,
           itemDto.variantId,
         );
       }
@@ -295,7 +295,7 @@ export class OrdersService {
         unitPrice = Number(product.sellingPrice);
       }
 
-      const quantity = itemDto.quantity;
+      const quantity = itemDto.quantityOrdered;
       const discountPercent = itemDto.discountPercentage || 0;
       const discountAmt = itemDto.discountAmount || 0;
 
@@ -396,6 +396,20 @@ export class OrdersService {
           );
           break;
       }
+    }
+
+    if (filterDto.orderNumber) {
+      queryBuilder.andWhere('order.orderNumber LIKE :orderNumber', {
+        orderNumber: `%${filterDto.orderNumber}%`,
+      });
+    }
+
+    if (filterDto.customer?.displayName) {
+      const dn = `%${filterDto.customer.displayName}%`;
+      queryBuilder.andWhere(
+        '(customer.firstName LIKE :dn OR customer.lastName LIKE :dn OR customer.companyName LIKE :dn)',
+        { dn },
+      );
     }
 
     // Apply search

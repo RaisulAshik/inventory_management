@@ -154,6 +154,11 @@ export class QuotationsService {
         { search: `%${filterDto.search}%` },
       );
     }
+    if (filterDto.quotationNumber) {
+      qb.andWhere('q.quotationNumber LIKE :quotationNumber', {
+        quotationNumber: `%${filterDto.quotationNumber}%`,
+      });
+    }
     if (status) qb.andWhere('q.status = :status', { status });
     if (customerId) qb.andWhere('q.customerId = :customerId', { customerId });
     if (warehouseId)
@@ -406,7 +411,7 @@ export class QuotationsService {
     await queryRunner.startTransaction();
 
     try {
-      const orderNumber = await getNextSequence(dataSource, 'SO');
+      const orderNumber = await getNextSequence(dataSource, 'SALES_ORDER');
 
       const salesOrder = queryRunner.manager.create(SalesOrder, {
         ...quotation,

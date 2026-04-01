@@ -35,4 +35,9 @@ export class QuotationFilterDto extends PaginationDto {
   @IsString()
   @IsOptional()
   sortField?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by quotation number (partial match)' })
+  @IsString()
+  @IsOptional()
+  quotationNumber?: string;
 }

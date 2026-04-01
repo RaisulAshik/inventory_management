@@ -25,6 +25,9 @@ export enum AccountingRole {
   INVENTORY = 'INVENTORY', // Inventory Asset
   BANK = 'BANK', // Bank / Cash
   VAT = 'VAT', // VAT / GST Payable
+  AP = 'AP', // Accounts Payable
+  INVENTORY_ADJUSTMENT = 'INVENTORY_ADJUSTMENT', // Inventory Adjustment Gain/Loss
+  SALES_RETURNS = 'SALES_RETURNS', // Sales Returns & Allowances
 }
 
 export class CreateChartOfAccountDto {

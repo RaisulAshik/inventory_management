@@ -50,6 +50,9 @@ async function bootstrap() {
     exclude: ['health', 'docs', 'docs/(.*)', 'api-json'],
   });
 
+  // Enable qs-style nested query params (e.g. customer[displayName]=r)
+  app.getHttpAdapter().getInstance().set('query parser', 'extended');
+
   // Global Validation Pipe
   app.useGlobalPipes(
     new ValidationPipe({

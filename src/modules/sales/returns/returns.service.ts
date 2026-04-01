@@ -24,11 +24,13 @@ import { InventoryStock, StockMovement } from '@entities/tenant';
 import { CreateReturnDto } from './dto/create-return.dto';
 import { ReturnFilterDto } from './dto/return-filter.dto';
 import { UpdateReturnDto } from './dto/update-return.dto';
+import { AccountingIntegrationService } from '@modules/accounting/service/accounting-integration.service';
 
 @Injectable()
 export class ReturnsService {
   constructor(
     private readonly tenantConnectionManager: TenantConnectionManager,
+    private readonly accountingIntegration: AccountingIntegrationService,
   ) {}
 
   private async getReturnRepository(): Promise<Repository<SalesReturn>> {
@@ -477,7 +479,9 @@ export class ReturnsService {
       await manager.getRepository(SalesReturn).save(salesReturn);
     });
 
-    return this.findById(id);
+    const received = await this.findById(id);
+    void this.accountingIntegration.postSalesReturn(received);
+    return received;
   }
 
   /**

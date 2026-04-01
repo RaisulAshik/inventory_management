@@ -35,6 +35,7 @@ import { GrnFilterDto } from './dto/grn-filter.dto';
 import { UpdateGrnDto } from './dto/update-grn.dto';
 import { SupplierDuesService } from '@/modules/due-management';
 import { StockService } from '@/modules/warehouse/stock/stock.service';
+import { AccountingIntegrationService } from '@modules/accounting/service/accounting-integration.service';
 
 @Injectable()
 export class GrnService {
@@ -42,7 +43,8 @@ export class GrnService {
     private readonly tenantConnectionManager: TenantConnectionManager,
     private readonly purchaseOrdersService: PurchaseOrdersService,
     private readonly supplierDuesService: SupplierDuesService,
-    private readonly stockService: StockService, // ← Add this
+    private readonly stockService: StockService,
+    private readonly accountingIntegration: AccountingIntegrationService,
   ) {}
 
   private async getGrnRepository(): Promise<Repository<GoodsReceivedNote>> {
@@ -445,7 +447,9 @@ export class GrnService {
       }
     });
 
-    return this.findById(id);
+    const approved = await this.findById(id);
+    void this.accountingIntegration.postGRNApproval(approved);
+    return approved;
   }
 
   private async updatePurchaseOrderReceived(

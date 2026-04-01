@@ -15,6 +15,7 @@ import {
   Res,
   BadRequestException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import {
   ApiTags,
   ApiOperation,
@@ -140,6 +141,7 @@ export class ProductsController {
   }
 
   @Get('lookup')
+  @SkipThrottle()
   @Permissions('products.read')
   @ApiOperation({
     summary: 'Lightweight product search for line item typeahead',

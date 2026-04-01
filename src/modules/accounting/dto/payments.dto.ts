@@ -12,6 +12,8 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PaginationDto } from '@common/dto/pagination.dto';
+import { OrderPaymentStatus } from '@entities/tenant/eCommerce/order-payment.entity';
 
 export enum PaymentType {
   RECEIVED = 'RECEIVED',
@@ -174,4 +176,52 @@ export class AllocatePaymentDto {
   @ValidateNested({ each: true })
   @Type(() => PaymentAllocationDto)
   allocations: PaymentAllocationDto[];
+}
+
+export class PaymentFilterDto extends PaginationDto {
+  @ApiPropertyOptional({ format: 'uuid', description: 'Filter by sales order ID' })
+  @IsOptional()
+  @IsUUID()
+  orderId?: string;
+
+  @ApiPropertyOptional({ enum: OrderPaymentStatus })
+  @IsOptional()
+  @IsEnum(OrderPaymentStatus)
+  status?: OrderPaymentStatus;
+
+  @ApiPropertyOptional({ type: 'string', format: 'date' })
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @ApiPropertyOptional({ type: 'string', format: 'date' })
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
+}
+
+export class CompletePaymentDto {
+  @ApiPropertyOptional({ description: 'Transaction / reference number' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  referenceNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class RefundPaymentDto {
+  @ApiPropertyOptional({ description: 'Refund amount — omit for full refund' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  amount?: number;
+
+  @ApiPropertyOptional({ description: 'Reason for refund' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }

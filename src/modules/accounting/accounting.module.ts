@@ -15,6 +15,8 @@ import { FiscalPeriodsService } from './service/fiscal-periods.service';
 import { FiscalYearsService } from './service/fiscal-years.service';
 import { JournalEntriesService } from './service/journal-entries.service';
 import { GeneralLedgerService } from './service/journal-ledger.service';
+import { InvoicesService } from './service/invoices.service';
+import { PaymentsService } from './service/payments.service';
 // Controllers
 import { BankAccountsController } from './controller/bank-accounts.controller';
 import { BankReconciliationsController } from './controller/bank-reconciliations.controller';
@@ -28,6 +30,7 @@ import { FiscalYearsController } from './controller/fiscal-years.controller';
 import { GeneralLedgerController } from './controller/general-ledger.controller';
 import { JournalEntriesController } from './controller/journal-entries.controller';
 import { InvoicesController } from './controller/invoices.controller';
+import { PaymentsController } from './controller/payments.controller';
 
 @Module({
   imports: [DatabaseModule, SettingsModule],
@@ -44,6 +47,7 @@ import { InvoicesController } from './controller/invoices.controller';
     BudgetsController,
     FinancialReportsController,
     InvoicesController,
+    PaymentsController,
   ],
   providers: [
     AccountingIntegrationService,
@@ -58,6 +62,8 @@ import { InvoicesController } from './controller/invoices.controller';
     BankReconciliationsService,
     BudgetsService,
     FinancialReportsService,
+    InvoicesService,
+    PaymentsService,
   ],
   exports: [
     AccountingIntegrationService,
@@ -72,6 +78,8 @@ import { InvoicesController } from './controller/invoices.controller';
     BankReconciliationsService,
     BudgetsService,
     FinancialReportsService,
+    InvoicesService,
+    PaymentsService,
   ],
 })
 export class AccountingModule {}

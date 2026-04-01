@@ -26,7 +26,7 @@ class CreateOrderItemDto {
   @ApiProperty({ example: 2 })
   @IsNumber()
   @Min(0.0001)
-  quantity: number;
+  quantityOrdered: number;
 
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()

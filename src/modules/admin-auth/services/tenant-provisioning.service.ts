@@ -767,6 +767,24 @@ export class TenantProvisioningService {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
+      // payment_terms (entity: PaymentTerm -> 'payment_terms')
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`payment_terms\` (
+          \`id\` CHAR(36) NOT NULL,
+          \`term_code\` VARCHAR(50) NOT NULL,
+          \`term_name\` VARCHAR(100) NOT NULL,
+          \`description\` TEXT NULL,
+          \`due_days\` INT NOT NULL DEFAULT 0,
+          \`discount_days\` INT NULL,
+          \`discount_percentage\` DECIMAL(8, 4) NULL,
+          \`is_active\` TINYINT(1) DEFAULT 1,
+          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`uk_payment_term_code\` (\`term_code\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
       // =====================================================
       // CUSTOMER & SUPPLIER TABLES
       // =====================================================

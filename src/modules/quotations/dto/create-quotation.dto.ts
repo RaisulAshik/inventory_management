@@ -30,6 +30,7 @@ export class CreateQuotationItemDto {
   uomId?: string;
 
   @ApiProperty()
+  @Transform(({ value }) => value ?? 1)
   @IsNumber()
   @Min(0.0001)
   quantity: number;
@@ -94,6 +95,11 @@ export class CreateQuotationDto {
   @IsOptional()
   @Transform(({ value }) => value || undefined)
   salesPersonId?: string;
+
+  @ApiPropertyOptional({ description: 'Sales person name (display only)' })
+  @IsString()
+  @IsOptional()
+  salesPerson?: string;
 
   @ApiPropertyOptional()
   @IsString()

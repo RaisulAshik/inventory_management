@@ -25,6 +25,9 @@ const ROLE_TO_SETTING: Record<AccountingRole, string> = {
   [AccountingRole.INVENTORY]: 'acc.default_inventory_account',
   [AccountingRole.BANK]: 'acc.default_bank_account',
   [AccountingRole.VAT]: 'acc.default_vat_account',
+  [AccountingRole.AP]: 'acc.default_ap_account',
+  [AccountingRole.INVENTORY_ADJUSTMENT]: 'acc.default_inventory_adjustment_account',
+  [AccountingRole.SALES_RETURNS]: 'acc.default_sales_returns_account',
 };
 
 /** Accounting rule: every account type has a canonical normal balance */

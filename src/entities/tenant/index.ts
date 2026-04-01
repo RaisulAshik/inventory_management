@@ -24,6 +24,7 @@ export * from './inventory/product-attribute-value.entity';
 export * from './inventory/product-variant-attribute.entity';
 export * from './inventory/price-list.entity';
 export * from './inventory/price-list-item.entity';
+export * from './inventory/payment-term.entity';
 export * from './inventory/supplier.entity';
 export * from './inventory/supplier-contact.entity';
 export * from './inventory/supplier-product.entity';

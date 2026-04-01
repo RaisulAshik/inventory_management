@@ -26,7 +26,7 @@ export class QuotationResponseDto {
     this.id = quotation.id;
     this.quotationNumber = quotation.quotationNumber;
     this.customerId = quotation.customerId;
-    this.customerName = quotation.customer?.companyName ?? '';
+    this.customerName = quotation.customer?.displayName ?? quotation.customer?.companyName ?? '';
     this.warehouseId = quotation.warehouseId;
     this.quotationDate = quotation.quotationDate;
     this.validUntil = quotation.validUntil;
