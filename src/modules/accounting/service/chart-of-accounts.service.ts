@@ -47,14 +47,31 @@ export class ChartOfAccountsService {
   ) {}
 
   /**
-   * Determine which AccountingRole this account implicitly represents
-   * based on its boolean flags (only used when defaultFor is not set).
+   * Determine which AccountingRole this account implicitly represents.
+   * Priority: explicit boolean flags → accountSubtype → accountType.
    */
   private detectImplicitRole(
     dto: Partial<CreateChartOfAccountDto>,
   ): AccountingRole | null {
+    // Explicit flags take highest priority
     if (dto.isReceivable) return AccountingRole.AR;
+    if (dto.isPayable) return AccountingRole.AP;
     if (dto.isBankAccount || dto.isCashAccount) return AccountingRole.BANK;
+
+    // Subtype-based detection
+    const subtype = (dto.accountSubtype ?? '').toUpperCase().replace(/\s+/g, '_');
+    if (subtype === 'COGS' || subtype === 'COST_OF_GOODS_SOLD') return AccountingRole.COGS;
+    if (subtype === 'INVENTORY' || subtype === 'INVENTORY_ASSET') return AccountingRole.INVENTORY;
+    if (subtype === 'INVENTORY_ADJUSTMENT') return AccountingRole.INVENTORY_ADJUSTMENT;
+    if (subtype === 'SALES_RETURNS' || subtype === 'SALES_RETURNS_AND_ALLOWANCES') return AccountingRole.SALES_RETURNS;
+    if (subtype === 'VAT' || subtype === 'VAT_PAYABLE' || subtype === 'GST' || subtype === 'GST_PAYABLE') return AccountingRole.VAT;
+    if (subtype === 'ACCOUNTS_RECEIVABLE' || subtype === 'AR') return AccountingRole.AR;
+    if (subtype === 'ACCOUNTS_PAYABLE' || subtype === 'AP') return AccountingRole.AP;
+    if (subtype === 'BANK' || subtype === 'CASH') return AccountingRole.BANK;
+
+    // Account type fallback
+    if (dto.accountType === AccountType.REVENUE) return AccountingRole.REVENUE;
+
     return null;
   }
 
@@ -136,7 +153,9 @@ export class ChartOfAccountsService {
       search,
       page = 1,
       limit = 50,
+      pageSize,
     } = query;
+    const effectiveLimit = pageSize ?? limit;
     const qb = repo.createQueryBuilder('coa');
     if (accountType)
       qb.andWhere('coa.accountType = :accountType', { accountType });
@@ -154,10 +173,10 @@ export class ChartOfAccountsService {
         { search: `%${search}%` },
       );
     qb.orderBy('coa.accountCode', 'ASC')
-      .skip((page - 1) * limit)
-      .take(limit);
+      .skip((page - 1) * effectiveLimit)
+      .take(effectiveLimit);
     const [data, total] = await qb.getManyAndCount();
-    return { data, total, page, limit };
+    return { data, total, page, limit: effectiveLimit };
   }
 
   async findOne(id: string): Promise<ChartOfAccounts> {

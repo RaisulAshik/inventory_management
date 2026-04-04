@@ -39,4 +39,14 @@ export class ExpenseFilterDto extends PaginationDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by description (partial match)' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by category' })
+  @IsOptional()
+  @IsString()
+  category?: string;
 }

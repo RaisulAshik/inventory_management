@@ -27,8 +27,8 @@ export async function getNextSequence(
         sequenceType,
         prefix: getDefaultPrefix(sequenceType),
         currentNumber: 0,
-        paddingLength: 6,
-        resetPeriod: ResetPeriod.NEVER,
+        paddingLength: 4,
+        resetPeriod: ResetPeriod.DAILY,
       });
     }
 

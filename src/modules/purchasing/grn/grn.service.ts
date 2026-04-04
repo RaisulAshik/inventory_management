@@ -7,7 +7,6 @@ import {
   Repository,
   DataSource,
   DeepPartial,
-  IsNull,
   EntityManager,
 } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -24,9 +23,6 @@ import { PurchaseOrdersService } from '../purchase-orders/purchase-orders.servic
 import {
   PurchaseOrder,
   GrnItem,
-  InventoryStock,
-  StockMovement,
-  InventoryBatch,
   PurchaseOrderItem,
   GoodsReceivedNote,
 } from '@entities/tenant';
@@ -190,13 +186,14 @@ export class GrnService {
 
       const acceptedQuantity =
         itemDto.receivedQuantity - (itemDto.rejectedQuantity || 0);
-      const lineTotal =
-        acceptedQuantity * (itemDto.unitPrice || Number(poItem.unitPrice));
+      const unitPrice = itemDto.unitPrice || Number(poItem.unitPrice);
+      const discountAmount = itemDto.discountAmount || 0;
+      const lineTotal = acceptedQuantity * unitPrice - discountAmount;
 
       const item = itemRepo.create({
         id: uuidv4(),
         grnId,
-        purchaseOrderItemId: poItem.id,
+        poItemId: poItem.id,
         productId: itemDto.productId,
         variantId: itemDto.variantId,
         quantityReceived: itemDto.receivedQuantity,
@@ -204,8 +201,9 @@ export class GrnService {
         quantityRejected: itemDto.rejectedQuantity || 0,
         uomId: poItem.uomId,
         unitPrice: itemDto.unitPrice || poItem.unitPrice,
+        discountAmount,
         taxAmount: itemDto.taxAmount || 0,
-        lineTotal,
+        lineValue: lineTotal,
         batchNumber: itemDto.batchNumber,
         manufacturingDate: itemDto.manufacturingDate,
         expiryDate: itemDto.expiryDate,
@@ -231,7 +229,8 @@ export class GrnService {
       .leftJoinAndSelect('grn.supplier', 'supplier')
       .leftJoinAndSelect('grn.warehouse', 'warehouse')
       .leftJoinAndSelect('grn.purchaseOrder', 'purchaseOrder')
-      .leftJoinAndSelect('grn.items', 'items');
+      .leftJoinAndSelect('grn.items', 'items')
+      .leftJoinAndSelect('items.product', 'itemProduct');
 
     // Apply filters
     if (filterDto.status) {
@@ -327,8 +326,63 @@ export class GrnService {
       throw new BadRequestException('Only draft GRNs can be updated');
     }
 
-    Object.assign(grn, updateDto);
+    const { items, ...headerFields } = updateDto as any;
+    Object.assign(grn, headerFields);
     await grnRepo.save(grn);
+
+    // Update items if provided
+    if (items && items.length > 0) {
+      const dataSource = await this.tenantConnectionManager.getDataSource();
+      const itemRepo = dataSource.getRepository(GrnItem);
+
+      for (const itemDto of items) {
+        if (!itemDto.id) continue;
+
+        const grnItem = await itemRepo.findOne({ where: { id: itemDto.id } });
+        if (!grnItem) continue;
+
+        const receivedQty =
+          itemDto.receivedQuantity ?? Number(grnItem.quantityReceived);
+        const rejectedQty = itemDto.rejectedQuantity ?? Number(grnItem.quantityRejected);
+        const acceptedQty = itemDto.acceptedQuantity ?? (receivedQty - rejectedQty);
+        const unitPrice = itemDto.unitPrice ?? Number(grnItem.unitPrice);
+        const discountAmt = itemDto.discountAmount ?? 0;
+        const lineTotal = acceptedQty * unitPrice - discountAmt;
+
+        Object.assign(grnItem, {
+          quantityReceived: receivedQty,
+          quantityAccepted: acceptedQty,
+          quantityRejected: rejectedQty,
+          unitPrice,
+          discountAmount: discountAmt,
+          taxAmount: itemDto.taxAmount ?? Number(grnItem.taxAmount ?? 0),
+          lineValue: lineTotal,
+          batchNumber: itemDto.batchNumber ?? grnItem.batchNumber,
+          expiryDate: itemDto.expiryDate ?? grnItem.expiryDate,
+          locationId: itemDto.locationId ?? grnItem.locationId,
+          rejectionReason: itemDto.rejectionReason ?? grnItem.rejectionReason,
+          notes: itemDto.notes ?? grnItem.notes,
+        });
+
+        await itemRepo.save(grnItem);
+      }
+
+      // Recalculate GRN totals
+      const updatedItems = await itemRepo.find({ where: { grnId: id } });
+      const totals = this.calculateGrnTotals(
+        updatedItems.map((i) => ({
+          receivedQuantity: Number(i.quantityReceived),
+          rejectedQuantity: Number(i.quantityRejected),
+          unitPrice: Number(i.unitPrice),
+          taxAmount: 0,
+        })),
+      );
+      await grnRepo.update(id, {
+        subtotal: totals.subtotal,
+        taxAmount: totals.taxAmount,
+        totalValue: totals.totalAmount,
+      } as any);
+    }
 
     return this.findById(id);
   }

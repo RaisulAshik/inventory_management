@@ -56,6 +56,9 @@ export class Expense {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  @Column({ length: 100, nullable: true })
+  category: string;
+
   @Column({
     type: 'enum',
     enum: ExpenseStatus,

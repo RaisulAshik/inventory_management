@@ -52,7 +52,8 @@ export class CostCentersService {
 
   async findAll(query: QueryCostCenterDto) {
     const repo = await this.getRepo();
-    const { parentId, isActive, search, page = 1, limit = 50 } = query;
+    const { parentId, isActive, search, page = 1, limit = 50, pageSize } = query;
+    const effectiveLimit = pageSize ?? limit;
     const qb = repo.createQueryBuilder('cc');
     if (parentId) qb.andWhere('cc.parentId = :parentId', { parentId });
     if (isActive !== undefined)
@@ -63,10 +64,10 @@ export class CostCentersService {
         { search: `%${search}%` },
       );
     qb.orderBy('cc.costCenterCode', 'ASC')
-      .skip((page - 1) * limit)
-      .take(limit);
+      .skip((page - 1) * effectiveLimit)
+      .take(effectiveLimit);
     const [data, total] = await qb.getManyAndCount();
-    return { data, total, page, limit };
+    return { data, total, page, limit: effectiveLimit };
   }
 
   async findOne(id: string): Promise<CostCenter> {

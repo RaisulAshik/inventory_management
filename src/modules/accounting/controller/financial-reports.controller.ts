@@ -36,4 +36,22 @@ export class FinancialReportsController {
   bankSummary(@Query() query: FinancialReportQueryDto) {
     return this.reportsService.bankSummary(query);
   }
+
+  @Get('aged-receivables')
+  @Permissions('accounting.reports.read')
+  agedReceivables(@Query() query: FinancialReportQueryDto) {
+    return this.reportsService.agedReceivables(query);
+  }
+
+  @Get('aged-payables')
+  @Permissions('accounting.reports.read')
+  agedPayables(@Query() query: FinancialReportQueryDto) {
+    return this.reportsService.agedPayables(query);
+  }
+
+  @Get('trial-balance')
+  @Permissions('accounting.reports.read')
+  trialBalance(@Query() query: FinancialReportQueryDto) {
+    return this.reportsService.trialBalance(query);
+  }
 }

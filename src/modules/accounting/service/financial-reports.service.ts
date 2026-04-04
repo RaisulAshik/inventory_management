@@ -1,6 +1,6 @@
 import { AccountType } from '@/common/enums';
 import { GeneralLedger, BankAccount } from '@/entities/tenant';
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import {
   FinancialReportQueryDto,
@@ -8,6 +8,11 @@ import {
 } from '../dto/financial-reports.dto';
 import { GeneralLedgerService } from './journal-ledger.service';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
+import {
+  BankTransaction,
+  BankTransactionStatus,
+  BankTransactionType,
+} from '@entities/tenant/accounting/bank-transaction.entity';
 
 @Injectable()
 export class FinancialReportsService {
@@ -22,6 +27,10 @@ export class FinancialReportsService {
 
   private async getBankAccountRepo(): Promise<Repository<BankAccount>> {
     return this.tenantConnectionManager.getRepository(BankAccount);
+  }
+
+  private async getBankTxRepo(): Promise<Repository<BankTransaction>> {
+    return this.tenantConnectionManager.getRepository(BankTransaction);
   }
 
   async generateReport(query: FinancialReportQueryDto) {
@@ -40,8 +49,12 @@ export class FinancialReportsService {
         return this.budgetVsActual(query);
       case ReportType.BANK_SUMMARY:
         return this.bankSummary(query);
+      case ReportType.AGED_RECEIVABLES:
+        return this.agedReceivables(query);
+      case ReportType.AGED_PAYABLES:
+        return this.agedPayables(query);
       default:
-        throw new Error(`Unsupported report type: ${query.reportType}`);
+        throw new BadRequestException(`Unsupported report type: ${query.reportType}`);
     }
   }
 
@@ -184,9 +197,11 @@ export class FinancialReportsService {
     const results = await qb.getRawMany();
 
     const revenue: any[] = [];
-    const expenses: any[] = [];
+    const cogs: any[] = [];
+    const operatingExpenses: any[] = [];
     let totalRevenue = 0;
-    let totalExpenses = 0;
+    let totalCogs = 0;
+    let totalOperatingExpenses = 0;
 
     for (const row of results) {
       const debit = Number(row.totalDebit) || 0;
@@ -196,11 +211,21 @@ export class FinancialReportsService {
         totalRevenue += balance;
         revenue.push({ ...row, balance });
       } else {
+        // Expense account — split COGS vs operating by accountSubtype
         const balance = debit - credit;
-        totalExpenses += balance;
-        expenses.push({ ...row, balance });
+        const subtype = (row.accountSubtype || '').toUpperCase();
+        if (subtype === 'COGS' || subtype === 'COST OF GOODS SOLD') {
+          totalCogs += balance;
+          cogs.push({ ...row, balance });
+        } else {
+          totalOperatingExpenses += balance;
+          operatingExpenses.push({ ...row, balance });
+        }
       }
     }
+
+    const grossProfit = totalRevenue - totalCogs;
+    const netIncome = grossProfit - totalOperatingExpenses;
 
     return {
       reportType: ReportType.INCOME_STATEMENT,
@@ -212,73 +237,89 @@ export class FinancialReportsService {
         ),
         total: totalRevenue,
       },
-      expenses: {
-        accounts: expenses.filter(
+      costOfGoodsSold: {
+        accounts: cogs.filter(
+          (c) => query.includeZeroBalances || c.balance !== 0,
+        ),
+        total: totalCogs,
+      },
+      grossProfit,
+      operatingExpenses: {
+        accounts: operatingExpenses.filter(
           (e) => query.includeZeroBalances || e.balance !== 0,
         ),
-        total: totalExpenses,
+        total: totalOperatingExpenses,
       },
-      grossProfit: totalRevenue,
-      operatingExpenses: totalExpenses,
-      netIncome: totalRevenue - totalExpenses,
+      netIncome,
     };
   }
 
   async trialBalance(query: FinancialReportQueryDto) {
     if (!query.fiscalYearId)
-      throw new Error('Fiscal year is required for trial balance');
+      throw new BadRequestException('fiscalYearId is required for trial balance');
     return this.glService.getTrialBalance(query.fiscalYearId, query.asOfDate);
   }
 
   async cashFlowStatement(query: FinancialReportQueryDto) {
-    const glRepo = await this.getGlRepo();
+    const txRepo = await this.getBankTxRepo();
     const bankAccountRepo = await this.getBankAccountRepo();
     const startDate = query.startDate;
     const endDate = query.endDate || new Date().toISOString().split('T')[0];
 
-    const operatingQb = glRepo
-      .createQueryBuilder('gl')
-      .select('account.accountType', 'accountType')
-      .addSelect('account.accountSubtype', 'accountSubtype')
-      .addSelect('SUM(gl.debitAmount)', 'totalDebit')
-      .addSelect('SUM(gl.creditAmount)', 'totalCredit')
-      .leftJoin('gl.account', 'account')
-      .groupBy('account.accountType')
-      .addGroupBy('account.accountSubtype');
+    // Operating inflows: customer receipts, sales deposits, cheques received
+    const operatingInTypes = [
+      BankTransactionType.DEPOSIT,
+      BankTransactionType.CHEQUE_DEPOSIT,
+      BankTransactionType.INTEREST_CREDIT,
+    ];
+    // Operating outflows: payments to suppliers, expenses, bank charges
+    const operatingOutTypes = [
+      BankTransactionType.WITHDRAWAL,
+      BankTransactionType.CHEQUE_ISSUED,
+      BankTransactionType.BANK_CHARGES,
+    ];
+    // Financing
+    const financingInTypes = [BankTransactionType.LOAN_DISBURSEMENT];
+    const financingOutTypes = [BankTransactionType.LOAN_REPAYMENT];
+    const qb = txRepo
+      .createQueryBuilder('tx')
+      .select('tx.transactionType', 'transactionType')
+      .addSelect('SUM(tx.amount)', 'total')
+      .where('tx.status NOT IN (:...excluded)', {
+        excluded: [BankTransactionStatus.BOUNCED, BankTransactionStatus.CANCELLED],
+      })
+      .groupBy('tx.transactionType');
 
-    if (startDate)
-      operatingQb.andWhere('gl.transactionDate >= :startDate', { startDate });
-    if (endDate)
-      operatingQb.andWhere('gl.transactionDate <= :endDate', { endDate });
-    if (query.fiscalYearId)
-      operatingQb.andWhere('gl.fiscalYearId = :fiscalYearId', {
-        fiscalYearId: query.fiscalYearId,
-      });
+    if (startDate) qb.andWhere('tx.transactionDate >= :startDate', { startDate });
+    if (endDate) qb.andWhere('tx.transactionDate <= :endDate', { endDate });
 
-    const results = await operatingQb.getRawMany();
+    const rows: { transactionType: BankTransactionType; total: string }[] =
+      await qb.getRawMany();
 
-    let operatingActivities = 0;
-    const investingActivities = 0;
-    const financingActivities = 0;
-    const details: any[] = [];
-
-    for (const row of results) {
-      const debit = Number(row.totalDebit) || 0;
-      const credit = Number(row.totalCredit) || 0;
-      const net = credit - debit;
-      if (
-        [AccountType.REVENUE, AccountType.EXPENSE].includes(row.accountType)
-      ) {
-        operatingActivities +=
-          row.accountType === AccountType.REVENUE ? net : -net;
-        details.push({ category: 'operating', ...row, net });
-      }
+    const byType: Record<string, number> = {};
+    for (const row of rows) {
+      byType[row.transactionType] = Number(row.total) || 0;
     }
 
+    const sumTypes = (types: BankTransactionType[]) =>
+      types.reduce((s, t) => s + (byType[t] ?? 0), 0);
+
+    const operatingInflow = sumTypes(operatingInTypes);
+    const operatingOutflow = sumTypes(operatingOutTypes);
+    const operatingNet = operatingInflow - operatingOutflow;
+
+    const financingInflow = sumTypes(financingInTypes);
+    const financingOutflow = sumTypes(financingOutTypes);
+    const financingNet = financingInflow - financingOutflow;
+
+    const transferIn = byType[BankTransactionType.TRANSFER_IN] ?? 0;
+    const transferOut = byType[BankTransactionType.TRANSFER_OUT] ?? 0;
+
+    // Current cash balance from all active bank accounts
     const bankAccounts = await bankAccountRepo.find({
       where: { isActive: true as any },
     });
-    const totalCashBalance = bankAccounts.reduce(
+    const currentCashBalance = bankAccounts.reduce(
       (sum, ba) => sum + Number(ba.currentBalance),
       0,
     );
@@ -288,20 +329,40 @@ export class FinancialReportsService {
       startDate,
       endDate,
       operatingActivities: {
-        total: operatingActivities,
-        details: details.filter((d) => d.category === 'operating'),
+        inflow: operatingInflow,
+        outflow: operatingOutflow,
+        net: operatingNet,
+        breakdown: operatingInTypes.concat(operatingOutTypes).map((t) => ({
+          type: t,
+          amount: byType[t] ?? 0,
+        })),
       },
-      investingActivities: { total: investingActivities },
-      financingActivities: { total: financingActivities },
-      netCashChange:
-        operatingActivities + investingActivities + financingActivities,
-      currentCashBalance: totalCashBalance,
+      investingActivities: {
+        net: 0,
+        note: 'No investing transactions tracked yet',
+      },
+      financingActivities: {
+        inflow: financingInflow,
+        outflow: financingOutflow,
+        net: financingNet,
+        breakdown: financingInTypes.concat(financingOutTypes).map((t) => ({
+          type: t,
+          amount: byType[t] ?? 0,
+        })),
+      },
+      internalTransfers: {
+        transferIn,
+        transferOut,
+        note: 'Internal transfers net to zero across accounts',
+      },
+      netCashChange: operatingNet + financingNet,
+      currentCashBalance,
     };
   }
 
   async generalLedgerReport(query: FinancialReportQueryDto) {
     if (!query.accountId)
-      throw new Error('Account ID is required for general ledger report');
+      throw new BadRequestException('accountId is required for general ledger report');
     return this.glService.getAccountLedger(
       query.accountId,
       query.startDate,
@@ -349,6 +410,162 @@ export class FinancialReportsService {
     };
   }
 
+  async agedReceivables(query: FinancialReportQueryDto) {
+    const ds = await this.tenantConnectionManager.getDataSource();
+    const asOfDate = query.asOfDate || new Date().toISOString().split('T')[0];
+
+    // Summary by aging bucket
+    const buckets = await ds.query(
+      `
+      SELECT
+        CASE
+          WHEN due_date >= ? THEN 'Current'
+          WHEN DATEDIFF(?, due_date) BETWEEN 1 AND 30 THEN '1-30 days'
+          WHEN DATEDIFF(?, due_date) BETWEEN 31 AND 60 THEN '31-60 days'
+          WHEN DATEDIFF(?, due_date) BETWEEN 61 AND 90 THEN '61-90 days'
+          ELSE '90+ days'
+        END AS bucket,
+        COUNT(*) AS count,
+        COALESCE(SUM(original_amount - paid_amount - adjusted_amount - written_off_amount), 0) AS amount
+      FROM customer_dues
+      WHERE status NOT IN ('PAID','WRITTEN_OFF')
+        AND (original_amount - paid_amount - adjusted_amount - written_off_amount) > 0
+      GROUP BY bucket
+      ORDER BY FIELD(bucket, 'Current', '1-30 days', '31-60 days', '61-90 days', '90+ days')
+      `,
+      [asOfDate, asOfDate, asOfDate, asOfDate],
+    );
+
+    // Per-customer breakdown
+    const customers = await ds.query(
+      `
+      SELECT
+        cd.customer_id AS customerId,
+        COALESCE(NULLIF(TRIM(CONCAT(c.first_name,' ',COALESCE(c.last_name,''))), ''), c.company_name, c.email) AS customerName,
+        c.email AS email,
+        COALESCE(SUM(CASE WHEN cd.due_date >= ? THEN cd.original_amount - cd.paid_amount - cd.adjusted_amount - cd.written_off_amount ELSE 0 END), 0) AS current_amount,
+        COALESCE(SUM(CASE WHEN DATEDIFF(?, cd.due_date) BETWEEN 1 AND 30 THEN cd.original_amount - cd.paid_amount - cd.adjusted_amount - cd.written_off_amount ELSE 0 END), 0) AS days_1_30,
+        COALESCE(SUM(CASE WHEN DATEDIFF(?, cd.due_date) BETWEEN 31 AND 60 THEN cd.original_amount - cd.paid_amount - cd.adjusted_amount - cd.written_off_amount ELSE 0 END), 0) AS days_31_60,
+        COALESCE(SUM(CASE WHEN DATEDIFF(?, cd.due_date) BETWEEN 61 AND 90 THEN cd.original_amount - cd.paid_amount - cd.adjusted_amount - cd.written_off_amount ELSE 0 END), 0) AS days_61_90,
+        COALESCE(SUM(CASE WHEN DATEDIFF(?, cd.due_date) > 90 THEN cd.original_amount - cd.paid_amount - cd.adjusted_amount - cd.written_off_amount ELSE 0 END), 0) AS days_over_90,
+        COALESCE(SUM(cd.original_amount - cd.paid_amount - cd.adjusted_amount - cd.written_off_amount), 0) AS total
+      FROM customer_dues cd
+      LEFT JOIN customers c ON cd.customer_id = c.id
+      WHERE cd.status NOT IN ('PAID','WRITTEN_OFF')
+        AND (cd.original_amount - cd.paid_amount - cd.adjusted_amount - cd.written_off_amount) > 0
+      GROUP BY cd.customer_id, c.first_name, c.last_name, c.company_name, c.email
+      HAVING total > 0
+      ORDER BY total DESC
+      `,
+      [asOfDate, asOfDate, asOfDate, asOfDate, asOfDate],
+    );
+
+    const totalOutstanding = customers.reduce(
+      (sum: number, r: any) => sum + Number(r.total),
+      0,
+    );
+
+    return {
+      reportType: ReportType.AGED_RECEIVABLES,
+      asOfDate,
+      summary: buckets.map((b: any) => ({
+        bucket: b.bucket,
+        count: Number(b.count),
+        amount: Number(b.amount),
+      })),
+      customers: customers.map((r: any) => ({
+        customerId: r.customerId,
+        customerName: r.customerName,
+        email: r.email,
+        current: Number(r.current_amount),
+        days1To30: Number(r.days_1_30),
+        days31To60: Number(r.days_31_60),
+        days61To90: Number(r.days_61_90),
+        daysOver90: Number(r.days_over_90),
+        total: Number(r.total),
+      })),
+      totalOutstanding,
+    };
+  }
+
+  async agedPayables(query: FinancialReportQueryDto) {
+    const ds = await this.tenantConnectionManager.getDataSource();
+    const asOfDate = query.asOfDate || new Date().toISOString().split('T')[0];
+
+    // Summary by aging bucket
+    const buckets = await ds.query(
+      `
+      SELECT
+        CASE
+          WHEN due_date >= ? THEN 'Current'
+          WHEN DATEDIFF(?, due_date) BETWEEN 1 AND 30 THEN '1-30 days'
+          WHEN DATEDIFF(?, due_date) BETWEEN 31 AND 60 THEN '31-60 days'
+          WHEN DATEDIFF(?, due_date) BETWEEN 61 AND 90 THEN '61-90 days'
+          ELSE '90+ days'
+        END AS bucket,
+        COUNT(*) AS count,
+        COALESCE(SUM(original_amount - paid_amount - adjusted_amount), 0) AS amount
+      FROM supplier_dues
+      WHERE status NOT IN ('PAID','WRITTEN_OFF')
+        AND (original_amount - paid_amount - adjusted_amount) > 0
+      GROUP BY bucket
+      ORDER BY FIELD(bucket, 'Current', '1-30 days', '31-60 days', '61-90 days', '90+ days')
+      `,
+      [asOfDate, asOfDate, asOfDate, asOfDate],
+    );
+
+    // Per-supplier breakdown
+    const suppliers = await ds.query(
+      `
+      SELECT
+        sd.supplier_id AS supplierId,
+        COALESCE(s.company_name, s.email) AS supplierName,
+        s.email AS email,
+        COALESCE(SUM(CASE WHEN sd.due_date >= ? THEN sd.original_amount - sd.paid_amount - sd.adjusted_amount ELSE 0 END), 0) AS current_amount,
+        COALESCE(SUM(CASE WHEN DATEDIFF(?, sd.due_date) BETWEEN 1 AND 30 THEN sd.original_amount - sd.paid_amount - sd.adjusted_amount ELSE 0 END), 0) AS days_1_30,
+        COALESCE(SUM(CASE WHEN DATEDIFF(?, sd.due_date) BETWEEN 31 AND 60 THEN sd.original_amount - sd.paid_amount - sd.adjusted_amount ELSE 0 END), 0) AS days_31_60,
+        COALESCE(SUM(CASE WHEN DATEDIFF(?, sd.due_date) BETWEEN 61 AND 90 THEN sd.original_amount - sd.paid_amount - sd.adjusted_amount ELSE 0 END), 0) AS days_61_90,
+        COALESCE(SUM(CASE WHEN DATEDIFF(?, sd.due_date) > 90 THEN sd.original_amount - sd.paid_amount - sd.adjusted_amount ELSE 0 END), 0) AS days_over_90,
+        COALESCE(SUM(sd.original_amount - sd.paid_amount - sd.adjusted_amount), 0) AS total
+      FROM supplier_dues sd
+      LEFT JOIN suppliers s ON sd.supplier_id = s.id
+      WHERE sd.status NOT IN ('PAID','WRITTEN_OFF')
+        AND (sd.original_amount - sd.paid_amount - sd.adjusted_amount) > 0
+      GROUP BY sd.supplier_id, s.company_name, s.email
+      HAVING total > 0
+      ORDER BY total DESC
+      `,
+      [asOfDate, asOfDate, asOfDate, asOfDate, asOfDate],
+    );
+
+    const totalOutstanding = suppliers.reduce(
+      (sum: number, r: any) => sum + Number(r.total),
+      0,
+    );
+
+    return {
+      reportType: ReportType.AGED_PAYABLES,
+      asOfDate,
+      summary: buckets.map((b: any) => ({
+        bucket: b.bucket,
+        count: Number(b.count),
+        amount: Number(b.amount),
+      })),
+      suppliers: suppliers.map((r: any) => ({
+        supplierId: r.supplierId,
+        supplierName: r.supplierName,
+        email: r.email,
+        current: Number(r.current_amount),
+        days1To30: Number(r.days_1_30),
+        days31To60: Number(r.days_31_60),
+        days61To90: Number(r.days_61_90),
+        daysOver90: Number(r.days_over_90),
+        total: Number(r.total),
+      })),
+      totalOutstanding,
+    };
+  }
+
   private async calculateNetIncome(
     query: FinancialReportQueryDto,
   ): Promise<number> {
@@ -380,9 +597,9 @@ export class FinancialReportsService {
       const debit = Number(row.totalDebit) || 0;
       const credit = Number(row.totalCredit) || 0;
       if (row.accountType === AccountType.REVENUE) {
-        revenue = credit - debit;
+        revenue += credit - debit;
       } else {
-        expenses = debit - credit;
+        expenses += debit - credit;
       }
     }
     return revenue - expenses;

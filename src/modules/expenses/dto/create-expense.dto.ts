@@ -60,4 +60,9 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Expense category label' })
+  @IsOptional()
+  @IsString()
+  category?: string;
 }

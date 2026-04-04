@@ -38,4 +38,14 @@ export class DueFilterDto extends PaginationDto {
   @IsString()
   @IsOptional()
   toDate?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by reference number (partial match)' })
+  @IsString()
+  @IsOptional()
+  referenceNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by customer name (partial match)' })
+  @IsString()
+  @IsOptional()
+  customer?: string;
 }

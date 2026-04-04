@@ -64,6 +64,18 @@ export class CustomerDuesService {
     if (filterDto.toDate) {
       qb.andWhere('due.dueDate <= :toDate', { toDate: filterDto.toDate });
     }
+    if (filterDto.referenceNumber) {
+      qb.andWhere('due.referenceNumber LIKE :referenceNumber', {
+        referenceNumber: `%${filterDto.referenceNumber}%`,
+      });
+    }
+    if (filterDto.customer) {
+      const cn = `%${filterDto.customer}%`;
+      qb.andWhere(
+        '(customer.firstName LIKE :cn OR customer.lastName LIKE :cn OR customer.companyName LIKE :cn)',
+        { cn },
+      );
+    }
     if (filterDto.search) {
       qb.andWhere(
         '(due.referenceNumber LIKE :search OR customer.firstName LIKE :search OR customer.lastName LIKE :search OR customer.companyName LIKE :search)',
@@ -204,15 +216,15 @@ export class CustomerDuesService {
     }
 
     const balance = due.balanceAmount;
-    if (dto.amount > balance) {
+    if (dto.adjustmentAmount > balance) {
       throw new BadRequestException(
-        `Adjustment (${dto.amount}) exceeds balance (${balance})`,
+        `Adjustment (${dto.adjustmentAmount}) exceeds balance (${balance})`,
       );
     }
 
-    due.adjustedAmount = Number(due.adjustedAmount) + dto.amount;
+    due.adjustedAmount = Number(due.adjustedAmount) + dto.adjustmentAmount;
 
-    const note = `[${new Date().toISOString().split('T')[0]}] Adjusted ${dto.amount}${dto.reason ? ': ' + dto.reason : ''}`;
+    const note = `[${new Date().toISOString().split('T')[0]}] Adjusted ${dto.adjustmentAmount}${dto.reason ? ': ' + dto.reason : ''}`;
     due.notes = due.notes ? `${due.notes}\n${note}` : note;
 
     if (due.balanceAmount <= 0.01) {

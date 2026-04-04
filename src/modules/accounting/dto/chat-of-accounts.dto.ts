@@ -159,4 +159,8 @@ export class QueryChartOfAccountDto {
   @IsOptional()
   @Type(() => Number)
   limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  pageSize?: number;
 }

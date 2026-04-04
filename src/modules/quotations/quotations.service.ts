@@ -411,7 +411,7 @@ export class QuotationsService {
     await queryRunner.startTransaction();
 
     try {
-      const orderNumber = await getNextSequence(dataSource, 'SALES_ORDER');
+      const orderNumber = await getNextSequence(dataSource, 'SO');
 
       const salesOrder = queryRunner.manager.create(SalesOrder, {
         ...quotation,

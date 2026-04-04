@@ -154,12 +154,13 @@ export class GrnResponseDto {
         productId: item.productId,
         productName: item.product?.productName,
         variantId: item.variantId,
-        receivedQuantity: Number(item.receivedQuantity),
-        acceptedQuantity: Number(item.acceptedQuantity),
-        rejectedQuantity: Number(item.rejectedQuantity),
+        receivedQuantity: Number(item.quantityReceived),
+        acceptedQuantity: Number(item.quantityAccepted),
+        rejectedQuantity: Number(item.quantityRejected),
         unitPrice: Number(item.unitPrice),
-        taxAmount: Number(item.taxAmount),
-        lineTotal: Number(item.lineTotal),
+        discountAmount: Number(item.discountAmount ?? 0),
+        taxAmount: Number(item.taxAmount ?? 0),
+        lineTotal: Number(item.lineValue),
         batchNumber: item.batchNumber,
         expiryDate: item.expiryDate,
         locationId: item.locationId,
@@ -168,15 +169,15 @@ export class GrnResponseDto {
 
       this.itemCount = grn.items.length;
       this.totalReceivedQuantity = grn.items.reduce(
-        (sum: any, item: any) => sum + Number(item.receivedQuantity),
+        (sum: any, item: any) => sum + Number(item.quantityReceived),
         0,
       );
       this.totalAcceptedQuantity = grn.items.reduce(
-        (sum: any, item: any) => sum + Number(item.acceptedQuantity),
+        (sum: any, item: any) => sum + Number(item.quantityAccepted),
         0,
       );
       this.totalRejectedQuantity = grn.items.reduce(
-        (sum: any, item: any) => sum + Number(item.rejectedQuantity),
+        (sum: any, item: any) => sum + Number(item.quantityRejected),
         0,
       );
     } else {

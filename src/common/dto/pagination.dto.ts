@@ -10,20 +10,20 @@ export class PaginationDto {
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
+  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 500 })
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(500)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100, description: 'Alias for limit' })
+  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 500, description: 'Alias for limit' })
   @IsOptional()
   @Transform(({ value }) => Number.parseInt(value, 10))
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(500)
   pageSize?: number;
 
   @ApiPropertyOptional()

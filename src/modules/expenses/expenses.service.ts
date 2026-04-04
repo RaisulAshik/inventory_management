@@ -69,6 +69,7 @@ export class ExpensesService {
       description: dto.description,
       referenceNumber: dto.referenceNumber,
       notes: dto.notes,
+      category: dto.category,
       status: ExpenseStatus.POSTED,
       createdBy: userId,
     });
@@ -127,6 +128,18 @@ export class ExpensesService {
         '(expense.description LIKE :kw OR expense.referenceNumber LIKE :kw OR expense.expenseNumber LIKE :kw)',
         { kw: `%${filterDto.keyword}%` },
       );
+    }
+
+    if (filterDto.description) {
+      qb.andWhere('expense.description LIKE :description', {
+        description: `%${filterDto.description}%`,
+      });
+    }
+
+    if (filterDto.category) {
+      qb.andWhere('expense.category = :category', {
+        category: filterDto.category,
+      });
     }
 
     if (!filterDto.sortBy) {

@@ -85,6 +85,24 @@ export class GrnItem {
   unitPrice: number;
 
   @Column({
+    name: 'discount_amount',
+    type: 'decimal',
+    precision: 18,
+    scale: 4,
+    default: 0,
+  })
+  discountAmount: number;
+
+  @Column({
+    name: 'tax_amount',
+    type: 'decimal',
+    precision: 18,
+    scale: 4,
+    default: 0,
+  })
+  taxAmount: number;
+
+  @Column({
     name: 'line_value',
     type: 'decimal',
     precision: 18,

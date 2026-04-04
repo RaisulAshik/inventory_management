@@ -8,6 +8,7 @@ import {
   IsDateString,
   Min,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateOpeningBalanceDto {
@@ -46,7 +47,7 @@ export class AdjustDueDto {
   @ApiProperty()
   @IsNumber()
   @Min(0.01)
-  amount: number;
+  adjustmentAmount: number;
 
   @ApiPropertyOptional()
   @IsString()

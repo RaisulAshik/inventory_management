@@ -34,6 +34,15 @@ class CreateGrnItemDto {
   @Min(0)
   rejectedQuantity?: number;
 
+  @ApiPropertyOptional({
+    example: 10,
+    description: 'Alias for receivedQuantity minus rejectedQuantity',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  acceptedQuantity?: number;
+
   @ApiPropertyOptional({ example: 50 })
   @IsOptional()
   @IsNumber()
@@ -67,6 +76,12 @@ class CreateGrnItemDto {
   @IsOptional()
   @IsUUID()
   locationId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  discountAmount?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -117,4 +132,41 @@ export class CreateGrnDto {
   @ValidateNested({ each: true })
   @Type(() => CreateGrnItemDto)
   items: CreateGrnItemDto[];
+
+  /** Summary fields sent by frontend — stored for reference, not used in calculations */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  receivedQuantity?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  acceptedQuantity?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  rejectedQuantity?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  totalAmount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  taxAmount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  discountAmount?: number;
 }
