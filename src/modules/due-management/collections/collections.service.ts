@@ -11,7 +11,7 @@ import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { getNextSequence } from '@common/utils/sequence.util';
-import { DueStatus, SalesOrderStatus } from '@common/enums';
+import { DueStatus, SalesOrderStatus, PaymentStatus } from '@common/enums';
 import {
   CustomerDueCollection,
   CollectionStatus,
@@ -476,11 +476,11 @@ export class CollectionsService {
 
     // Sync payment status
     if (order.paidAmount <= 0) {
-      order.paymentStatus = 'UNPAID';
+      order.paymentStatus = PaymentStatus.UNPAID;
     } else if (order.paidAmount >= Number(order.totalAmount)) {
-      order.paymentStatus = 'PAID';
+      order.paymentStatus = PaymentStatus.PAID;
     } else {
-      order.paymentStatus = 'PARTIALLY_PAID';
+      order.paymentStatus = PaymentStatus.PARTIALLY_PAID;
     }
 
     // Auto-complete if delivered + fully paid

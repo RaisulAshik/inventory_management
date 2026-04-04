@@ -15,6 +15,11 @@ export class ProductFilterDto extends PaginationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  productName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   sku?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })

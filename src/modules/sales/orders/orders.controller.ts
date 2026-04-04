@@ -21,7 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
+import { UpdateOrderDto, UpdateOrderItemDto } from './dto/update-order.dto';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { AddPaymentDto } from './dto/add-payment.dto';
 import { ShipOrderDto } from './dto/ship-order.dto';
@@ -120,6 +120,46 @@ export class OrdersController {
   async getPayments(@Param('id', ParseUUIDPipe) id: string) {
     const payments = await this.ordersService.getPayments(id);
     return { data: payments };
+  }
+
+  @Post(':id/items')
+  @Permissions('orders.update')
+  @ApiOperation({ summary: 'Add an item to an existing order (draft/pending only)' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  async addItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateOrderItemDto,
+  ) {
+    const order = await this.ordersService.addItem(id, dto);
+    return new OrderResponseDto(order);
+  }
+
+  @Delete(':id/items/:itemId')
+  @Permissions('orders.update')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove an item from an order (draft/pending only)' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'itemId', type: 'string', format: 'uuid' })
+  async removeItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+  ) {
+    const order = await this.ordersService.removeItem(id, itemId);
+    return new OrderResponseDto(order);
+  }
+
+  @Patch(':id/items/:itemId')
+  @Permissions('orders.update')
+  @ApiOperation({ summary: 'Update a single order item (draft/pending only)' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'itemId', type: 'string', format: 'uuid' })
+  async updateItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body() dto: UpdateOrderItemDto,
+  ) {
+    const order = await this.ordersService.updateItem(id, itemId, dto);
+    return new OrderResponseDto(order);
   }
 
   @Patch(':id')

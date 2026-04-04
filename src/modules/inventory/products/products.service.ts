@@ -223,6 +223,12 @@ export class ProductsService {
       });
     }
 
+    if (filterDto.productName) {
+      queryBuilder.andWhere('product.productName LIKE :productName', {
+        productName: `%${filterDto.productName}%`,
+      });
+    }
+
     if (filterDto.sku) {
       queryBuilder.andWhere('product.sku LIKE :sku', {
         sku: `%${filterDto.sku}%`,

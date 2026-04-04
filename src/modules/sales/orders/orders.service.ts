@@ -37,7 +37,7 @@ import { OrderPaymentStatus } from '@entities/tenant/eCommerce/order-payment.ent
 import { AddPaymentDto } from './dto/add-payment.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderFilterDto } from './dto/order-filter.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
+import { UpdateOrderDto, UpdateOrderItemDto } from './dto/update-order.dto';
 import { CustomerDuesService } from '@/modules/due-management';
 
 @Injectable()
@@ -491,6 +491,159 @@ export class OrdersService {
     await orderRepo.save(order);
 
     return this.findById(id);
+  }
+
+  async updateItem(
+    orderId: string,
+    itemId: string,
+    dto: UpdateOrderItemDto,
+  ): Promise<SalesOrder> {
+    const order = await this.findById(orderId);
+
+    if (![SalesOrderStatus.DRAFT, SalesOrderStatus.PENDING].includes(order.status)) {
+      throw new BadRequestException('Only draft or pending orders can be edited');
+    }
+
+    const ds = await this.tenantConnectionManager.getDataSource();
+    const itemRepo = ds.getRepository(SalesOrderItem);
+    const item = await itemRepo.findOne({ where: { id: itemId, salesOrderId: orderId } });
+    if (!item) throw new NotFoundException(`Order item ${itemId} not found`);
+
+    if (dto.quantityOrdered !== undefined) item.quantityOrdered = dto.quantityOrdered;
+    if (dto.quantity !== undefined) item.quantityOrdered = dto.quantity;
+    if (dto.unitPrice !== undefined) item.unitPrice = dto.unitPrice;
+    if (dto.discountPercentage !== undefined) item.discountPercentage = dto.discountPercentage;
+    if (dto.discountAmount !== undefined) item.discountAmount = dto.discountAmount;
+    if (dto.taxPercentage !== undefined) item.taxPercentage = dto.taxPercentage;
+    if (dto.taxAmount !== undefined) item.taxAmount = dto.taxAmount;
+    if (dto.uomId !== undefined) item.uomId = dto.uomId;
+    if (dto.notes !== undefined) item.notes = dto.notes;
+
+    // Recalculate line total
+    const subtotal = Number(item.unitPrice) * Number(item.quantityOrdered);
+    const discPct = Number(item.discountPercentage) || 0;
+    const discAmt = Number(item.discountAmount) || 0;
+    const discount = discAmt > 0 ? discAmt : (subtotal * discPct) / 100;
+    const taxAmt = Number(item.taxPercentage)
+      ? ((subtotal - discount) * Number(item.taxPercentage)) / 100
+      : Number(item.taxAmount) || 0;
+    item.taxAmount = taxAmt;
+    item.lineTotal = subtotal - discount + taxAmt;
+
+    await itemRepo.save(item);
+
+    // Recalculate order totals
+    const orderRepo = await this.getOrderRepository();
+    const updatedOrder = await this.findById(orderId);
+    const subTotal = updatedOrder.items.reduce((s, i) => s + Number(i.lineTotal), 0);
+    const taxTotal = updatedOrder.items.reduce((s, i) => s + Number(i.taxAmount), 0);
+    updatedOrder.subtotal = subTotal;
+    updatedOrder.taxAmount = taxTotal;
+    updatedOrder.totalAmount =
+      subTotal +
+      Number(updatedOrder.shippingAmount || 0) -
+      Number(updatedOrder.discountAmount || 0);
+    await orderRepo.save(updatedOrder);
+
+    return this.findById(orderId);
+  }
+
+  async addItem(orderId: string, dto: UpdateOrderItemDto): Promise<SalesOrder> {
+    const order = await this.findById(orderId);
+
+    if (![SalesOrderStatus.DRAFT, SalesOrderStatus.PENDING].includes(order.status)) {
+      throw new BadRequestException('Only draft or pending orders can be edited');
+    }
+
+    if (!dto.productId) {
+      throw new BadRequestException('productId is required');
+    }
+
+    const ds = await this.tenantConnectionManager.getDataSource();
+    const productRepo = ds.getRepository(Product);
+    const product = await productRepo.findOne({ where: { id: dto.productId } });
+    if (!product) throw new NotFoundException(`Product ${dto.productId} not found`);
+
+    const qty = dto.quantity ?? dto.quantityOrdered ?? 1;
+    const unitPrice = dto.unitPrice ?? Number(product.sellingPrice ?? 0);
+    const discPct = dto.discountPercentage ?? 0;
+    const discAmt = dto.discountAmount ?? 0;
+    const taxPct = dto.taxPercentage ?? 0;
+
+    const subtotal = unitPrice * qty;
+    const discount = discAmt > 0 ? discAmt : (subtotal * discPct) / 100;
+    const taxAmt = dto.taxAmount ?? ((subtotal - discount) * taxPct) / 100;
+    const lineTotal = subtotal - discount + taxAmt;
+
+    const itemRepo = ds.getRepository(SalesOrderItem);
+    const newItem = itemRepo.create({
+      id: uuidv4(),
+      salesOrderId: orderId,
+      productId: dto.productId,
+      variantId: dto.variantId,
+      sku: product.sku,
+      productName: product.productName,
+      quantityOrdered: qty,
+      uomId: dto.uomId,
+      unitPrice,
+      originalPrice: unitPrice,
+      discountPercentage: discPct,
+      discountAmount: discAmt,
+      taxPercentage: taxPct,
+      taxAmount: taxAmt,
+      lineTotal,
+      notes: dto.notes,
+    });
+    await itemRepo.save(newItem);
+
+    // Recalculate order totals
+    const orderRepo = await this.getOrderRepository();
+    const updatedOrder = await this.findById(orderId);
+    const subTotal = updatedOrder.items.reduce((s, i) => s + Number(i.lineTotal), 0);
+    const taxTotal = updatedOrder.items.reduce((s, i) => s + Number(i.taxAmount), 0);
+    updatedOrder.subtotal = subTotal;
+    updatedOrder.taxAmount = taxTotal;
+    updatedOrder.totalAmount =
+      subTotal +
+      Number(updatedOrder.shippingAmount || 0) -
+      Number(updatedOrder.discountAmount || 0);
+    await orderRepo.save(updatedOrder);
+
+    return this.findById(orderId);
+  }
+
+  async removeItem(orderId: string, itemId: string): Promise<SalesOrder> {
+    const order = await this.findById(orderId);
+
+    if (![SalesOrderStatus.DRAFT, SalesOrderStatus.PENDING].includes(order.status)) {
+      throw new BadRequestException('Only draft or pending orders can be edited');
+    }
+
+    if (order.items.length <= 1) {
+      throw new BadRequestException('Cannot remove the last item from an order');
+    }
+
+    const ds = await this.tenantConnectionManager.getDataSource();
+    const itemRepo = ds.getRepository(SalesOrderItem);
+    const item = await itemRepo.findOne({ where: { id: itemId, salesOrderId: orderId } });
+    if (!item) throw new NotFoundException(`Order item ${itemId} not found`);
+
+    await itemRepo.remove(item);
+
+    // Recalculate order totals
+    const orderRepo = await this.getOrderRepository();
+    const updatedOrder = await this.findById(orderId);
+    const subTotal = updatedOrder.items.reduce((s, i) => s + Number(i.lineTotal), 0);
+    const taxTotal = updatedOrder.items.reduce((s, i) => s + Number(i.taxAmount), 0);
+    updatedOrder.subtotal = subTotal;
+    updatedOrder.taxAmount = taxTotal;
+    updatedOrder.totalAmount =
+      subTotal +
+      Number(updatedOrder.shippingAmount || 0) -
+      Number(updatedOrder.discountAmount || 0);
+    await orderRepo.save(updatedOrder);
+
+    return this.findById(orderId);
   }
 
   /**
