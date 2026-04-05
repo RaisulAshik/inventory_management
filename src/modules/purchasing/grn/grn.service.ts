@@ -469,6 +469,7 @@ export class GrnService {
             reason: `GRN Approval: ${grn.grnNumber}`,
           },
           userId,
+          manager,
         );
       }
 

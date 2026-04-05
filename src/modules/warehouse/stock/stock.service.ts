@@ -198,7 +198,8 @@ export class StockService {
         );
       }
 
-      stock.quantityReserved = Number(stock.quantityReserved) + Number(quantity);
+      stock.quantityReserved =
+        Number(stock.quantityReserved) + Number(quantity);
       await stockRepo.save(stock);
     });
   }
@@ -231,7 +232,10 @@ export class StockService {
         throw new NotFoundException('Stock not found');
       }
 
-      stock.quantityReserved = Math.max(0, Number(stock.quantityReserved) - Number(quantity));
+      stock.quantityReserved = Math.max(
+        0,
+        Number(stock.quantityReserved) - Number(quantity),
+      );
       await stockRepo.save(stock);
     });
   }
@@ -242,10 +246,11 @@ export class StockService {
   async recordMovement(
     movementDto: StockMovementDto,
     createdBy: string,
+    externalManager?: any,
   ): Promise<StockMovement> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
 
-    return await dataSource.transaction(async (manager) => {
+    const execute = async (manager: any) => {
       const stockRepo = manager.getRepository(InventoryStock);
       const movementRepo = manager.getRepository(StockMovement);
 
@@ -295,7 +300,8 @@ export class StockService {
         case StockMovementType.ADJUSTMENT_IN:
         case StockMovementType.INTER_LOCATION_IN:
         case StockMovementType.OPENING_STOCK:
-          stock.quantityOnHand = Number(stock.quantityOnHand) + Number(movementDto.quantity);
+          stock.quantityOnHand =
+            Number(stock.quantityOnHand) + Number(movementDto.quantity);
           break;
 
         case StockMovementType.SALES_ISSUE:
@@ -309,7 +315,8 @@ export class StockService {
         case StockMovementType.EXPIRY:
         case StockMovementType.SCRAP:
         case StockMovementType.SAMPLE:
-          stock.quantityOnHand = Number(stock.quantityOnHand) - Number(movementDto.quantity);
+          stock.quantityOnHand =
+            Number(stock.quantityOnHand) - Number(movementDto.quantity);
           break;
       }
 
@@ -327,7 +334,12 @@ export class StockService {
 
       const saved = await movementRepo.save(movement);
       return Array.isArray(saved) ? saved[0] : saved;
-    });
+    };
+
+    if (externalManager) {
+      return execute(externalManager);
+    }
+    return dataSource.transaction(execute);
   }
 
   /**
