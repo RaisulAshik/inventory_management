@@ -71,7 +71,7 @@ export async function getNextSequence(
       sequence.lastResetAt = now;
     }
 
-    sequence.currentNumber += 1;
+    sequence.currentNumber = Number(sequence.currentNumber) + 1;
     await sequenceRepo.save(sequence);
     await queryRunner.commitTransaction();
 
