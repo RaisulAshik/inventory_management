@@ -35,7 +35,7 @@ export class PriceList {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ length: 3, default: 'INR' })
+  @Column({ length: 3, default: 'BDT' })
   currency: string;
 
   @Column({ name: 'is_tax_inclusive', type: 'tinyint', default: 0 })

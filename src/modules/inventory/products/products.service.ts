@@ -325,6 +325,7 @@ export class ProductsService {
   async lookup(
     search: string,
     limit = 20,
+    warehouseId?: string,
   ): Promise<
     {
       id: string;
@@ -336,6 +337,7 @@ export class ProductsService {
       uomId: string | null;
       uomName: string | null;
       taxCategoryId: string | null;
+      availableQuantity: number;
     }[]
   > {
     const productRepo = await this.getProductRepository();
@@ -411,6 +413,23 @@ export class ProductsService {
       }
     }
 
+    // Fetch stock for the given warehouse if provided
+    let stockMap = new Map<string, number>();
+    if (warehouseId && rows.length) {
+      const ds = await this.tenantConnectionManager.getDataSource();
+      const productIds = rows.map((p) => p.id);
+      const stocks = await ds
+        .getRepository(InventoryStock)
+        .createQueryBuilder('s')
+        .where('s.productId IN (:...productIds)', { productIds })
+        .andWhere('s.warehouseId = :warehouseId', { warehouseId })
+        .getMany();
+      for (const s of stocks) {
+        const available = Math.max(0, Number(s.quantityOnHand) - Number(s.quantityReserved));
+        stockMap.set(s.productId, (stockMap.get(s.productId) ?? 0) + available);
+      }
+    }
+
     return rows.map((p) => ({
       id: p.id,
       sku: p.sku,
@@ -421,6 +440,7 @@ export class ProductsService {
       uomId: p.baseUom?.id ?? null,
       uomName: p.baseUom?.uomName ?? null,
       taxCategoryId: p.taxCategoryId ?? null,
+      availableQuantity: stockMap.get(p.id) ?? 0,
     }));
   }
 

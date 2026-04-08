@@ -160,7 +160,7 @@ export class CreateSupplierDto {
   @Min(0)
   creditLimit?: number;
 
-  @ApiPropertyOptional({ example: 'INR', default: 'INR' })
+  @ApiPropertyOptional({ example: 'INR', default: 'BDT' })
   @IsOptional()
   @IsString()
   @MaxLength(3)

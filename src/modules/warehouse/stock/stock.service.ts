@@ -77,13 +77,19 @@ export class StockService {
       );
     }
 
-    // Apply search (supports both ?search= and ?productName=)
+    // Apply search (supports ?search=, ?productName=, or ?sku=)
     const searchTerm = paginationDto.search || filterDto.productName;
     if (searchTerm) {
       queryBuilder.andWhere(
         '(product.sku LIKE :search OR product.productName LIKE :search)',
         { search: `%${searchTerm}%` },
       );
+    }
+
+    if (filterDto.sku) {
+      queryBuilder.andWhere('product.sku LIKE :sku', {
+        sku: `%${filterDto.sku}%`,
+      });
     }
 
     if (!paginationDto.sortBy) {

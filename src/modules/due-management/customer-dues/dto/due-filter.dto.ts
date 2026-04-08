@@ -48,4 +48,9 @@ export class DueFilterDto extends PaginationDto {
   @IsString()
   @IsOptional()
   customer?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by customer code (partial match)' })
+  @IsString()
+  @IsOptional()
+  customerCode?: string;
 }

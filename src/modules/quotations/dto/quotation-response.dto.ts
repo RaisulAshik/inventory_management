@@ -93,6 +93,7 @@ export class QuotationDetailResponseDto extends QuotationResponseDto {
       taxAmount: Number(item.taxAmount ?? 0),
       lineTotal: Number(item.lineTotal ?? 0),
       notes: item.notes,
+      availableQuantity: Number((item as any).availableQuantity ?? 0),
     }));
   }
 }

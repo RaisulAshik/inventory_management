@@ -48,7 +48,7 @@ export class CreateSupplierProductDto {
   @Min(0)
   unitPrice?: number;
 
-  @ApiPropertyOptional({ example: 'INR', default: 'INR' })
+  @ApiPropertyOptional({ example: 'INR', default: 'BDT' })
   @IsOptional()
   @IsString()
   @MaxLength(3)

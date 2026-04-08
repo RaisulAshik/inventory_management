@@ -243,6 +243,7 @@ export class OrderResponseDto {
         taxPercentage: Number(item.taxPercentage),
         taxAmount: Number(item.taxAmount),
         lineTotal: Number(item.lineTotal),
+        availableQuantity: Number((item as any).availableQuantity ?? 0),
       }));
 
       this.itemCount = order.items.length;

@@ -40,4 +40,9 @@ export class QuotationFilterDto extends PaginationDto {
   @IsString()
   @IsOptional()
   quotationNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by customer code (partial match)' })
+  @IsString()
+  @IsOptional()
+  customerCode?: string;
 }

@@ -89,7 +89,7 @@ export class ShoppingCart {
   @Column({ name: 'item_count', type: 'int', default: 0 })
   itemCount: number;
 
-  @Column({ length: 3, default: 'INR' })
+  @Column({ length: 3, default: 'BDT' })
   currency: string;
 
   @Column({ name: 'ip_address', length: 45, nullable: true })

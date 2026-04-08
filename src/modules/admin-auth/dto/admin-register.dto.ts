@@ -117,7 +117,7 @@ export class AdminRegisterDto {
   @ApiPropertyOptional({
     description: 'Currency code',
     example: 'INR',
-    default: 'INR',
+    default: 'BDT',
   })
   @IsString()
   @IsOptional()

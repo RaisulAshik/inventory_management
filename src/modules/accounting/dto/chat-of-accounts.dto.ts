@@ -24,10 +24,13 @@ export enum AccountingRole {
   COGS = 'COGS', // Cost of Goods Sold
   INVENTORY = 'INVENTORY', // Inventory Asset
   BANK = 'BANK', // Bank / Cash
-  VAT = 'VAT', // VAT / GST Payable
+  VAT = 'VAT', // Output VAT / GST Payable (on sales)
+  INPUT_VAT = 'INPUT_VAT', // Input VAT / GST Recoverable (on purchases)
   AP = 'AP', // Accounts Payable
   INVENTORY_ADJUSTMENT = 'INVENTORY_ADJUSTMENT', // Inventory Adjustment Gain/Loss
   SALES_RETURNS = 'SALES_RETURNS', // Sales Returns & Allowances
+  PURCHASE_RETURNS = 'PURCHASE_RETURNS', // Purchase Returns & Allowances
+  EXPENSE = 'EXPENSE', // Default General Expense Account
 }
 
 export class CreateChartOfAccountDto {
@@ -117,7 +120,16 @@ export class CreateChartOfAccountDto {
 
 export class UpdateChartOfAccountDto extends PartialType(
   CreateChartOfAccountDto,
-) {}
+) {
+  @ApiPropertyOptional({
+    description:
+      'Set to true to remove this account as the default for the given role. ' +
+      'Use together with defaultFor to specify which role to clear.',
+  })
+  @IsBoolean()
+  @IsOptional()
+  clearDefaultFor?: boolean;
+}
 
 export class QueryChartOfAccountDto {
   @IsOptional()

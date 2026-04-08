@@ -63,6 +63,18 @@ export class InvoicesService {
         toDate: filterDto.toDate,
       });
     }
+    if (filterDto.invoiceNumber) {
+      qb.andWhere('order.orderNumber LIKE :invoiceNumber', {
+        invoiceNumber: `%${filterDto.invoiceNumber}%`,
+      });
+    }
+    const customerName = filterDto.customerName ?? filterDto.customer?.name;
+    if (customerName) {
+      qb.andWhere(
+        '(order.customerName LIKE :customerName OR customer.firstName LIKE :customerName OR customer.lastName LIKE :customerName OR customer.companyName LIKE :customerName)',
+        { customerName: `%${customerName}%` },
+      );
+    }
 
     if (!filterDto.sortBy) {
       filterDto.sortBy = 'order.deliveredAt';

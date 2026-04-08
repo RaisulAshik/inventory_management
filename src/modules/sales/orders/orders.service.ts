@@ -454,6 +454,28 @@ export class OrdersService {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
 
+    // Attach availableQuantity to each item
+    if (order.items?.length) {
+      const ds = await this.tenantConnectionManager.getDataSource();
+      const stockRepo = ds.getRepository(InventoryStock);
+      const productIds = order.items.map((i) => i.productId);
+      const stocks = await stockRepo
+        .createQueryBuilder('s')
+        .where('s.productId IN (:...productIds)', { productIds })
+        .andWhere('s.warehouseId = :warehouseId', { warehouseId: order.warehouseId })
+        .getMany();
+      const stockMap = new Map(stocks.map((s) => [
+        `${s.productId}:${s.variantId ?? ''}`, s
+      ]));
+      for (const item of order.items) {
+        const key = `${item.productId}:${item.variantId ?? ''}`;
+        const stock = stockMap.get(key);
+        (item as any).availableQuantity = stock
+          ? Math.max(0, Number(stock.quantityOnHand) - Number(stock.quantityReserved))
+          : 0;
+      }
+    }
+
     return order;
   }
 
@@ -991,42 +1013,49 @@ export class OrdersService {
     }
 
     await dataSource.transaction(async (manager) => {
-      const paymentRepo = manager.getRepository(OrderPayment);
       const orderRepo = manager.getRepository(SalesOrder);
 
       const paymentReference = await getNextSequence(dataSource, 'PAYMENT');
 
-      const payment = paymentRepo.create({
-        id: uuidv4(),
-        orderId: id,
-        paymentMethodId: paymentDto.paymentMethodId,
-        amount: paymentDto.amount,
-        currency: order.currency,
-        paymentDate: paymentDto.paymentDate || new Date(),
-        paymentReference: paymentDto.referenceNumber || paymentReference,
-        transactionId: paymentDto.transactionId,
-        status: OrderPaymentStatus.COMPLETED,
-        notes: paymentDto.notes,
-        processedBy: userId,
-      } as DeepPartial<OrderPayment>);
-      await paymentRepo.save(payment);
+      const paymentDate = paymentDto.paymentDate
+        ? new Date(paymentDto.paymentDate)
+        : new Date();
+      await manager.query(
+        `INSERT INTO order_payments
+          (id, order_id, payment_method_id, amount, currency, payment_date, payment_reference, transaction_id, status, notes, processed_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          uuidv4(),
+          id,
+          paymentDto.paymentMethodId,
+          paymentDto.amount,
+          order.currency,
+          paymentDate,
+          paymentDto.referenceNumber || paymentReference,
+          paymentDto.transactionId || null,
+          OrderPaymentStatus.COMPLETED,
+          paymentDto.notes || null,
+          userId,
+        ],
+      );
 
       // Update order
       const newPaid = Number(order.paidAmount) + paymentDto.amount;
-      order.paidAmount = newPaid;
-      order.paymentStatus = this.getPaymentStatus(
+      const newPaymentStatus = this.getPaymentStatus(
         newPaid,
         Number(order.totalAmount),
       );
-
-      // Auto-complete if delivered + fully paid
-      if (
+      const newStatus =
         order.status === SalesOrderStatus.DELIVERED &&
         newPaid >= Number(order.totalAmount)
-      ) {
-        order.status = SalesOrderStatus.COMPLETED;
-      }
-      await orderRepo.save(order);
+          ? SalesOrderStatus.COMPLETED
+          : order.status;
+
+      await orderRepo.update(id, {
+        paidAmount: newPaid,
+        paymentStatus: newPaymentStatus,
+        status: newStatus,
+      });
 
       // Update customer due if exists
       const dueRepo = manager.getRepository(CustomerDue);

@@ -68,7 +68,7 @@ export class GeneralLedger {
   })
   runningBalance: number;
 
-  @Column({ length: 3, default: 'INR' })
+  @Column({ length: 3, default: 'BDT' })
   currency: string;
 
   @Column({

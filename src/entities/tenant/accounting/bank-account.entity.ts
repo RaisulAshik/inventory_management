@@ -55,7 +55,7 @@ export class BankAccount {
   @Column({ name: 'micr_code', length: 20, nullable: true })
   micrCode: string;
 
-  @Column({ length: 3, default: 'INR' })
+  @Column({ length: 3, default: 'BDT' })
   currency: string;
 
   @Column({ name: 'gl_account_id', nullable: true })

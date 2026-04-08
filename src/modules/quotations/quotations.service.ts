@@ -18,6 +18,7 @@ import {
   Product,
   SalesOrder,
   SalesOrderItem,
+  InventoryStock,
 } from '@/entities/tenant';
 import { User } from '@/entities/tenant/user/user.entity';
 import { getNextSequence } from '@/common/utils/sequence.util';
@@ -159,6 +160,11 @@ export class QuotationsService {
         quotationNumber: `%${filterDto.quotationNumber}%`,
       });
     }
+    if (filterDto.customerCode) {
+      qb.andWhere('customer.customerCode LIKE :customerCode', {
+        customerCode: `%${filterDto.customerCode}%`,
+      });
+    }
     if (status) qb.andWhere('q.status = :status', { status });
     if (customerId) qb.andWhere('q.customerId = :customerId', { customerId });
     if (warehouseId)
@@ -196,6 +202,28 @@ export class QuotationsService {
     });
 
     if (!quotation) throw new NotFoundException('Quotation not found');
+
+    if (quotation.items?.length && quotation.warehouseId) {
+      const ds = await this.tenantConnectionManager.getDataSource();
+      const stockRepo = ds.getRepository(InventoryStock);
+      const productIds = quotation.items.map((i: QuotationItem) => i.productId);
+      const stocks = await stockRepo
+        .createQueryBuilder('s')
+        .where('s.productId IN (:...productIds)', { productIds })
+        .andWhere('s.warehouseId = :warehouseId', { warehouseId: quotation.warehouseId })
+        .getMany();
+      const stockMap = new Map(stocks.map((s) => [
+        `${s.productId}:${s.variantId ?? ''}`, s,
+      ]));
+      for (const item of quotation.items) {
+        const key = `${item.productId}:${item.variantId ?? ''}`;
+        const stock = stockMap.get(key);
+        (item as any).availableQuantity = stock
+          ? Math.max(0, Number(stock.quantityOnHand) - Number(stock.quantityReserved))
+          : 0;
+      }
+    }
+
     return quotation;
   }
 

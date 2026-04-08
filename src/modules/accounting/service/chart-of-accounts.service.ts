@@ -26,8 +26,12 @@ const ROLE_TO_SETTING: Record<AccountingRole, string> = {
   [AccountingRole.BANK]: 'acc.default_bank_account',
   [AccountingRole.VAT]: 'acc.default_vat_account',
   [AccountingRole.AP]: 'acc.default_ap_account',
-  [AccountingRole.INVENTORY_ADJUSTMENT]: 'acc.default_inventory_adjustment_account',
+  [AccountingRole.INVENTORY_ADJUSTMENT]:
+    'acc.default_inventory_adjustment_account',
   [AccountingRole.SALES_RETURNS]: 'acc.default_sales_returns_account',
+  [AccountingRole.PURCHASE_RETURNS]: 'acc.default_purchase_returns_account',
+  [AccountingRole.INPUT_VAT]: 'acc.default_input_vat_account',
+  [AccountingRole.EXPENSE]: 'acc.default_expense_account',
 };
 
 /** Accounting rule: every account type has a canonical normal balance */
@@ -59,18 +63,50 @@ export class ChartOfAccountsService {
     if (dto.isBankAccount || dto.isCashAccount) return AccountingRole.BANK;
 
     // Subtype-based detection
-    const subtype = (dto.accountSubtype ?? '').toUpperCase().replace(/\s+/g, '_');
-    if (subtype === 'COGS' || subtype === 'COST_OF_GOODS_SOLD') return AccountingRole.COGS;
-    if (subtype === 'INVENTORY' || subtype === 'INVENTORY_ASSET') return AccountingRole.INVENTORY;
-    if (subtype === 'INVENTORY_ADJUSTMENT') return AccountingRole.INVENTORY_ADJUSTMENT;
-    if (subtype === 'SALES_RETURNS' || subtype === 'SALES_RETURNS_AND_ALLOWANCES') return AccountingRole.SALES_RETURNS;
-    if (subtype === 'VAT' || subtype === 'VAT_PAYABLE' || subtype === 'GST' || subtype === 'GST_PAYABLE') return AccountingRole.VAT;
-    if (subtype === 'ACCOUNTS_RECEIVABLE' || subtype === 'AR') return AccountingRole.AR;
-    if (subtype === 'ACCOUNTS_PAYABLE' || subtype === 'AP') return AccountingRole.AP;
+    const subtype = (dto.accountSubtype ?? '')
+      .toUpperCase()
+      .replace(/\s+/g, '_');
+    if (subtype === 'COGS' || subtype === 'COST_OF_GOODS_SOLD')
+      return AccountingRole.COGS;
+    if (subtype === 'INVENTORY' || subtype === 'INVENTORY_ASSET')
+      return AccountingRole.INVENTORY;
+    if (subtype === 'INVENTORY_ADJUSTMENT')
+      return AccountingRole.INVENTORY_ADJUSTMENT;
+    if (
+      subtype === 'SALES_RETURNS' ||
+      subtype === 'SALES_RETURNS_AND_ALLOWANCES'
+    )
+      return AccountingRole.SALES_RETURNS;
+    if (
+      subtype === 'VAT' ||
+      subtype === 'VAT_PAYABLE' ||
+      subtype === 'GST' ||
+      subtype === 'GST_PAYABLE'
+    )
+      return AccountingRole.VAT;
+    if (subtype === 'ACCOUNTS_RECEIVABLE' || subtype === 'AR')
+      return AccountingRole.AR;
+    if (subtype === 'ACCOUNTS_PAYABLE' || subtype === 'AP')
+      return AccountingRole.AP;
     if (subtype === 'BANK' || subtype === 'CASH') return AccountingRole.BANK;
+    if (
+      subtype === 'INPUT_VAT' ||
+      subtype === 'INPUT_GST' ||
+      subtype === 'VAT_RECOVERABLE' ||
+      subtype === 'GST_RECOVERABLE'
+    )
+      return AccountingRole.INPUT_VAT;
+    if (
+      subtype === 'PURCHASE_RETURNS' ||
+      subtype === 'PURCHASE_RETURNS_AND_ALLOWANCES'
+    )
+      return AccountingRole.PURCHASE_RETURNS;
+    if (subtype === 'GENERAL_EXPENSE' || subtype === 'DEFAULT_EXPENSE')
+      return AccountingRole.EXPENSE;
 
     // Account type fallback
     if (dto.accountType === AccountType.REVENUE) return AccountingRole.REVENUE;
+    if (dto.accountType === AccountType.EXPENSE) return AccountingRole.EXPENSE;
 
     return null;
   }
@@ -79,6 +115,22 @@ export class ChartOfAccountsService {
    * Save acc.default_* setting for the given role → accountId.
    * Never throws — a failed settings write must not fail the CoA save.
    */
+  private async removeDefaultSetting(
+    role: AccountingRole,
+    userId = 'system',
+  ): Promise<void> {
+    try {
+      const key = ROLE_TO_SETTING[role];
+      await this.settingsService.upsert(
+        key,
+        { value: '', category: SettingCategory.ACCOUNTING },
+        userId,
+      );
+    } catch {
+      // silently ignore
+    }
+  }
+
   private async saveDefaultSetting(
     role: AccountingRole,
     accountId: string,
@@ -226,14 +278,22 @@ export class ChartOfAccountsService {
         account.path = `${parent.path}/${dto.accountCode || account.accountCode}`;
       }
     }
-    const { defaultFor, ...updateData } = dto;
+    const { defaultFor, clearDefaultFor, ...updateData } = dto;
     Object.assign(account, updateData);
     const saved = await repo.save(account);
 
-    // Auto-update tenant setting if role explicitly set or flags changed
-    const role = defaultFor ?? this.detectImplicitRole(dto);
-    if (role) {
-      await this.saveDefaultSetting(role, saved.id, userId);
+    if (clearDefaultFor && defaultFor) {
+      // Explicitly clear the tenant setting for the given role
+      await this.removeDefaultSetting(defaultFor, userId);
+    } else {
+      // Auto-update tenant setting: explicit > DTO-derived > full account fallback
+      const role =
+        defaultFor ??
+        this.detectImplicitRole(dto) ??
+        this.detectImplicitRole(saved);
+      if (role) {
+        await this.saveDefaultSetting(role, saved.id, userId);
+      }
     }
 
     return saved;

@@ -38,7 +38,7 @@ export class CreatePriceListDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ example: 'INR', default: 'INR' })
+  @ApiPropertyOptional({ example: 'INR', default: 'BDT' })
   @IsOptional()
   @IsString()
   @MaxLength(3)

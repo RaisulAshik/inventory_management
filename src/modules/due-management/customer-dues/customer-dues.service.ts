@@ -76,6 +76,11 @@ export class CustomerDuesService {
         { cn },
       );
     }
+    if (filterDto.customerCode) {
+      qb.andWhere('customer.customerCode LIKE :customerCode', {
+        customerCode: `%${filterDto.customerCode}%`,
+      });
+    }
     if (filterDto.search) {
       qb.andWhere(
         '(due.referenceNumber LIKE :search OR customer.firstName LIKE :search OR customer.lastName LIKE :search OR customer.companyName LIKE :search)',

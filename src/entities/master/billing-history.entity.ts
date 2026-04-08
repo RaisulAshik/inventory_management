@@ -50,7 +50,7 @@ export class BillingHistory {
   @Column('decimal', { name: 'total_amount', precision: 15, scale: 2 })
   totalAmount: number;
 
-  @Column('char', { length: 3, default: 'INR' })
+  @Column('char', { length: 3, default: 'BDT' })
   currency: string;
 
   @Column({

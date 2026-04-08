@@ -37,8 +37,38 @@ const ACCOUNTING_DEFAULTS: Array<{
   },
   {
     key: 'acc.default_vat_account',
-    displayName: 'Default VAT / GST Payable Account',
+    displayName: 'Default Output VAT / GST Payable Account',
     description: 'Chart of Accounts ID credited for tax collected on sales (optional)',
+  },
+  {
+    key: 'acc.default_input_vat_account',
+    displayName: 'Default Input VAT / GST Recoverable Account',
+    description: 'Chart of Accounts ID debited for recoverable VAT paid on purchases (optional)',
+  },
+  {
+    key: 'acc.default_ap_account',
+    displayName: 'Default Accounts Payable Account',
+    description: 'Chart of Accounts ID credited when goods are received from a supplier',
+  },
+  {
+    key: 'acc.default_purchase_returns_account',
+    displayName: 'Default Purchase Returns Account',
+    description: 'Chart of Accounts ID debited when goods are returned to a supplier (optional)',
+  },
+  {
+    key: 'acc.default_expense_account',
+    displayName: 'Default General Expense Account',
+    description: 'Fallback Chart of Accounts ID debited when no specific expense account is set (optional)',
+  },
+  {
+    key: 'acc.default_inventory_adjustment_account',
+    displayName: 'Default Inventory Adjustment Account',
+    description: 'Chart of Accounts ID used for inventory gain/loss on stock adjustments',
+  },
+  {
+    key: 'acc.default_sales_returns_account',
+    displayName: 'Default Sales Returns Account',
+    description: 'Chart of Accounts ID debited when a customer returns goods',
   },
 ];
 

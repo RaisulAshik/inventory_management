@@ -12,6 +12,7 @@ import {
   Expense,
 } from '@/entities/tenant';
 import { GoodsReceivedNote } from '@entities/tenant/purchase/goods-received-note.entity';
+import { PurchaseReturn } from '@entities/tenant/purchase/purchase-return.entity';
 import { StockAdjustment } from '@entities/tenant/warehouse/stock-adjustment.entity';
 import { SalesReturn } from '@entities/tenant/eCommerce/sales-return.entity';
 import { ReturnItemCondition } from '@entities/tenant/eCommerce/sales-return-item.entity';
@@ -99,7 +100,7 @@ export class AccountingIntegrationService {
       .orderBy('je.entryNumber', 'DESC')
       .getOne();
     const n = last
-      ? parseInt(last.entryNumber.replace(prefix, ''), 10) + 1
+      ? Number.parseInt(last.entryNumber.replace(prefix, ''), 10) + 1
       : 1;
     return `${prefix}${String(n).padStart(6, '0')}`;
   }
@@ -289,18 +290,20 @@ export class AccountingIntegrationService {
       ];
 
       if (taxAmount > 0 && cfg.vat) {
-        lines.push({
-          accountId: cfg.revenue,
-          debit: 0,
-          credit: netRevenue,
-          description: `Sales revenue – ${order.orderNumber}`,
-        });
-        lines.push({
-          accountId: cfg.vat,
-          debit: 0,
-          credit: taxAmount,
-          description: `VAT collected – ${order.orderNumber}`,
-        });
+        lines.push(
+          {
+            accountId: cfg.revenue,
+            debit: 0,
+            credit: netRevenue,
+            description: `Sales revenue – ${order.orderNumber}`,
+          },
+          {
+            accountId: cfg.vat,
+            debit: 0,
+            credit: taxAmount,
+            description: `VAT collected – ${order.orderNumber}`,
+          },
+        );
       } else {
         // No VAT account — credit full amount to revenue
         lines.push({
@@ -403,6 +406,20 @@ export class AccountingIntegrationService {
         return null;
       }
 
+      // Use the specific expense account, fall back to the default if not set
+      const expenseAccountId =
+        expense.expenseAccountId ||
+        (await this.getSetting('acc.default_expense_account'));
+
+      if (!expenseAccountId || !expense.paidFromAccountId) {
+        this.logger.warn(
+          `Expense JE skipped for ${expense.expenseNumber}: ` +
+            `expenseAccountId and paidFromAccountId are required. ` +
+            `Configure acc.default_expense_account as a fallback.`,
+        );
+        return null;
+      }
+
       const totalAmount = Number(expense.totalAmount);
 
       return await this.postEntry({
@@ -412,10 +429,10 @@ export class AccountingIntegrationService {
         referenceId: expense.id,
         referenceNumber: expense.expenseNumber,
         description: expense.description,
-        currency: 'INR',
+        currency: 'BDT',
         lines: [
           {
-            accountId: expense.expenseAccountId,
+            accountId: expenseAccountId,
             debit: totalAmount,
             credit: 0,
             description: expense.description,
@@ -443,9 +460,10 @@ export class AccountingIntegrationService {
    */
   async postGRNApproval(grn: GoodsReceivedNote): Promise<void> {
     try {
-      const [inventory, ap] = await Promise.all([
+      const [inventory, ap, inputVat] = await Promise.all([
         this.getSetting('acc.default_inventory_account'),
         this.getSetting('acc.default_ap_account'),
+        this.getSetting('acc.default_input_vat_account'),
       ]);
 
       if (!inventory || !ap) {
@@ -456,8 +474,34 @@ export class AccountingIntegrationService {
         return;
       }
 
-      const amount = Number(grn.totalValue);
-      if (amount <= 0) return;
+      const taxAmount = Number((grn as any).taxAmount) || 0;
+      const totalAmount = Number(grn.totalValue);
+      const netAmount = taxAmount > 0 && inputVat ? totalAmount - taxAmount : totalAmount;
+
+      const lines: JELine[] = [
+        {
+          accountId: inventory,
+          debit: netAmount,
+          credit: 0,
+          description: `Inventory received – ${grn.grnNumber}`,
+        },
+      ];
+
+      if (taxAmount > 0 && inputVat) {
+        lines.push({
+          accountId: inputVat,
+          debit: taxAmount,
+          credit: 0,
+          description: `Input VAT – ${grn.grnNumber}`,
+        });
+      }
+
+      lines.push({
+        accountId: ap,
+        debit: 0,
+        credit: totalAmount,
+        description: `Payable to supplier – ${grn.grnNumber}`,
+      });
 
       await this.postEntry({
         date: grn.receiptDate ? new Date(grn.receiptDate) : new Date(),
@@ -467,24 +511,80 @@ export class AccountingIntegrationService {
         referenceNumber: grn.grnNumber,
         description: `Goods received – ${grn.grnNumber}`,
         currency: grn.currency || 'USD',
-        lines: [
-          {
-            accountId: inventory,
-            debit: amount,
-            credit: 0,
-            description: `Inventory received – ${grn.grnNumber}`,
-          },
-          {
-            accountId: ap,
-            debit: 0,
-            credit: amount,
-            description: `Payable to supplier – ${grn.grnNumber}`,
-          },
-        ],
+        lines,
       });
     } catch (err) {
       this.logger.error(
         `Failed to post GRN JE for ${grn.grnNumber}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  /**
+   * Call after purchase return is approved.
+   * DR Accounts Payable  /  CR Inventory  +  CR Input VAT (if applicable)
+   * Requires: acc.default_ap_account, acc.default_inventory_account
+   */
+  async postPurchaseReturn(purchaseReturn: PurchaseReturn): Promise<void> {
+    try {
+      const [ap, inventory, inputVat, purchaseReturnsAccount] = await Promise.all([
+        this.getSetting('acc.default_ap_account'),
+        this.getSetting('acc.default_inventory_account'),
+        this.getSetting('acc.default_input_vat_account'),
+        this.getSetting('acc.default_purchase_returns_account'),
+      ]);
+
+      if (!ap || !inventory) {
+        this.logger.warn(
+          `Purchase return auto-accounting skipped for ${purchaseReturn.returnNumber}: ` +
+            `configure acc.default_ap_account and acc.default_inventory_account`,
+        );
+        return;
+      }
+
+      const taxAmount = Number(purchaseReturn.taxAmount) || 0;
+      const totalAmount = Number(purchaseReturn.totalAmount);
+      const netAmount = taxAmount > 0 && inputVat ? totalAmount - taxAmount : totalAmount;
+
+      // DR AP / CR Inventory (+ CR Input VAT reversal if applicable)
+      const inventoryAccount = purchaseReturnsAccount || inventory;
+      const lines: JELine[] = [
+        {
+          accountId: ap,
+          debit: totalAmount,
+          credit: 0,
+          description: `AP reduced – ${purchaseReturn.returnNumber}`,
+        },
+        {
+          accountId: inventoryAccount,
+          debit: 0,
+          credit: netAmount,
+          description: `Inventory returned – ${purchaseReturn.returnNumber}`,
+        },
+      ];
+
+      if (taxAmount > 0 && inputVat) {
+        lines.push({
+          accountId: inputVat,
+          debit: 0,
+          credit: taxAmount,
+          description: `Input VAT reversed – ${purchaseReturn.returnNumber}`,
+        });
+      }
+
+      await this.postEntry({
+        date: purchaseReturn.returnDate ? new Date(purchaseReturn.returnDate) : new Date(),
+        type: JournalEntryType.PURCHASE,
+        referenceType: 'PURCHASE_RETURN',
+        referenceId: purchaseReturn.id,
+        referenceNumber: purchaseReturn.returnNumber,
+        description: `Purchase return – ${purchaseReturn.returnNumber}`,
+        currency: purchaseReturn.currency || 'USD',
+        lines,
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to post purchase return JE for ${purchaseReturn.returnNumber}: ${(err as Error).message}`,
       );
     }
   }

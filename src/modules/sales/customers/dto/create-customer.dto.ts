@@ -27,6 +27,13 @@ export class CreateCustomerDto {
 
   @ApiPropertyOptional({ enum: CustomerType, default: CustomerType.INDIVIDUAL })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (!value) return CustomerType.INDIVIDUAL;
+    const upper = String(value).toUpperCase();
+    return Object.values(CustomerType).includes(upper as CustomerType)
+      ? upper
+      : CustomerType.INDIVIDUAL;
+  })
   @IsEnum(CustomerType)
   customerType?: CustomerType;
 
@@ -102,7 +109,7 @@ export class CreateCustomerDto {
   @Min(0)
   creditLimit?: number;
 
-  @ApiPropertyOptional({ example: 'INR', default: 'INR' })
+  @ApiPropertyOptional({ example: 'INR', default: 'BDT' })
   @IsOptional()
   @IsString()
   @MaxLength(3)

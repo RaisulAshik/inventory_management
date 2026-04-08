@@ -54,7 +54,7 @@ export class Subscription {
   @Column('decimal', { name: 'unit_price', precision: 15, scale: 2 })
   unitPrice: number;
 
-  @Column('char', { length: 3, default: 'INR' })
+  @Column('char', { length: 3, default: 'BDT' })
   currency: string;
 
   @Column({

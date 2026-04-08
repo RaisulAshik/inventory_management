@@ -62,7 +62,7 @@ export class Quotation {
   status: QuotationStatus;
 
   // Pricing
-  @Column({ type: 'char', length: 3, default: 'INR' })
+  @Column({ type: 'char', length: 3, default: 'BDT' })
   currency: string;
 
   @Column({ type: 'decimal', precision: 15, scale: 4, default: 0 })

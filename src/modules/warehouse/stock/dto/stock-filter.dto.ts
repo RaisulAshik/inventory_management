@@ -27,6 +27,11 @@ export class StockFilterDto extends PaginationDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   lowStock?: boolean;

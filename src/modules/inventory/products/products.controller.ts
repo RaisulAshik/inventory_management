@@ -158,12 +158,16 @@ export class ProductsController {
     required: false,
     description: 'Max results (default 20, max 50)',
   })
-  async lookup(@Query('q') q: string, @Query('limit') limit?: string) {
+  async lookup(
+    @Query('q') q: string,
+    @Query('limit') limit?: string,
+    @Query('warehouseId') warehouseId?: string,
+  ) {
     if (!q || q.trim().length < 1) {
       return { data: [] };
     }
-    const maxLimit = Math.min(parseInt(limit ?? '20', 10) || 20, 50);
-    const results = await this.productsService.lookup(q.trim(), maxLimit);
+    const maxLimit = Math.min(parseInt(limit ?? '20', 10) || 20, 500);
+    const results = await this.productsService.lookup(q.trim(), maxLimit, warehouseId);
     return { data: results };
   }
 

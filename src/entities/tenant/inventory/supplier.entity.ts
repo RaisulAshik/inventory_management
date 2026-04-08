@@ -57,7 +57,7 @@ export class Supplier {
   })
   creditLimit: number;
 
-  @Column({ length: 3, default: 'INR' })
+  @Column({ length: 3, default: 'BDT' })
   currency: string;
 
   @Column({ name: 'address_line1', length: 255, nullable: true })

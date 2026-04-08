@@ -69,7 +69,7 @@ export class PurchaseReturn {
   @Column('text', { name: 'reason_details', nullable: true })
   reasonDetails: string;
 
-  @Column('char', { length: 3, default: 'INR' })
+  @Column('char', { length: 3, default: 'BDT' })
   currency: string;
 
   @Column('decimal', { precision: 15, scale: 4, default: 0 })

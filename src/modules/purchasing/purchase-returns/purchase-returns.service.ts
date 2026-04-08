@@ -23,11 +23,13 @@ import {
 import { CreatePurchaseReturnDto } from './dto/create-purchase-return.dto';
 import { PurchaseReturnFilterDto } from './dto/purchase-return-filter.dto';
 import { UpdatePurchaseReturnDto } from './dto/update-purchase-return.dto';
+import { AccountingIntegrationService } from '@modules/accounting/service/accounting-integration.service';
 
 @Injectable()
 export class PurchaseReturnsService {
   constructor(
     private readonly tenantConnectionManager: TenantConnectionManager,
+    private readonly accountingIntegration: AccountingIntegrationService,
   ) {}
 
   private async getPurchaseReturnRepository(): Promise<
@@ -413,6 +415,9 @@ export class PurchaseReturnsService {
     purchaseReturn.approvedBy = approvedBy;
     purchaseReturn.approvedAt = new Date();
     await returnRepo.save(purchaseReturn);
+
+    // Auto-post: DR AP / CR Inventory (+ CR Input VAT if applicable)
+    void this.accountingIntegration.postPurchaseReturn(purchaseReturn);
 
     return this.findById(id);
   }

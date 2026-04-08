@@ -66,7 +66,7 @@ export class Tenant {
   @Column({ length: 100, default: 'Asia/Kolkata' })
   timezone: string;
 
-  @Column({ name: 'default_currency', length: 3, default: 'INR' })
+  @Column({ name: 'default_currency', length: 3, default: 'BDT' })
   defaultCurrency: string;
 
   @Column({ name: 'date_format', length: 20, default: 'DD/MM/YYYY' })

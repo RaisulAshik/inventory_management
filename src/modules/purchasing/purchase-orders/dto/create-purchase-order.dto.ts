@@ -86,7 +86,7 @@ export class CreatePurchaseOrderDto {
   @IsDate()
   expectedDeliveryDate?: Date;
 
-  @ApiPropertyOptional({ example: 'INR', default: 'INR' })
+  @ApiPropertyOptional({ example: 'INR', default: 'BDT' })
   @IsOptional()
   @IsString()
   currency?: string;
