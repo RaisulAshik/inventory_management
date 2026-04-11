@@ -173,6 +173,18 @@ export class SalesOrder {
   })
   couponDiscount: number;
 
+  @Column({ name: 'tax_rate_id', length: 36, nullable: true })
+  taxRateId: string;
+
+  @Column({
+    name: 'tax_percentage',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 0,
+  })
+  taxPercentage: number;
+
   @Column({
     name: 'tax_amount',
     type: 'decimal',

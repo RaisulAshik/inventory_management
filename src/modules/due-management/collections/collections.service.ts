@@ -20,6 +20,7 @@ import {
   CustomerDueReferenceType,
   SalesOrder,
 } from '@entities/tenant';
+
 import { CustomerDuesService } from '../customer-dues/customer-dues.service';
 import { AccountingIntegrationService } from '@modules/accounting/service/accounting-integration.service';
 import {
@@ -66,7 +67,6 @@ export class CollectionsService {
     }
 
     let savedCollection!: CustomerDueCollection;
-    const orderPayments: { salesOrderId: string; amount: number }[] = [];
 
     await ds.transaction(async (manager) => {
       const collRepo = manager.getRepository(CustomerDueCollection);
@@ -148,27 +148,15 @@ export class CollectionsService {
             alloc.amount,
             manager,
           );
-          orderPayments.push({ salesOrderId: due.salesOrderId, amount: alloc.amount });
         }
       }
     });
 
     const result = await this.findById(savedCollection.id);
 
-    // Auto-post Payment JE: DR Bank/Cash / CR Accounts Receivable (fire-and-forget)
-    if (!dto.chequeNumber && orderPayments.length > 0) {
-      const orderRepo = ds.getRepository(SalesOrder);
-      for (const op of orderPayments) {
-        orderRepo.findOne({ where: { id: op.salesOrderId } }).then((order) => {
-          if (order) {
-            void this.accountingIntegration.postPaymentCollection(
-              order,
-              op.amount,
-              dto.collectionDate ? new Date(dto.collectionDate) : new Date(),
-            );
-          }
-        });
-      }
+    // Auto-post JE: DR Bank/Cash / CR AR — one JE per collection, skip cheques (posted on clearance)
+    if (!dto.chequeNumber) {
+      void this.accountingIntegration.postPaymentCollection(result);
     }
 
     return result;

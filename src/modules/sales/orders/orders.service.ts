@@ -32,6 +32,7 @@ import {
   StockMovement,
   CustomerDue,
   OrderPayment,
+  TaxRate,
 } from '@entities/tenant';
 import { OrderPaymentStatus } from '@entities/tenant/eCommerce/order-payment.entity';
 import { AddPaymentDto } from './dto/add-payment.dto';
@@ -97,6 +98,7 @@ export class OrdersService {
       createOrderDto.discountAmount,
       customer.priceListId,
       dataSource,
+      createOrderDto.taxRateId,
     );
 
     const order = orderRepo.create({
@@ -112,6 +114,8 @@ export class OrdersService {
       subtotal: calculatedTotals.subtotal,
       discountPercentage: createOrderDto.discountPercentage || 0,
       discountAmount: calculatedTotals.discountAmount,
+      taxRateId: createOrderDto.taxRateId,
+      taxPercentage: calculatedTotals.taxPercentage,
       taxAmount: calculatedTotals.taxAmount,
       shippingAmount: createOrderDto.shippingAmount || 0,
       totalAmount:
@@ -191,7 +195,6 @@ export class OrdersService {
       // Get product details
       const product = await productRepo.findOne({
         where: { id: itemDto.productId },
-        relations: ['taxCategory', 'taxCategory.taxRates'],
       });
 
       if (!product) {
@@ -210,20 +213,7 @@ export class OrdersService {
       const lineDiscount = (grossAmount * discountPercent) / 100 + discountAmt;
       const taxableAmount = grossAmount - lineDiscount;
 
-      // Calculate tax
-      let taxAmount = 0;
-      let taxPercentage = 0;
-      if (product.taxCategory?.taxRates) {
-        const activeTaxRate = product.taxCategory.taxRates.find(
-          (r) => r.isActive,
-        );
-        if (activeTaxRate) {
-          taxPercentage = Number(activeTaxRate.ratePercentage);
-          taxAmount = (taxableAmount * taxPercentage) / 100;
-        }
-      }
-
-      const lineTotal = taxableAmount + taxAmount;
+      const lineTotal = taxableAmount;
 
       const item = itemRepo.create({
         id: uuidv4(),
@@ -239,8 +229,8 @@ export class OrdersService {
         costPrice: Number(product.costPrice),
         discountPercentage: discountPercent,
         discountAmount: lineDiscount,
-        taxPercentage,
-        taxAmount,
+        taxPercentage: 0,
+        taxAmount: 0,
         lineTotal,
         notes: itemDto.notes,
       } as DeepPartial<SalesOrderItem>);
@@ -258,9 +248,11 @@ export class OrdersService {
     orderDiscountAmount: number = 0,
     priceListId?: string,
     dataSource?: DataSource | null,
+    taxRateId?: string,
   ): Promise<{
     subtotal: number;
     discountAmount: number;
+    taxPercentage: number;
     taxAmount: number;
     totalAmount: number;
   }> {
@@ -269,14 +261,12 @@ export class OrdersService {
     }
 
     let subtotal = 0;
-    let totalTax = 0;
 
     const productRepo = dataSource.getRepository(Product);
 
     for (const itemDto of items) {
       const product = await productRepo.findOne({
         where: { id: itemDto.productId },
-        relations: ['taxCategory', 'taxCategory.taxRates'],
       });
 
       if (!product) continue;
@@ -301,20 +291,7 @@ export class OrdersService {
 
       const grossAmount = quantity * unitPrice;
       const lineDiscount = (grossAmount * discountPercent) / 100 + discountAmt;
-      const taxableAmount = grossAmount - lineDiscount;
-
-      subtotal += taxableAmount;
-
-      // Calculate tax
-      if (product.taxCategory?.taxRates) {
-        const activeTaxRate = product.taxCategory.taxRates.find(
-          (r) => r.isActive,
-        );
-        if (activeTaxRate) {
-          totalTax +=
-            (taxableAmount * Number(activeTaxRate.ratePercentage)) / 100;
-        }
-      }
+      subtotal += grossAmount - lineDiscount;
     }
 
     // Apply order-level discount
@@ -322,17 +299,25 @@ export class OrdersService {
       (subtotal * orderDiscountPercent) / 100 + orderDiscountAmount;
     const discountedSubtotal = subtotal - orderDiscount;
 
-    // Recalculate tax on discounted amount if order discount applied
-    if (orderDiscount > 0) {
-      const discountRatio = discountedSubtotal / subtotal;
-      totalTax = totalTax * discountRatio;
+    // Apply order-level tax on discounted subtotal
+    let taxPercentage = 0;
+    let taxAmount = 0;
+    if (taxRateId) {
+      const taxRate = await dataSource
+        .getRepository(TaxRate)
+        .findOne({ where: { id: taxRateId } });
+      if (taxRate) {
+        taxPercentage = Number(taxRate.ratePercentage);
+        taxAmount = (discountedSubtotal * taxPercentage) / 100;
+      }
     }
 
     return {
       subtotal,
       discountAmount: orderDiscount,
-      taxAmount: totalTax,
-      totalAmount: discountedSubtotal + totalTax,
+      taxPercentage,
+      taxAmount,
+      totalAmount: discountedSubtotal + taxAmount,
     };
   }
 
@@ -462,16 +447,21 @@ export class OrdersService {
       const stocks = await stockRepo
         .createQueryBuilder('s')
         .where('s.productId IN (:...productIds)', { productIds })
-        .andWhere('s.warehouseId = :warehouseId', { warehouseId: order.warehouseId })
+        .andWhere('s.warehouseId = :warehouseId', {
+          warehouseId: order.warehouseId,
+        })
         .getMany();
-      const stockMap = new Map(stocks.map((s) => [
-        `${s.productId}:${s.variantId ?? ''}`, s
-      ]));
+      const stockMap = new Map(
+        stocks.map((s) => [`${s.productId}:${s.variantId ?? ''}`, s]),
+      );
       for (const item of order.items) {
         const key = `${item.productId}:${item.variantId ?? ''}`;
         const stock = stockMap.get(key);
         (item as any).availableQuantity = stock
-          ? Math.max(0, Number(stock.quantityOnHand) - Number(stock.quantityReserved))
+          ? Math.max(
+              0,
+              Number(stock.quantityOnHand) - Number(stock.quantityReserved),
+            )
           : 0;
       }
     }
@@ -522,20 +512,29 @@ export class OrdersService {
   ): Promise<SalesOrder> {
     const order = await this.findById(orderId);
 
-    if (![SalesOrderStatus.DRAFT, SalesOrderStatus.PENDING].includes(order.status)) {
-      throw new BadRequestException('Only draft or pending orders can be edited');
+    if (
+      ![SalesOrderStatus.DRAFT, SalesOrderStatus.PENDING].includes(order.status)
+    ) {
+      throw new BadRequestException(
+        'Only draft or pending orders can be edited',
+      );
     }
 
     const ds = await this.tenantConnectionManager.getDataSource();
     const itemRepo = ds.getRepository(SalesOrderItem);
-    const item = await itemRepo.findOne({ where: { id: itemId, salesOrderId: orderId } });
+    const item = await itemRepo.findOne({
+      where: { id: itemId, salesOrderId: orderId },
+    });
     if (!item) throw new NotFoundException(`Order item ${itemId} not found`);
 
-    if (dto.quantityOrdered !== undefined) item.quantityOrdered = dto.quantityOrdered;
+    if (dto.quantityOrdered !== undefined)
+      item.quantityOrdered = dto.quantityOrdered;
     if (dto.quantity !== undefined) item.quantityOrdered = dto.quantity;
     if (dto.unitPrice !== undefined) item.unitPrice = dto.unitPrice;
-    if (dto.discountPercentage !== undefined) item.discountPercentage = dto.discountPercentage;
-    if (dto.discountAmount !== undefined) item.discountAmount = dto.discountAmount;
+    if (dto.discountPercentage !== undefined)
+      item.discountPercentage = dto.discountPercentage;
+    if (dto.discountAmount !== undefined)
+      item.discountAmount = dto.discountAmount;
     if (dto.taxPercentage !== undefined) item.taxPercentage = dto.taxPercentage;
     if (dto.taxAmount !== undefined) item.taxAmount = dto.taxAmount;
     if (dto.uomId !== undefined) item.uomId = dto.uomId;
@@ -557,8 +556,14 @@ export class OrdersService {
     // Recalculate order totals
     const orderRepo = await this.getOrderRepository();
     const updatedOrder = await this.findById(orderId);
-    const subTotal = updatedOrder.items.reduce((s, i) => s + Number(i.lineTotal), 0);
-    const taxTotal = updatedOrder.items.reduce((s, i) => s + Number(i.taxAmount), 0);
+    const subTotal = updatedOrder.items.reduce(
+      (s, i) => s + Number(i.lineTotal),
+      0,
+    );
+    const taxTotal = updatedOrder.items.reduce(
+      (s, i) => s + Number(i.taxAmount),
+      0,
+    );
     updatedOrder.subtotal = subTotal;
     updatedOrder.taxAmount = taxTotal;
     updatedOrder.totalAmount =
@@ -573,8 +578,12 @@ export class OrdersService {
   async addItem(orderId: string, dto: UpdateOrderItemDto): Promise<SalesOrder> {
     const order = await this.findById(orderId);
 
-    if (![SalesOrderStatus.DRAFT, SalesOrderStatus.PENDING].includes(order.status)) {
-      throw new BadRequestException('Only draft or pending orders can be edited');
+    if (
+      ![SalesOrderStatus.DRAFT, SalesOrderStatus.PENDING].includes(order.status)
+    ) {
+      throw new BadRequestException(
+        'Only draft or pending orders can be edited',
+      );
     }
 
     if (!dto.productId) {
@@ -584,7 +593,8 @@ export class OrdersService {
     const ds = await this.tenantConnectionManager.getDataSource();
     const productRepo = ds.getRepository(Product);
     const product = await productRepo.findOne({ where: { id: dto.productId } });
-    if (!product) throw new NotFoundException(`Product ${dto.productId} not found`);
+    if (!product)
+      throw new NotFoundException(`Product ${dto.productId} not found`);
 
     const qty = dto.quantity ?? dto.quantityOrdered ?? 1;
     const unitPrice = dto.unitPrice ?? Number(product.sellingPrice ?? 0);
@@ -621,8 +631,14 @@ export class OrdersService {
     // Recalculate order totals
     const orderRepo = await this.getOrderRepository();
     const updatedOrder = await this.findById(orderId);
-    const subTotal = updatedOrder.items.reduce((s, i) => s + Number(i.lineTotal), 0);
-    const taxTotal = updatedOrder.items.reduce((s, i) => s + Number(i.taxAmount), 0);
+    const subTotal = updatedOrder.items.reduce(
+      (s, i) => s + Number(i.lineTotal),
+      0,
+    );
+    const taxTotal = updatedOrder.items.reduce(
+      (s, i) => s + Number(i.taxAmount),
+      0,
+    );
     updatedOrder.subtotal = subTotal;
     updatedOrder.taxAmount = taxTotal;
     updatedOrder.totalAmount =
@@ -637,17 +653,25 @@ export class OrdersService {
   async removeItem(orderId: string, itemId: string): Promise<SalesOrder> {
     const order = await this.findById(orderId);
 
-    if (![SalesOrderStatus.DRAFT, SalesOrderStatus.PENDING].includes(order.status)) {
-      throw new BadRequestException('Only draft or pending orders can be edited');
+    if (
+      ![SalesOrderStatus.DRAFT, SalesOrderStatus.PENDING].includes(order.status)
+    ) {
+      throw new BadRequestException(
+        'Only draft or pending orders can be edited',
+      );
     }
 
     if (order.items.length <= 1) {
-      throw new BadRequestException('Cannot remove the last item from an order');
+      throw new BadRequestException(
+        'Cannot remove the last item from an order',
+      );
     }
 
     const ds = await this.tenantConnectionManager.getDataSource();
     const itemRepo = ds.getRepository(SalesOrderItem);
-    const item = await itemRepo.findOne({ where: { id: itemId, salesOrderId: orderId } });
+    const item = await itemRepo.findOne({
+      where: { id: itemId, salesOrderId: orderId },
+    });
     if (!item) throw new NotFoundException(`Order item ${itemId} not found`);
 
     await itemRepo.remove(item);
@@ -655,8 +679,14 @@ export class OrdersService {
     // Recalculate order totals
     const orderRepo = await this.getOrderRepository();
     const updatedOrder = await this.findById(orderId);
-    const subTotal = updatedOrder.items.reduce((s, i) => s + Number(i.lineTotal), 0);
-    const taxTotal = updatedOrder.items.reduce((s, i) => s + Number(i.taxAmount), 0);
+    const subTotal = updatedOrder.items.reduce(
+      (s, i) => s + Number(i.lineTotal),
+      0,
+    );
+    const taxTotal = updatedOrder.items.reduce(
+      (s, i) => s + Number(i.taxAmount),
+      0,
+    );
     updatedOrder.subtotal = subTotal;
     updatedOrder.taxAmount = taxTotal;
     updatedOrder.totalAmount =
@@ -1071,7 +1101,7 @@ export class OrdersService {
 
     const paid = await this.findById(id);
     // Auto-post Payment: DR Bank/Cash / CR Accounts Receivable
-    void this.accountingIntegration.postPaymentCollection(
+    void this.accountingIntegration.postOrderDirectPayment(
       paid,
       paymentDto.amount,
       paymentDto.paymentDate ? new Date(paymentDto.paymentDate) : new Date(),

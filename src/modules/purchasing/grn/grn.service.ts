@@ -80,8 +80,8 @@ export class GrnService {
     // Generate GRN number
     const grnNumber = await getNextSequence(dataSource, 'GRN');
 
-    // Calculate totals
-    const totals = this.calculateGrnTotals(createDto.items);
+    // Calculate totals — apply PO-level discount/tax proportionally
+    const totals = this.calculateGrnTotals(createDto.items, po);
 
     const grn = grnRepo.create({
       id: uuidv4(),
@@ -141,27 +141,40 @@ export class GrnService {
   }
 
   /**
-   * Calculate GRN totals
+   * Calculate GRN totals.
+   * Discount and tax are order-level (from PO), applied proportionally to GRN subtotal.
    */
-  private calculateGrnTotals(items: any[]): {
+  private calculateGrnTotals(
+    items: any[],
+    po?: PurchaseOrder,
+  ): {
     subtotal: number;
     taxAmount: number;
     totalAmount: number;
   } {
     let subtotal = 0;
-    let taxAmount = 0;
 
     for (const item of items) {
       const lineSubtotal =
         (item.receivedQuantity - (item.rejectedQuantity || 0)) * item.unitPrice;
       subtotal += lineSubtotal;
-      taxAmount += item.taxAmount || 0;
     }
+
+    // Apply PO-level discount proportionally
+    const poSubtotal = Number(po?.subtotal ?? 0);
+    const poDiscount = Number(po?.discountAmount ?? 0);
+    const discountRatio = poSubtotal > 0 ? poDiscount / poSubtotal : 0;
+    const discountAmount = subtotal * discountRatio;
+    const taxableBase = subtotal - discountAmount;
+
+    // Apply PO-level tax percentage on the discounted base
+    const taxPercentage = Number((po as any)?.taxPercentage ?? 0);
+    const taxAmount = (taxableBase * taxPercentage) / 100;
 
     return {
       subtotal,
       taxAmount,
-      totalAmount: subtotal + taxAmount,
+      totalAmount: taxableBase + taxAmount,
     };
   }
 
@@ -368,7 +381,7 @@ export class GrnService {
         await itemRepo.save(grnItem);
       }
 
-      // Recalculate GRN totals
+      // Recalculate GRN totals — apply PO-level discount/tax proportionally
       const updatedItems = await itemRepo.find({ where: { grnId: id } });
       const totals = this.calculateGrnTotals(
         updatedItems.map((i) => ({
@@ -377,6 +390,7 @@ export class GrnService {
           unitPrice: Number(i.unitPrice),
           taxAmount: 0,
         })),
+        grn.purchaseOrder,
       );
       await grnRepo.update(id, {
         subtotal: totals.subtotal,
@@ -453,19 +467,18 @@ export class GrnService {
       grn.approvedBy = userId;
       grn.approvedAt = new Date();
       if (!Number(grn.totalValue)) {
-        const acceptedSubtotal = (grn.items ?? []).reduce(
-          (sum, item) => (
-            sum + Number(item.unitPrice) * Number(item.quantityAccepted ?? 0)
-          ),
-          0,
+        const totals = this.calculateGrnTotals(
+          (grn.items ?? []).map((item) => ({
+            receivedQuantity: Number(item.quantityAccepted ?? 0),
+            rejectedQuantity: 0,
+            unitPrice: Number(item.unitPrice),
+            taxAmount: 0,
+          })),
+          grn.purchaseOrder,
         );
-        const acceptedTax = (grn.items ?? []).reduce(
-          (sum, item) => sum + Number(item.taxAmount ?? 0),
-          0,
-        );
-        grn.totalValue = acceptedSubtotal + acceptedTax;
-        grn.subtotal = acceptedSubtotal;
-        grn.taxAmount = acceptedTax;
+        grn.subtotal = totals.subtotal;
+        grn.taxAmount = totals.taxAmount;
+        grn.totalValue = totals.totalAmount;
       }
       await grnRepo.save(grn);
 

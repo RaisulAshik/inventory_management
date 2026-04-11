@@ -108,6 +108,14 @@ export class CreatePurchaseOrderDto {
   @Min(0)
   discountAmount?: number;
 
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Tax rate applied on subtotal after discount (order-level)',
+  })
+  @IsOptional()
+  @IsUUID()
+  taxRateId?: string;
+
   @ApiPropertyOptional({ example: 0 })
   @IsOptional()
   @IsNumber()

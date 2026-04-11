@@ -60,7 +60,7 @@ export class FinancialReportsService {
 
   async balanceSheet(query: FinancialReportQueryDto) {
     const glRepo = await this.getGlRepo();
-    const asOfDate = query.asOfDate || new Date().toISOString().split('T')[0];
+    const asOfDate = query.asOfDate;
 
     const qb = glRepo
       .createQueryBuilder('gl')
@@ -74,8 +74,7 @@ export class FinancialReportsService {
       .addSelect('SUM(gl.debitAmount)', 'totalDebit')
       .addSelect('SUM(gl.creditAmount)', 'totalCredit')
       .leftJoin('gl.account', 'account')
-      .where('gl.transactionDate <= :asOfDate', { asOfDate })
-      .andWhere('account.accountType IN (:...types)', {
+      .where('account.accountType IN (:...types)', {
         types: [AccountType.ASSET, AccountType.LIABILITY, AccountType.EQUITY],
       })
       .groupBy('gl.accountId')
@@ -86,6 +85,8 @@ export class FinancialReportsService {
       .addGroupBy('account.parentId')
       .addGroupBy('account.level');
 
+    if (asOfDate)
+      qb.andWhere('gl.transactionDate <= :asOfDate', { asOfDate });
     if (query.fiscalYearId)
       qb.andWhere('gl.fiscalYearId = :fiscalYearId', {
         fiscalYearId: query.fiscalYearId,
@@ -160,8 +161,7 @@ export class FinancialReportsService {
   async incomeStatement(query: FinancialReportQueryDto) {
     const glRepo = await this.getGlRepo();
     const startDate = query.startDate;
-    const endDate =
-      query.endDate || query.asOfDate || new Date().toISOString().split('T')[0];
+    const endDate = query.endDate || query.asOfDate;
 
     const qb = glRepo
       .createQueryBuilder('gl')

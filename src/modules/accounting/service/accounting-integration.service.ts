@@ -17,6 +17,7 @@ import { SupplierPayment } from '@entities/tenant/dueManagement/supplier-payment
 import { BankAccount } from '@entities/tenant/accounting/bank-account.entity';
 import { StockAdjustment } from '@entities/tenant/warehouse/stock-adjustment.entity';
 import { SalesReturn } from '@entities/tenant/eCommerce/sales-return.entity';
+import { CustomerDueCollection } from '@entities/tenant/dueManagement/customer-due-collection.entity';
 import { ReturnItemCondition } from '@entities/tenant/eCommerce/sales-return-item.entity';
 import {
   JournalEntryType,
@@ -754,10 +755,70 @@ export class AccountingIntegrationService {
   }
 
   /**
-   * Call after addPayment() commits.
-   * DR Bank/Cash  /  CR Accounts Receivable
+   * Call after a customer collection is confirmed.
+   * Posts one JE per collection: DR Bank/Cash / CR Accounts Receivable.
+   * Writes journalEntryId back to the CustomerDueCollection record.
    */
   async postPaymentCollection(
+    collection: CustomerDueCollection,
+  ): Promise<string | null> {
+    try {
+      const cfg = await this.getAccountConfig();
+      if (!cfg) return null;
+
+      const amount = Number(collection.amount);
+      const customerId = collection.customerId;
+      const date = collection.collectionDate
+        ? new Date(collection.collectionDate)
+        : new Date();
+
+      const jeId = await this.postEntry({
+        date,
+        type: JournalEntryType.RECEIPT,
+        referenceType: 'COLLECTION',
+        referenceId: collection.id,
+        referenceNumber: collection.collectionNumber,
+        description: `Payment received – ${collection.collectionNumber}`,
+        currency: collection.currency || 'BDT',
+        customerId,
+        lines: [
+          {
+            accountId: cfg.bank,
+            debit: amount,
+            credit: 0,
+            description: `Cash/Bank – ${collection.collectionNumber}`,
+          },
+          {
+            accountId: cfg.ar,
+            debit: 0,
+            credit: amount,
+            description: `AR cleared – ${collection.collectionNumber}`,
+          },
+        ],
+      });
+
+      // Write JE ID back to collection record
+      if (jeId) {
+        const ds = await this.tenantConnectionManager.getDataSource();
+        await ds
+          .getRepository(CustomerDueCollection)
+          .update(collection.id, { journalEntryId: jeId });
+      }
+
+      return jeId;
+    } catch (err) {
+      this.logger.error(
+        `Failed to post collection JE for ${collection.collectionNumber}: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Post a payment JE for a direct order payment (not through collections).
+   * DR Bank/Cash / CR Accounts Receivable
+   */
+  async postOrderDirectPayment(
     order: SalesOrder,
     paymentAmount: number,
     paymentDate: Date,
@@ -773,7 +834,7 @@ export class AccountingIntegrationService {
         referenceId: order.id,
         referenceNumber: order.orderNumber,
         description: `Payment received – ${order.orderNumber}`,
-        currency: order.currency || 'USD',
+        currency: order.currency || 'BDT',
         customerId: order.customerId,
         lines: [
           {

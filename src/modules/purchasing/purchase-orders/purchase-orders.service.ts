@@ -19,6 +19,7 @@ import {
   ProductVariant,
   UnitOfMeasure,
   SupplierDue,
+  TaxRate,
 } from '@entities/tenant';
 import {
   BulkItemRow,
@@ -79,6 +80,7 @@ export class PurchaseOrdersService {
       dataSource,
       createDto.discountPercentage,
       createDto.discountAmount,
+      createDto.taxRateId,
     );
 
     const purchaseOrder = poRepo.create({
@@ -95,6 +97,8 @@ export class PurchaseOrdersService {
       subtotal: calculatedTotals.subtotal,
       discountPercentage: createDto.discountPercentage || 0,
       discountAmount: calculatedTotals.discountAmount,
+      taxRateId: createDto.taxRateId,
+      taxPercentage: calculatedTotals.taxPercentage,
       taxAmount: calculatedTotals.taxAmount,
       shippingAmount: createDto.shippingAmount || 0,
       otherCharges: createDto.otherCharges || 0,
@@ -134,7 +138,6 @@ export class PurchaseOrdersService {
       // Get product details
       const product = await productRepo.findOne({
         where: { id: itemDto.productId },
-        relations: ['taxCategory', 'taxCategory.taxRates'],
       });
 
       if (!product) {
@@ -151,22 +154,7 @@ export class PurchaseOrdersService {
 
       const grossAmount = quantityOrdered * unitPrice;
       const lineDiscount = (grossAmount * discountPercent) / 100 + discountAmt;
-      const taxableAmount = grossAmount - lineDiscount;
-
-      // Calculate tax
-      let taxAmount = 0;
-      let taxPercentage = 0;
-      if (product.taxCategory?.taxRates) {
-        const activeTaxRate = product.taxCategory.taxRates.find(
-          (r) => r.isActive,
-        );
-        if (activeTaxRate) {
-          taxPercentage = Number(activeTaxRate.ratePercentage);
-          taxAmount = (taxableAmount * taxPercentage) / 100;
-        }
-      }
-
-      const lineTotal = taxableAmount + taxAmount;
+      const lineTotal = grossAmount - lineDiscount;
 
       const item = itemRepo.create({
         id: uuidv4(),
@@ -180,8 +168,8 @@ export class PurchaseOrdersService {
         unitPrice,
         discountPercentage: discountPercent,
         discountAmount: lineDiscount,
-        taxPercentage,
-        taxAmount,
+        taxPercentage: 0,
+        taxAmount: 0,
         lineTotal,
         notes: itemDto.notes,
       } as DeepPartial<PurchaseOrderItem>);
@@ -191,7 +179,8 @@ export class PurchaseOrdersService {
   }
 
   /**
-   * Recalculate PO header totals from its current saved line items
+   * Recalculate PO header totals from its current saved line items.
+   * Tax is order-level (from po.taxRateId), not per line item.
    */
   private async recalculateTotals(
     purchaseOrderId: string,
@@ -205,53 +194,61 @@ export class PurchaseOrdersService {
 
     const items = await itemRepo.find({ where: { purchaseOrderId } });
 
-    const subtotal = items.reduce(
-      (sum, i) => sum + Number(i.lineTotal) - Number(i.taxAmount),
-      0,
-    );
-    const taxAmount = items.reduce((sum, i) => sum + Number(i.taxAmount), 0);
-    const discountAmount = items.reduce(
-      (sum, i) => sum + Number(i.discountAmount),
-      0,
-    );
+    // subtotal = sum of (lineTotal) — items have no tax built in
+    const subtotal = items.reduce((sum, i) => sum + Number(i.lineTotal), 0);
+    const discountedSubtotal = subtotal - Number(po.discountAmount ?? 0);
+
+    // Apply order-level tax rate
+    let taxPercentage = 0;
+    let taxAmount = 0;
+    if (po.taxRateId) {
+      const taxRate = await dataSource
+        .getRepository(TaxRate)
+        .findOne({ where: { id: po.taxRateId } });
+      if (taxRate) {
+        taxPercentage = Number(taxRate.ratePercentage);
+        taxAmount = (discountedSubtotal * taxPercentage) / 100;
+      }
+    }
+
     const totalAmount =
-      subtotal +
-      taxAmount -
-      Number(po.discountAmount ?? 0) +
+      discountedSubtotal +
+      taxAmount +
       Number(po.shippingAmount ?? 0) +
       Number(po.otherCharges ?? 0);
 
     await poRepo.update(purchaseOrderId, {
       subtotal,
+      taxPercentage,
       taxAmount,
-      discountAmount,
       totalAmount,
     });
   }
 
   /**
-   * Calculate order totals
+   * Calculate order totals.
+   * Tax is applied at order level on (subtotal − discount), not per line item.
    */
   private async calculateOrderTotals(
     items: any[],
     dataSource: DataSource,
     orderDiscountPercent: number = 0,
     orderDiscountAmount: number = 0,
+    taxRateId?: string,
   ): Promise<{
     subtotal: number;
     discountAmount: number;
+    taxPercentage: number;
     taxAmount: number;
     totalAmount: number;
   }> {
     let subtotal = 0;
-    let totalTax = 0;
 
     const productRepo = dataSource.getRepository(Product);
 
     for (const itemDto of items) {
       const product = await productRepo.findOne({
         where: { id: itemDto.productId },
-        relations: ['taxCategory', 'taxCategory.taxRates'],
       });
 
       if (!product) continue;
@@ -263,20 +260,7 @@ export class PurchaseOrdersService {
 
       const grossAmount = quantityOrdered * unitPrice;
       const lineDiscount = (grossAmount * discountPercent) / 100 + discountAmt;
-      const taxableAmount = grossAmount - lineDiscount;
-
-      subtotal += taxableAmount;
-
-      // Calculate tax
-      if (product.taxCategory?.taxRates) {
-        const activeTaxRate = product.taxCategory.taxRates.find(
-          (r) => r.isActive,
-        );
-        if (activeTaxRate) {
-          totalTax +=
-            (taxableAmount * Number(activeTaxRate.ratePercentage)) / 100;
-        }
-      }
+      subtotal += grossAmount - lineDiscount;
     }
 
     // Apply order-level discount
@@ -284,17 +268,25 @@ export class PurchaseOrdersService {
       (subtotal * orderDiscountPercent) / 100 + orderDiscountAmount;
     const discountedSubtotal = subtotal - orderDiscount;
 
-    // Recalculate tax on discounted amount
-    if (orderDiscount > 0) {
-      const discountRatio = discountedSubtotal / subtotal;
-      totalTax = totalTax * discountRatio;
+    // Apply order-level tax on discounted subtotal
+    let taxPercentage = 0;
+    let taxAmount = 0;
+    if (taxRateId) {
+      const taxRate = await dataSource
+        .getRepository(TaxRate)
+        .findOne({ where: { id: taxRateId } });
+      if (taxRate) {
+        taxPercentage = Number(taxRate.ratePercentage);
+        taxAmount = (discountedSubtotal * taxPercentage) / 100;
+      }
     }
 
     return {
       subtotal,
       discountAmount: orderDiscount,
-      taxAmount: totalTax,
-      totalAmount: discountedSubtotal + totalTax,
+      taxPercentage,
+      taxAmount,
+      totalAmount: discountedSubtotal + taxAmount,
     };
   }
 
@@ -424,8 +416,18 @@ export class PurchaseOrdersService {
       );
     }
 
+    const needsRecalc =
+      updateDto.taxRateId !== undefined ||
+      updateDto.discountPercentage !== undefined ||
+      updateDto.discountAmount !== undefined;
+
     Object.assign(po, updateDto);
     await poRepo.save(po);
+
+    if (needsRecalc) {
+      const dataSource = await this.tenantConnectionManager.getDataSource();
+      await this.recalculateTotals(id, dataSource);
+    }
 
     return this.findById(id);
   }
@@ -733,7 +735,6 @@ export class PurchaseOrdersService {
 
     const product = await productRepo.findOne({
       where: { id: dto.productId },
-      relations: ['taxCategory', 'taxCategory.taxRates'],
     });
 
     if (!product) {
@@ -747,21 +748,7 @@ export class PurchaseOrdersService {
 
     const grossAmount = quantityOrdered * unitPrice;
     const lineDiscount = (grossAmount * discountPercent) / 100 + discountAmt;
-    const taxableAmount = grossAmount - lineDiscount;
-
-    let taxAmount = 0;
-    let taxPercentage = 0;
-    if (product.taxCategory?.taxRates) {
-      const activeTaxRate = product.taxCategory.taxRates.find(
-        (r) => r.isActive,
-      );
-      if (activeTaxRate) {
-        taxPercentage = Number(activeTaxRate.ratePercentage);
-        taxAmount = (taxableAmount * taxPercentage) / 100;
-      }
-    }
-
-    const lineTotal = taxableAmount + taxAmount;
+    const lineTotal = grossAmount - lineDiscount;
 
     const item = itemRepo.create({
       id: uuidv4(),
@@ -775,8 +762,8 @@ export class PurchaseOrdersService {
       unitPrice,
       discountPercentage: discountPercent,
       discountAmount: lineDiscount,
-      taxPercentage,
-      taxAmount,
+      taxPercentage: 0,
+      taxAmount: 0,
       lineTotal,
       notes: dto.notes,
     } as DeepPartial<PurchaseOrderItem>);
@@ -812,11 +799,6 @@ export class PurchaseOrdersService {
 
     const item = await itemRepo.findOne({
       where: { id: itemId, purchaseOrderId },
-      relations: [
-        'product',
-        'product.taxCategory',
-        'product.taxCategory.taxRates',
-      ],
     });
 
     if (!item) {
@@ -833,21 +815,7 @@ export class PurchaseOrdersService {
 
     const grossAmount = quantityOrdered * unitPrice;
     const lineDiscount = (grossAmount * discountPercent) / 100 + discountAmt;
-    const taxableAmount = grossAmount - lineDiscount;
-
-    let taxAmount = 0;
-    let taxPercentage = Number((item as any).taxPercentage ?? 0);
-    if (item.product?.taxCategory?.taxRates) {
-      const activeTaxRate = item.product.taxCategory.taxRates.find(
-        (r) => r.isActive,
-      );
-      if (activeTaxRate) {
-        taxPercentage = Number(activeTaxRate.ratePercentage);
-        taxAmount = (taxableAmount * taxPercentage) / 100;
-      }
-    }
-
-    const lineTotal = taxableAmount + taxAmount;
+    const lineTotal = grossAmount - lineDiscount;
 
     Object.assign(item, {
       ...(dto.uomId && { uomId: dto.uomId }),
@@ -855,8 +823,8 @@ export class PurchaseOrdersService {
       unitPrice,
       discountPercentage: discountPercent,
       discountAmount: lineDiscount,
-      taxPercentage,
-      taxAmount,
+      taxPercentage: 0,
+      taxAmount: 0,
       lineTotal,
       notes: dto.notes ?? item.notes,
     });
