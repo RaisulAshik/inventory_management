@@ -18,6 +18,7 @@ import {
   SupplierDue,
 } from '@entities/tenant';
 import { SupplierDuesService } from '../supplier-dues/supplier-dues.service';
+import { AccountingIntegrationService } from '@modules/accounting/service/accounting-integration.service';
 import {
   CreateSupplierPaymentDto,
   SupplierPaymentFilterDto,
@@ -29,6 +30,7 @@ export class SupplierPaymentsService {
   constructor(
     private readonly tenantConnectionManager: TenantConnectionManager,
     private readonly supplierDuesService: SupplierDuesService,
+    private readonly accountingIntegration: AccountingIntegrationService,
   ) {}
 
   private async getRepo(): Promise<Repository<SupplierPayment>> {
@@ -249,14 +251,13 @@ export class SupplierPaymentsService {
 
       payment.status = SupplierPaymentStatus.PROCESSING;
       await payRepo.save(payment);
-
-      // TODO: Create Journal Entry:
-      //   Dr: Accounts Payable          = payment.amount
-      //   Cr: Bank Account              = payment.amount - payment.tdsAmount
-      //   Cr: TDS Payable (if TDS > 0)  = payment.tdsAmount
     });
 
-    return this.findById(id);
+    // Auto-post JE: DR AP / CR Bank (/ CR TDS Payable)
+    const processed = await this.findById(id);
+    void this.accountingIntegration.postSupplierPayment(processed);
+
+    return processed;
   }
 
   // ─────────────────────── COMPLETE ───────────────────────

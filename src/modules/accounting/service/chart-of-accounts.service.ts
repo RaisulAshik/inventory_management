@@ -32,6 +32,7 @@ const ROLE_TO_SETTING: Record<AccountingRole, string> = {
   [AccountingRole.PURCHASE_RETURNS]: 'acc.default_purchase_returns_account',
   [AccountingRole.INPUT_VAT]: 'acc.default_input_vat_account',
   [AccountingRole.EXPENSE]: 'acc.default_expense_account',
+  [AccountingRole.TDS_PAYABLE]: 'acc.default_tds_payable_account',
 };
 
 /** Accounting rule: every account type has a canonical normal balance */
@@ -103,6 +104,12 @@ export class ChartOfAccountsService {
       return AccountingRole.PURCHASE_RETURNS;
     if (subtype === 'GENERAL_EXPENSE' || subtype === 'DEFAULT_EXPENSE')
       return AccountingRole.EXPENSE;
+    if (
+      subtype === 'TDS_PAYABLE' ||
+      subtype === 'WITHHOLDING_TAX' ||
+      subtype === 'TDS'
+    )
+      return AccountingRole.TDS_PAYABLE;
 
     // Account type fallback
     if (dto.accountType === AccountType.REVENUE) return AccountingRole.REVENUE;
@@ -203,6 +210,9 @@ export class ChartOfAccountsService {
       isBankAccount,
       rootOnly,
       search,
+      accountCode,
+      accountName,
+      status,
       page = 1,
       limit = 50,
       pageSize,
@@ -224,6 +234,21 @@ export class ChartOfAccountsService {
         '(coa.accountCode LIKE :search OR coa.accountName LIKE :search)',
         { search: `%${search}%` },
       );
+    if (accountCode)
+      qb.andWhere('coa.accountCode LIKE :accountCode', {
+        accountCode: `%${accountCode}%`,
+      });
+    if (accountName)
+      qb.andWhere('coa.accountName LIKE :accountName', {
+        accountName: `%${accountName}%`,
+      });
+    if (status) {
+      // status=ACTIVE → isActive=true, status=INACTIVE → isActive=false
+      if (status.toUpperCase() === 'ACTIVE')
+        qb.andWhere('coa.isActive = :sa', { sa: true });
+      else if (status.toUpperCase() === 'INACTIVE')
+        qb.andWhere('coa.isActive = :sa', { sa: false });
+    }
     qb.orderBy('coa.accountCode', 'ASC')
       .skip((page - 1) * effectiveLimit)
       .take(effectiveLimit);

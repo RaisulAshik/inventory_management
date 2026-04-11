@@ -13,6 +13,8 @@ import {
 } from '@/entities/tenant';
 import { GoodsReceivedNote } from '@entities/tenant/purchase/goods-received-note.entity';
 import { PurchaseReturn } from '@entities/tenant/purchase/purchase-return.entity';
+import { SupplierPayment } from '@entities/tenant/dueManagement/supplier-payment.entity';
+import { BankAccount } from '@entities/tenant/accounting/bank-account.entity';
 import { StockAdjustment } from '@entities/tenant/warehouse/stock-adjustment.entity';
 import { SalesReturn } from '@entities/tenant/eCommerce/sales-return.entity';
 import { ReturnItemCondition } from '@entities/tenant/eCommerce/sales-return-item.entity';
@@ -474,8 +476,12 @@ export class AccountingIntegrationService {
         return;
       }
 
-      const taxAmount = Number((grn as any).taxAmount) || 0;
-      const totalAmount = Number(grn.totalValue);
+      const taxAmount = Number(grn.taxAmount) || 0;
+      // totalValue may be 0 if not set at creation — fall back to subtotal + taxAmount
+      const totalAmount =
+        Number(grn.totalValue) > 0
+          ? Number(grn.totalValue)
+          : Number((grn as any).subtotal || 0) + taxAmount;
       const netAmount = taxAmount > 0 && inputVat ? totalAmount - taxAmount : totalAmount;
 
       const lines: JELine[] = [
@@ -788,6 +794,113 @@ export class AccountingIntegrationService {
       this.logger.error(
         `Failed to post payment JE for ${order.orderNumber}: ${(err as Error).message}`,
       );
+    }
+  }
+
+  /**
+   * Call after supplier payment process() commits.
+   * DR Accounts Payable       = payment.amount
+   * CR Bank / Cash Account    = payment.amount - tdsAmount
+   * CR TDS Payable            = tdsAmount  (only if tdsAmount > 0)
+   *
+   * Bank GL account is resolved from:
+   *   1. payment.bankAccount.glAccountId  (if bank account linked to a CoA)
+   *   2. acc.default_bank_account         (tenant setting fallback)
+   */
+  async postSupplierPayment(payment: SupplierPayment): Promise<string | null> {
+    try {
+      const ds = await this.tenantConnectionManager.getDataSource();
+
+      // Resolve AP account
+      const ap = await this.getSetting('acc.default_ap_account');
+      if (!ap) {
+        this.logger.warn(
+          `Supplier payment JE skipped for ${payment.paymentNumber}: configure acc.default_ap_account`,
+        );
+        return null;
+      }
+
+      // Resolve bank GL account: prefer linked BankAccount.glAccountId, else default setting
+      let bankGlAccountId: string | null = null;
+      if (payment.bankAccountId) {
+        const bankAccount = await ds
+          .getRepository(BankAccount)
+          .findOne({ where: { id: payment.bankAccountId } });
+        bankGlAccountId = bankAccount?.glAccountId ?? null;
+      }
+      if (!bankGlAccountId) {
+        bankGlAccountId = await this.getSetting('acc.default_bank_account');
+      }
+      if (!bankGlAccountId) {
+        this.logger.warn(
+          `Supplier payment JE skipped for ${payment.paymentNumber}: ` +
+            `configure acc.default_bank_account or link a GL account to the bank account`,
+        );
+        return null;
+      }
+
+      const totalAmount = Number(payment.amount);
+      const tdsAmount = Number(payment.tdsAmount) || 0;
+      const netBankAmount = totalAmount - tdsAmount;
+
+      const lines: JELine[] = [
+        {
+          accountId: ap,
+          debit: totalAmount,
+          credit: 0,
+          description: `AP settled – ${payment.paymentNumber}`,
+        },
+        {
+          accountId: bankGlAccountId,
+          debit: 0,
+          credit: netBankAmount,
+          description: `Bank payment – ${payment.paymentNumber}`,
+        },
+      ];
+
+      // TDS payable line (if applicable)
+      if (tdsAmount > 0) {
+        const tdsAccount = await this.getSetting('acc.default_tds_payable_account');
+        if (tdsAccount) {
+          lines.push({
+            accountId: tdsAccount,
+            debit: 0,
+            credit: tdsAmount,
+            description: `TDS payable – ${payment.paymentNumber}`,
+          });
+        } else {
+          // No TDS account configured — fold TDS into bank credit
+          lines[1].credit = totalAmount;
+          this.logger.warn(
+            `acc.default_tds_payable_account not set; TDS of ${tdsAmount} folded into bank credit for ${payment.paymentNumber}`,
+          );
+        }
+      }
+
+      const entryId = await this.postEntry({
+        date: new Date(payment.paymentDate),
+        type: JournalEntryType.PAYMENT,
+        referenceType: 'SUPPLIER_PAYMENT',
+        referenceId: payment.id,
+        referenceNumber: payment.paymentNumber,
+        description: `Supplier payment – ${payment.paymentNumber}`,
+        currency: payment.currency || 'BDT',
+        lines,
+      });
+
+      // Write journalEntryId back to the payment record
+      if (entryId) {
+        await ds
+          .getRepository(SupplierPayment)
+          .update(payment.id, { journalEntryId: entryId });
+      }
+
+      return entryId;
+    } catch (err) {
+      this.logger.error(
+        `Failed to post supplier payment JE for ${payment.paymentNumber}: ${(err as Error).message}`,
+      );
+      return null;
     }
   }
 }

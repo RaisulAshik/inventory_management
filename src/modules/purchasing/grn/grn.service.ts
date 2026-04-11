@@ -98,6 +98,7 @@ export class GrnService {
       subtotal: totals.subtotal,
       taxAmount: totals.taxAmount,
       totalAmount: totals.totalAmount,
+      totalValue: totals.totalAmount,
       notes: createDto.notes,
       createdBy,
     } as DeepPartial<GoodsReceivedNote>);
@@ -447,10 +448,25 @@ export class GrnService {
     await dataSource.transaction(async (manager) => {
       const grnRepo = manager.getRepository(GoodsReceivedNote);
 
-      // 1. Approve GRN
+      // 1. Approve GRN — recalculate totalValue from accepted items
       grn.status = GRNStatus.ACCEPTED;
       grn.approvedBy = userId;
       grn.approvedAt = new Date();
+      if (!Number(grn.totalValue)) {
+        const acceptedSubtotal = (grn.items ?? []).reduce(
+          (sum, item) => (
+            sum + Number(item.unitPrice) * Number(item.quantityAccepted ?? 0)
+          ),
+          0,
+        );
+        const acceptedTax = (grn.items ?? []).reduce(
+          (sum, item) => sum + Number(item.taxAmount ?? 0),
+          0,
+        );
+        grn.totalValue = acceptedSubtotal + acceptedTax;
+        grn.subtotal = acceptedSubtotal;
+        grn.taxAmount = acceptedTax;
+      }
       await grnRepo.save(grn);
 
       // 2. Update stock (existing logic)

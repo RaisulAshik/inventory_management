@@ -31,6 +31,7 @@ export enum AccountingRole {
   SALES_RETURNS = 'SALES_RETURNS', // Sales Returns & Allowances
   PURCHASE_RETURNS = 'PURCHASE_RETURNS', // Purchase Returns & Allowances
   EXPENSE = 'EXPENSE', // Default General Expense Account
+  TDS_PAYABLE = 'TDS_PAYABLE', // TDS / Withholding Tax Payable
 }
 
 export class CreateChartOfAccountDto {
@@ -163,6 +164,18 @@ export class QueryChartOfAccountDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsString()
+  accountCode?: string;
+
+  @IsOptional()
+  @IsString()
+  accountName?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
 
   @IsOptional()
   @Type(() => Number)

@@ -70,6 +70,11 @@ const ACCOUNTING_DEFAULTS: Array<{
     displayName: 'Default Sales Returns Account',
     description: 'Chart of Accounts ID debited when a customer returns goods',
   },
+  {
+    key: 'acc.default_tds_payable_account',
+    displayName: 'Default TDS / Withholding Tax Payable Account',
+    description: 'Chart of Accounts ID credited for TDS deducted on supplier payments (optional)',
+  },
 ];
 
 @Injectable()
