@@ -14,6 +14,11 @@ export interface JwtPayload {
   permissions: string[];
   iat?: number;
   exp?: number;
+  // Present only on admin-issued tokens (admin/auth/login)
+  isAdmin?: boolean;
+  type?: string;
+  tenantCode?: string;
+  tenantDatabase?: string;
 }
 
 /**

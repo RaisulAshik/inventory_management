@@ -221,10 +221,8 @@ export class TenantMiddleware implements NestMiddleware {
       '/v1/admin', // Admin routes
       '/api/v1/master', // Master module routes
       '/master', // Master routes
-      '/auth/login', // Tenant auth
-      '/auth/register', // Tenant auth
-      '/auth/forgot-password',
-      '/auth/reset-password',
+      // NOTE: /auth/* paths are NOT skipped — they need tenant DB context.
+      // JWT guard skips them via @Public() decorator.
       '/health', // Health check
       '/docs', // Swagger
       '/api-json', // Swagger JSON

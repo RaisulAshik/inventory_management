@@ -104,6 +104,16 @@ export class TenantConnectionManager implements OnModuleDestroy {
   }
 
   /**
+   * Look up an initialized DataSource from the pool by database name.
+   * Returns null if no live connection exists yet (caller should fail-open).
+   * Used by singleton guards that cannot inject request-scoped services.
+   */
+  static getPooledDataSource(databaseName: string): DataSource | null {
+    const ds = TenantConnectionManager.connectionPool.get(databaseName);
+    return ds?.isInitialized ? ds : null;
+  }
+
+  /**
    * Close a specific tenant connection
    */
   static async closeConnection(databaseName: string): Promise<void> {

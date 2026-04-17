@@ -44,6 +44,7 @@ import { QuotationsModule } from './modules/quotations/quotations.module';
 import { AccountingModule } from '@modules/accounting/accounting.module';
 import { FinancialModule } from '@modules/due-management/financial.module';
 import { SettingsModule } from '@modules/settings/settings.module';
+import { ProfileModule } from '@modules/settings/profile/profile.module';
 import { ExpensesModule } from '@modules/expenses/expenses.module';
 
 @Module({
@@ -104,6 +105,7 @@ import { ExpensesModule } from '@modules/expenses/expenses.module';
     AccountingModule, // Tenant DB
     FinancialModule, // Tenant DB - Due Management
     SettingsModule, // Tenant DB - Tenant Settings
+    ProfileModule, // Master DB - Tenant Self-Service Profile
     ExpensesModule, // Tenant DB - Expenses
   ],
   providers: [
@@ -159,17 +161,9 @@ export class AppModule implements NestModule {
         { path: 'v1/master/(.*)', method: RequestMethod.ALL },
         { path: 'api/v1/master/(.*)', method: RequestMethod.ALL },
 
-        // ===============================================
-        // AUTH ROUTES (Public - No tenant required for login/register)
-        // ===============================================
-        { path: 'auth/login', method: RequestMethod.POST },
-        { path: 'auth/register', method: RequestMethod.POST },
-        { path: 'auth/forgot-password', method: RequestMethod.POST },
-        { path: 'auth/reset-password', method: RequestMethod.POST },
-        { path: 'v1/auth/login', method: RequestMethod.POST },
-        { path: 'v1/auth/register', method: RequestMethod.POST },
-        { path: 'api/v1/auth/login', method: RequestMethod.POST },
-        { path: 'api/v1/auth/register', method: RequestMethod.POST },
+        // NOTE: Auth routes (login, register, etc.) are NOT excluded here.
+        // They need tenant context to query the correct tenant DB.
+        // JWT guard skips them via @Public() decorator.
 
         // ===============================================
         // UTILITY ROUTES

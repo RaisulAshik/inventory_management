@@ -12,7 +12,7 @@ import { JwtPayload } from '@common/interfaces';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     // Check if route is public
@@ -38,6 +38,10 @@ export class PermissionsGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
 
+    if (!request.user) {
+      throw new ForbiddenException('Access denied: Authentication required');
+    }
+
     const user: JwtPayload & {
       isAdmin?: boolean;
       type?: string;
@@ -46,16 +50,11 @@ export class PermissionsGuard implements CanActivate {
       sub: request.user.sub,
       email: request.user.email,
       tenantId: request.user.tenantId,
-      roles: request.user.roles,
-      permissions: request.user.permissions,
-      isAdmin: request.tenantContext.isAdmin,
-      type: request.tenantContext.type,
+      roles: request.user.roles ?? [],
+      permissions: request.user.permissions ?? [],
+      isAdmin: request.tenantContext?.isAdmin,
+      type: request.tenantContext?.type,
     };
-
-    // No user found
-    if (!user) {
-      throw new ForbiddenException('Access denied: Authentication required');
-    }
 
     // =====================================================
     // ADMIN USER BYPASS

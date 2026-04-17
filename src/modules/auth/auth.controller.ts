@@ -51,7 +51,9 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async register(@Req() req: any, @Body() registerDto: RegisterDto) {
-    return this.authService.register(req.user.tenantId, registerDto);
+    // tenantId comes from tenant middleware (req.tenantId), not JWT (no token on register)
+    const tenantId = req.tenantId || req.user?.tenantId;
+    return this.authService.register(tenantId, registerDto);
   }
 
   @Public()

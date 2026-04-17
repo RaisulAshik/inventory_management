@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
@@ -7,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { createHash } from 'node:crypto';
 import { UsersService } from '@modules/users/users.service';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { User } from '@entities/tenant/user/user.entity';
@@ -19,6 +21,7 @@ import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -150,7 +153,7 @@ export class AuthService {
       const dataSource = await this.tenantConnectionManager.getDataSource();
       const sessionRepo = dataSource.getRepository(UserSession);
 
-      const refreshTokenHash = await this.hashToken(refreshToken);
+      const refreshTokenHash = this.hashToken(refreshToken);
       const session = await sessionRepo.findOne({
         where: {
           userId: payload.sub,
@@ -177,8 +180,8 @@ export class AuthService {
       const tokens = await this.generateTokens(user, roles, permissions);
 
       // Update session
-      session.tokenHash = await this.hashToken(tokens.accessToken);
-      session.refreshTokenHash = await this.hashToken(tokens.refreshToken);
+      session.tokenHash = this.hashToken(tokens.accessToken);
+      session.refreshTokenHash = this.hashToken(tokens.refreshToken);
       session.expiresAt = new Date(
         Date.now() + this.getTokenExpirationMs('access'),
       );
@@ -191,6 +194,7 @@ export class AuthService {
 
       return { tokens };
     } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }
@@ -202,7 +206,7 @@ export class AuthService {
     const dataSource = await this.tenantConnectionManager.getDataSource();
     const sessionRepo = dataSource.getRepository(UserSession);
 
-    const tokenHash = await this.hashToken(accessToken);
+    const tokenHash = this.hashToken(accessToken);
 
     await sessionRepo.delete({
       userId,
@@ -268,20 +272,21 @@ export class AuthService {
     roles: string[],
     permissions: string[],
   ) {
+    const tenantId = this.tenantConnectionManager.getTenantId() || '';
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
-      tenantId: '', // Will be set from request
+      tenantId,
       roles,
       permissions,
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: await this.configService.get('jwt.accessExpiration'),
+      expiresIn: this.configService.get('jwt.expiresIn', '1d'),
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: await this.configService.get('jwt.refreshExpiration'),
+      expiresIn: this.configService.get('jwt.refreshExpiresIn', '7d'),
     });
 
     return {
@@ -304,11 +309,16 @@ export class AuthService {
     const dataSource = await this.tenantConnectionManager.getDataSource();
     const sessionRepo = dataSource.getRepository(UserSession);
 
+    const computedHash = this.hashToken(accessToken);
+    this.logger.warn(
+      `[SESSION-CREATE] userId=${userId} tokenHash=${computedHash.substring(0, 8)}…`,
+    );
+
     const session = sessionRepo.create({
       id: uuidv4(),
       userId,
-      tokenHash: await this.hashToken(accessToken),
-      refreshTokenHash: await this.hashToken(refreshToken),
+      tokenHash: computedHash,
+      refreshTokenHash: this.hashToken(refreshToken),
       ipAddress,
       deviceType: this.parseDeviceType(userAgent),
       browser: this.parseBrowser(userAgent),
@@ -321,14 +331,14 @@ export class AuthService {
     });
 
     await sessionRepo.save(session);
+    this.logger.warn(`[SESSION-CREATE] saved id=${session.id}`);
   }
 
   /**
    * Hash token for storage
    */
-  private async hashToken(token: string): Promise<string> {
-    const crypto = await import('crypto');
-    return crypto.createHash('sha256').update(token).digest('hex');
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 
   /**
@@ -336,14 +346,14 @@ export class AuthService {
    */
   private getTokenExpirationMs(type: 'access' | 'refresh'): number {
     const expiration = this.configService.get(
-      type === 'access' ? 'jwt.accessExpiration' : 'jwt.refreshExpiration',
+      type === 'access' ? 'jwt.expiresIn' : 'jwt.refreshExpiresIn',
     );
 
     // Parse expiration string (e.g., '15m', '7d')
     const match = expiration.match(/^(\d+)([smhd])$/);
     if (!match) return 900000; // Default 15 minutes
 
-    const value = parseInt(match[1], 10);
+    const value = Number.parseInt(match[1], 10);
     const unit = match[2];
 
     const multipliers: Record<string, number> = {

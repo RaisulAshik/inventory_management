@@ -24,14 +24,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token');
     }
 
-    const result: JwtPayload = {
+    return {
       sub: payload.sub,
       email: payload.email,
       tenantId: payload.tenantId,
       roles: payload.roles || [],
       permissions: payload.permissions || [],
+      // Preserve admin-token fields so guards can detect token type
+      isAdmin: payload.isAdmin,
+      type: payload.type,
+      tenantCode: payload.tenantCode,
+      tenantDatabase: payload.tenantDatabase,
     };
-
-    return result;
   }
 }
