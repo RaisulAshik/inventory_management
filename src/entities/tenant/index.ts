@@ -119,6 +119,16 @@ export * from './dueManagement/credit-note.entity';
 export * from './dueManagement/debit-note.entity';
 export * from './dueManagement/payment-reminder.entity';
 
+// Human Resources
+export * from './hr/department.entity';
+export * from './hr/designation.entity';
+export * from './hr/employee.entity';
+export * from './hr/attendance.entity';
+export * from './hr/leave-type.entity';
+export * from './hr/leave-request.entity';
+export * from './hr/payroll.entity';
+export * from './hr/payroll-component.entity';
+
 // Import/Export
 export * from './import_export/import-template.entity';
 export * from './import_export/import-template-column.entity';

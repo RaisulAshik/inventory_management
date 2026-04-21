@@ -407,3 +407,71 @@ export enum FileFormat {
   PDF = 'PDF',
   JSON = 'JSON',
 }
+
+// ============================================
+// HR ENUMS
+// ============================================
+export enum EmploymentType {
+  FULL_TIME = 'FULL_TIME',
+  PART_TIME = 'PART_TIME',
+  CONTRACT = 'CONTRACT',
+  INTERN = 'INTERN',
+  CONSULTANT = 'CONSULTANT',
+}
+
+export enum EmploymentStatus {
+  ACTIVE = 'ACTIVE',
+  PROBATION = 'PROBATION',
+  NOTICE_PERIOD = 'NOTICE_PERIOD',
+  RESIGNED = 'RESIGNED',
+  TERMINATED = 'TERMINATED',
+  ON_LEAVE = 'ON_LEAVE',
+}
+
+export enum Gender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  OTHER = 'OTHER',
+}
+
+export enum MaritalStatus {
+  SINGLE = 'SINGLE',
+  MARRIED = 'MARRIED',
+  DIVORCED = 'DIVORCED',
+  WIDOWED = 'WIDOWED',
+}
+
+export enum SalaryBasis {
+  MONTHLY = 'MONTHLY',
+  DAILY = 'DAILY',
+  HOURLY = 'HOURLY',
+}
+
+export enum AttendanceStatus {
+  PRESENT = 'PRESENT',
+  ABSENT = 'ABSENT',
+  LATE = 'LATE',
+  HALF_DAY = 'HALF_DAY',
+  HOLIDAY = 'HOLIDAY',
+  LEAVE = 'LEAVE',
+}
+
+export enum LeaveRequestStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum HrPayrollStatus {
+  DRAFT = 'DRAFT',
+  PROCESSING = 'PROCESSING',
+  APPROVED = 'APPROVED',
+  PAID = 'PAID',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum PayrollComponentType {
+  EARNING = 'EARNING',
+  DEDUCTION = 'DEDUCTION',
+}

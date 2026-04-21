@@ -35,6 +35,9 @@ function getDefaultPrefix(sequenceType: string): string {
     PRODUCT: 'PRD',
     EXPENSE: 'EXP',
     STOCK_MOVEMENT: 'STM',
+    EMPLOYEE: 'EMP',
+    LEAVE_REQUEST: 'LR',
+    PAYROLL: 'PAY',
   };
   return prefixes[sequenceType] ?? sequenceType.substring(0, 3).toUpperCase();
 }
