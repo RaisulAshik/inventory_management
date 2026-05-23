@@ -6,6 +6,7 @@ import { ApproveLeaveRequestDto } from './dto/approve-leave-request.dto';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
 import { LeaveRequestStatus } from '@common/enums';
+import { Permissions } from '@common/decorators/permissions.decorator';
 
 @ApiTags('HR - Leave Requests')
 @ApiBearerAuth()
@@ -14,12 +15,14 @@ export class LeaveRequestsController {
   constructor(private readonly service: LeaveRequestsService) {}
 
   @Post()
+  @Permissions('hr.leave-requests.create')
   @ApiOperation({ summary: 'Submit leave request' })
   create(@Body() dto: CreateLeaveRequestDto, @CurrentUser() user: JwtPayload) {
     return this.service.create(dto, user.sub);
   }
 
   @Get()
+  @Permissions('hr.leave-requests.read')
   @ApiOperation({ summary: 'List leave requests' })
   @ApiQuery({ name: 'employeeId', required: false })
   @ApiQuery({ name: 'status', required: false, enum: LeaveRequestStatus })
@@ -37,12 +40,14 @@ export class LeaveRequestsController {
   }
 
   @Get(':id')
+  @Permissions('hr.leave-requests.read')
   @ApiOperation({ summary: 'Get leave request by ID' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.findOne(id);
   }
 
   @Post(':id/approve')
+  @Permissions('hr.leave-requests.approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Approve leave request' })
   approve(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
@@ -50,6 +55,7 @@ export class LeaveRequestsController {
   }
 
   @Post(':id/reject')
+  @Permissions('hr.leave-requests.approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reject leave request' })
   reject(
@@ -61,6 +67,7 @@ export class LeaveRequestsController {
   }
 
   @Post(':id/cancel')
+  @Permissions('hr.leave-requests.create')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cancel leave request' })
   cancel(@Param('id', ParseUUIDPipe) id: string) {
@@ -68,6 +75,7 @@ export class LeaveRequestsController {
   }
 
   @Delete(':id')
+  @Permissions('hr.leave-requests.delete')
   @ApiOperation({ summary: 'Delete leave request' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.remove(id);

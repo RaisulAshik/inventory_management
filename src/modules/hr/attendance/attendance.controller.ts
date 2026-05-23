@@ -5,6 +5,7 @@ import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
 import { AttendanceStatus } from '@common/enums';
+import { Permissions } from '@common/decorators/permissions.decorator';
 
 @ApiTags('HR - Attendance')
 @ApiBearerAuth()
@@ -13,12 +14,14 @@ export class AttendanceController {
   constructor(private readonly service: AttendanceService) {}
 
   @Post()
+  @Permissions('hr.attendance.create')
   @ApiOperation({ summary: 'Create or update attendance record (upsert)' })
   upsert(@Body() dto: CreateAttendanceDto, @CurrentUser() user: JwtPayload) {
     return this.service.upsert(dto, user.sub);
   }
 
   @Get()
+  @Permissions('hr.attendance.read')
   @ApiOperation({ summary: 'List attendance records' })
   @ApiQuery({ name: 'employeeId', required: false })
   @ApiQuery({ name: 'from', required: false, description: 'YYYY-MM-DD' })
@@ -38,6 +41,7 @@ export class AttendanceController {
   }
 
   @Get('summary/:employeeId')
+  @Permissions('hr.attendance.read')
   @ApiOperation({ summary: 'Get monthly attendance summary for an employee' })
   @ApiQuery({ name: 'year', required: false, type: Number })
   @ApiQuery({ name: 'month', required: false, type: Number })
@@ -55,6 +59,7 @@ export class AttendanceController {
   }
 
   @Patch(':id')
+  @Permissions('hr.attendance.update')
   @ApiOperation({ summary: 'Update attendance record' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: Partial<CreateAttendanceDto>) {
     return this.service.update(id, dto);

@@ -18,7 +18,6 @@ import { BankAccount } from '@entities/tenant/accounting/bank-account.entity';
 import { StockAdjustment } from '@entities/tenant/warehouse/stock-adjustment.entity';
 import { SalesReturn } from '@entities/tenant/eCommerce/sales-return.entity';
 import { CustomerDueCollection } from '@entities/tenant/dueManagement/customer-due-collection.entity';
-import { ReturnItemCondition } from '@entities/tenant/eCommerce/sales-return-item.entity';
 import {
   JournalEntryType,
   JournalEntryStatus,
@@ -710,16 +709,22 @@ export class AccountingIntegrationService {
       // Reverse COGS for restocked items
       if (inventory && cogs) {
         const restockedItems = (salesReturn.items ?? []).filter(
-          (i) =>
-            i.isRestocked &&
-            (i.condition === ReturnItemCondition.GOOD ||
-              i.condition === ReturnItemCondition.LIKE_NEW),
+          (i) => i.isRestocked,
         );
 
-        const restockValue = restockedItems.reduce(
-          (sum, i) => sum + Number(i.unitPrice) * Number(i.quantityReturned),
-          0,
-        );
+        // Restock value must use cost price (what was paid to supplier),
+        // not the sales price stored in unitPrice. Using sales price would
+        // inflate the Inventory Asset account vs the original COGS entry.
+        const restockValue = restockedItems.reduce((sum, i) => {
+          const costPerUnit = Number(i.salesOrderItem?.costPrice ?? 0);
+          if (costPerUnit === 0) {
+            this.logger.warn(
+              `COGS reversal: cost price missing for product ${i.productId} in return ${salesReturn.returnNumber}. ` +
+                `Set costPrice on the sales order item to get an accurate inventory restock JE.`,
+            );
+          }
+          return sum + costPerUnit * Number(i.quantityReturned);
+        }, 0);
 
         if (restockValue > 0) {
           await this.postEntry({
@@ -750,6 +755,57 @@ export class AccountingIntegrationService {
     } catch (err) {
       this.logger.error(
         `Failed to post sales return JE for ${salesReturn.returnNumber}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  async postSalesRefund(salesReturn: SalesReturn): Promise<void> {
+    try {
+      const [ar, bank] = await Promise.all([
+        this.getSetting('acc.default_ar_account'),
+        this.getSetting('acc.default_bank_account'),
+      ]);
+
+      if (!ar || !bank) {
+        this.logger.warn(
+          `Sales refund auto-accounting skipped for ${salesReturn.returnNumber}: ` +
+            `configure acc.default_ar_account and acc.default_bank_account`,
+        );
+        return;
+      }
+
+      const refundAmount = Number(salesReturn.refundAmount);
+      if (refundAmount <= 0) return;
+
+      await this.postEntry({
+        date: salesReturn.refundedAt
+          ? new Date(salesReturn.refundedAt)
+          : new Date(),
+        type: JournalEntryType.PAYMENT,
+        referenceType: 'SALES_REFUND',
+        referenceId: salesReturn.id,
+        referenceNumber: salesReturn.returnNumber,
+        description: `Refund issued – ${salesReturn.returnNumber}`,
+        currency: salesReturn.currency || 'BDT',
+        customerId: salesReturn.customerId,
+        lines: [
+          {
+            accountId: ar,
+            debit: refundAmount,
+            credit: 0,
+            description: `AR cleared – refund ${salesReturn.returnNumber}`,
+          },
+          {
+            accountId: bank,
+            debit: 0,
+            credit: refundAmount,
+            description: `Cash/Bank paid – refund ${salesReturn.returnNumber}`,
+          },
+        ],
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to post refund JE for ${salesReturn.returnNumber}: ${(err as Error).message}`,
       );
     }
   }

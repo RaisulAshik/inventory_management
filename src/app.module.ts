@@ -47,6 +47,7 @@ import { SettingsModule } from '@modules/settings/settings.module';
 import { ProfileModule } from '@modules/settings/profile/profile.module';
 import { ExpensesModule } from '@modules/expenses/expenses.module';
 import { HrModule } from '@modules/hr/hr.module';
+import { RolesModule } from '@modules/roles/roles.module';
 
 @Module({
   imports: [
@@ -109,6 +110,7 @@ import { HrModule } from '@modules/hr/hr.module';
     ProfileModule, // Master DB - Tenant Self-Service Profile
     ExpensesModule, // Tenant DB - Expenses
     HrModule, // Tenant DB - Human Resources
+    RolesModule, // Tenant DB - Roles & Permissions Management
   ],
   providers: [
     // Global guards (order matters!)

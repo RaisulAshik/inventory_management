@@ -6,6 +6,7 @@ import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
 import { EmploymentStatus } from '@common/enums';
+import { Permissions } from '@common/decorators/permissions.decorator';
 
 @ApiTags('HR - Employees')
 @ApiBearerAuth()
@@ -14,12 +15,14 @@ export class EmployeesController {
   constructor(private readonly service: EmployeesService) {}
 
   @Post()
+  @Permissions('hr.employees.create')
   @ApiOperation({ summary: 'Create employee' })
   create(@Body() dto: CreateEmployeeDto, @CurrentUser() user: JwtPayload) {
     return this.service.create(dto, user.sub);
   }
 
   @Get()
+  @Permissions('hr.employees.read')
   @ApiOperation({ summary: 'List employees' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'departmentId', required: false })
@@ -39,12 +42,14 @@ export class EmployeesController {
   }
 
   @Get(':id')
+  @Permissions('hr.employees.read')
   @ApiOperation({ summary: 'Get employee by ID' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.findOne(id);
   }
 
   @Get(':id/leave-balance')
+  @Permissions('hr.employees.read')
   @ApiOperation({ summary: 'Get employee leave balance for a year' })
   @ApiQuery({ name: 'year', required: false, type: Number })
   leaveBalance(@Param('id', ParseUUIDPipe) id: string, @Query('year') year?: number) {
@@ -52,12 +57,14 @@ export class EmployeesController {
   }
 
   @Patch(':id')
+  @Permissions('hr.employees.update')
   @ApiOperation({ summary: 'Update employee' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateEmployeeDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
+  @Permissions('hr.employees.delete')
   @ApiOperation({ summary: 'Delete (soft) employee' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.remove(id);

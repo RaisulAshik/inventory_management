@@ -5,6 +5,7 @@ import { CreatePayrollDto } from './dto/create-payroll.dto';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
 import { HrPayrollStatus } from '@common/enums';
+import { Permissions } from '@common/decorators/permissions.decorator';
 
 @ApiTags('HR - Payroll')
 @ApiBearerAuth()
@@ -13,12 +14,14 @@ export class PayrollController {
   constructor(private readonly service: PayrollService) {}
 
   @Post()
+  @Permissions('hr.payroll.create')
   @ApiOperation({ summary: 'Process payroll for an employee' })
   process(@Body() dto: CreatePayrollDto, @CurrentUser() user: JwtPayload) {
     return this.service.process(dto, user.sub);
   }
 
   @Get()
+  @Permissions('hr.payroll.read')
   @ApiOperation({ summary: 'List payroll records' })
   @ApiQuery({ name: 'employeeId', required: false })
   @ApiQuery({ name: 'month', required: false, type: Number })
@@ -38,12 +41,14 @@ export class PayrollController {
   }
 
   @Get(':id')
+  @Permissions('hr.payroll.read')
   @ApiOperation({ summary: 'Get payroll details' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.findOne(id);
   }
 
   @Post(':id/approve')
+  @Permissions('hr.payroll.approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Approve payroll' })
   approve(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
@@ -51,6 +56,7 @@ export class PayrollController {
   }
 
   @Post(':id/mark-paid')
+  @Permissions('hr.payroll.approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Mark payroll as paid' })
   markPaid(
@@ -61,6 +67,7 @@ export class PayrollController {
   }
 
   @Delete(':id')
+  @Permissions('hr.payroll.delete')
   @ApiOperation({ summary: 'Delete draft payroll' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.remove(id);

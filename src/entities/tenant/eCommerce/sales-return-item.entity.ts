@@ -73,7 +73,7 @@ export class SalesReturnItem {
   })
   quantityRestocked: number;
 
-  @Column({ name: 'uom_id' })
+  @Column({ name: 'uom_id', nullable: true })
   uomId: string;
 
   @Column({

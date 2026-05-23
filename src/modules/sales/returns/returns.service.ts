@@ -140,10 +140,10 @@ export class ReturnsService {
         .andWhere('return.status NOT IN (:...statuses)', {
           statuses: [SalesReturnStatus.CANCELLED, SalesReturnStatus.REJECTED],
         })
-        .select('SUM(item.quantity)', 'total')
+        .select('SUM(item.quantityReturned)', 'total')
         .getRawOne();
 
-      const returnedQty = parseFloat(alreadyReturned?.total) || 0;
+      const returnedQty = Number.parseFloat(alreadyReturned?.total) || 0;
       const availableForReturn =
         Number(orderItem.quantityOrdered) - returnedQty;
 
@@ -215,9 +215,7 @@ export class ReturnsService {
   ): Promise<void> {
     const itemRepo = dataSource.getRepository(SalesReturnItem);
 
-    for (let i = 0; i < items.length; i++) {
-      const itemDto = items[i];
-
+    for (const itemDto of items) {
       const orderItem = order.items.find(
         (oi) =>
           oi.productId === itemDto.productId &&
@@ -238,7 +236,7 @@ export class ReturnsService {
         salesOrderItemId: orderItem.id,
         productId: itemDto.productId,
         variantId: itemDto.variantId,
-        quantity,
+        quantityReturned: quantity,
         uomId: orderItem.uomId,
         unitPrice,
         taxAmount: lineTax,
@@ -304,10 +302,8 @@ export class ReturnsService {
       );
     }
 
-    if (!filterDto.sortBy) {
-      filterDto.sortBy = 'returnDate';
-      filterDto.sortOrder = 'DESC';
-    }
+    filterDto.sortBy ??= 'returnDate';
+    filterDto.sortOrder ??= 'DESC';
 
     return paginate(queryBuilder, filterDto);
   }
@@ -388,7 +384,6 @@ export class ReturnsService {
    * Receive returned items
    */
   async receive(id: string, receivedBy: string): Promise<SalesReturn> {
-    //const returnRepo = await this.getReturnRepository();
     const dataSource = await this.tenantConnectionManager.getDataSource();
     const salesReturn = await this.findById(id);
 
@@ -402,11 +397,17 @@ export class ReturnsService {
       const orderItemRepo = manager.getRepository(SalesOrderItem);
 
       for (const item of salesReturn.items) {
-        // Only restock items in good condition
-        if (
-          item.condition === ReturnItemCondition.GOOD ||
-          item.condition === ReturnItemCondition.LIKE_NEW
-        ) {
+        const qtyReceived = Number(item.quantityReturned) || 0;
+        item.quantityReceived = qtyReceived;
+
+        // Only restock items in good/like-new condition with a positive quantity
+        const shouldRestock =
+          qtyReceived > 0 &&
+          (!item.condition ||
+            item.condition === ReturnItemCondition.GOOD ||
+            item.condition === ReturnItemCondition.LIKE_NEW);
+
+        if (shouldRestock) {
           // Get or create stock record
           let stock = await stockRepo.findOne({
             where: {
@@ -430,10 +431,13 @@ export class ReturnsService {
             });
           }
 
-          stock.quantityOnHand += Number(item.quantityReturned);
+          stock.quantityOnHand =
+            Number(stock.quantityOnHand || 0) + qtyReceived;
           await stockRepo.save(stock);
 
           // Record stock movement
+          const resolvedUomId =
+            item.uomId || item.product?.baseUomId || undefined;
           const movement = movementRepo.create({
             id: uuidv4(),
             movementNumber: await getNextSequence(dataSource, 'STOCK_MOVEMENT'),
@@ -442,8 +446,8 @@ export class ReturnsService {
             productId: item.productId,
             variantId: item.variantId,
             toWarehouseId: salesReturn.warehouseId,
-            quantity: Number(item.quantityReturned),
-            uomId: item.uomId || item.product?.baseUomId,
+            quantity: qtyReceived,
+            uomId: resolvedUomId,
             unitCost: item.unitPrice,
             referenceType: 'SALES_RETURN',
             referenceId: salesReturn.id,
@@ -452,11 +456,12 @@ export class ReturnsService {
           });
           await movementRepo.save(movement);
 
-          // Update item status
           item.isRestocked = true;
+          item.quantityRestocked = item.quantityReturned;
           item.restockedQuantity = item.quantityReturned;
-          await manager.getRepository(SalesReturnItem).save(item);
         }
+
+        await manager.getRepository(SalesReturnItem).save(item);
 
         // Update order item returned quantity
         if (item.salesOrderItemId) {
@@ -474,6 +479,10 @@ export class ReturnsService {
       }
 
       // Update return status
+      const existingNotes = salesReturn.inspectionNotes
+        ? `${salesReturn.inspectionNotes}\n`
+        : '';
+      salesReturn.inspectionNotes = `${existingNotes}Received by: ${receivedBy}`;
       salesReturn.status = SalesReturnStatus.RECEIVED;
       salesReturn.receivedDate = new Date();
       await manager.getRepository(SalesReturn).save(salesReturn);
@@ -490,7 +499,7 @@ export class ReturnsService {
   async processRefund(
     id: string,
     refundAmount: number,
-    processedBy: string,
+    _processedBy: string,
   ): Promise<SalesReturn> {
     const returnRepo = await this.getReturnRepository();
     const salesReturn = await this.findById(id);
@@ -510,7 +519,9 @@ export class ReturnsService {
     salesReturn.status = SalesReturnStatus.REFUNDED;
     await returnRepo.save(salesReturn);
 
-    return this.findById(id);
+    const result = await this.findById(id);
+    void this.accountingIntegration.postSalesRefund(result);
+    return result;
   }
 
   /**
@@ -559,7 +570,10 @@ export class ReturnsService {
     }
 
     salesReturn.status = SalesReturnStatus.REJECTED;
-    salesReturn.internalNotes = reason;
+    const rejectNotes = salesReturn.internalNotes
+      ? `${salesReturn.internalNotes}\n`
+      : '';
+    salesReturn.internalNotes = `${rejectNotes}Rejected by: ${rejectedBy}. Reason: ${reason}`;
     await returnRepo.save(salesReturn);
 
     return this.findById(id);
@@ -589,7 +603,10 @@ export class ReturnsService {
     }
 
     salesReturn.status = SalesReturnStatus.CANCELLED;
-    salesReturn.internalNotes = `Cancelled by: ${cancelledBy}. Reason: ${reason}`;
+    const cancelNotes = salesReturn.internalNotes
+      ? `${salesReturn.internalNotes}\n`
+      : '';
+    salesReturn.internalNotes = `${cancelNotes}Cancelled by: ${cancelledBy}. Reason: ${reason}`;
     await returnRepo.save(salesReturn);
 
     return this.findById(id);

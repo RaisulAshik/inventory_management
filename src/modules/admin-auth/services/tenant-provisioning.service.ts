@@ -5,7 +5,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DataSource, QueryRunner } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 
 @Injectable()
@@ -471,7 +471,7 @@ export class TenantProvisioningService {
           \`track_expiry\` TINYINT(1) DEFAULT 0,
           \`shelf_life_days\` INT NULL,
           \`hsn_code\` VARCHAR(20) NULL,
-          \`tax_category_id\` CHAR(36) NOT NULL,
+          \`tax_category_id\` CHAR(36) NULL,
           \`cost_price\` DECIMAL(18, 4) DEFAULT 0,
           \`selling_price\` DECIMAL(18, 4) DEFAULT 0,
           \`mrp\` DECIMAL(18, 4) NULL,
@@ -504,7 +504,7 @@ export class TenantProvisioningService {
           CONSTRAINT \`fk_product_brand\` FOREIGN KEY (\`brand_id\`) REFERENCES \`brands\` (\`id\`) ON DELETE SET NULL,
           CONSTRAINT \`fk_product_base_uom\` FOREIGN KEY (\`base_uom_id\`) REFERENCES \`units_of_measure\` (\`id\`),
           CONSTRAINT \`fk_product_secondary_uom\` FOREIGN KEY (\`secondary_uom_id\`) REFERENCES \`units_of_measure\` (\`id\`) ON DELETE SET NULL,
-          CONSTRAINT \`fk_product_tax_cat\` FOREIGN KEY (\`tax_category_id\`) REFERENCES \`tax_categories\` (\`id\`)
+          CONSTRAINT \`fk_product_tax_cat\` FOREIGN KEY (\`tax_category_id\`) REFERENCES \`tax_categories\` (\`id\`) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
@@ -1055,6 +1055,8 @@ export class TenantProvisioningService {
           \`confirmed_at\` TIMESTAMP NULL,
           \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
           \`payment_terms_days\` INT DEFAULT 0,
+          \`tax_rate_id\` CHAR(36) NULL,
+          \`tax_percentage\` DECIMAL(5, 2) DEFAULT 0,
           PRIMARY KEY (\`id\`),
           UNIQUE KEY \`uk_order_number\` (\`order_number\`),
           INDEX \`idx_order_customer\` (\`customer_id\`),
@@ -1228,6 +1230,8 @@ export class TenantProvisioningService {
           \`cancelled_by\` CHAR(36) NULL,
           \`created_by\` CHAR(36) NULL,
           \`cancellation_reason\` VARCHAR(255) NULL,
+          \`tax_rate_id\` CHAR(36) NULL,
+          \`tax_percentage\` DECIMAL(5, 2) DEFAULT 0,
           \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
           \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
           PRIMARY KEY (\`id\`),
@@ -1724,7 +1728,7 @@ export class TenantProvisioningService {
           \`customer_id\` VARCHAR(255) NOT NULL,
           \`warehouse_id\` VARCHAR(255) NOT NULL,
           \`status\` ENUM('REQUESTED','PENDING_APPROVAL','APPROVED','REJECTED','RECEIVED','INSPECTING','REFUND_PENDING','REFUNDED','EXCHANGED','COMPLETED','CANCELLED') NOT NULL DEFAULT 'REQUESTED',
-          \`return_reason\` ENUM('DEFECTIVE','WRONG_ITEM','NOT_AS_DESCRIBED','DAMAGED_IN_TRANSIT','CHANGED_MIND','QUALITY_ISSUE','EXPIRED','EXCESS_QUANTITY','OTHER') NOT NULL,
+          \`return_reason\` ENUM('DEFECTIVE','WRONG_ITEM','NOT_AS_DESCRIBED','CHANGED_MIND','SIZE_FIT_ISSUE','DAMAGED_IN_TRANSIT','LATE_DELIVERY','DUPLICATE_ORDER','OTHER') NOT NULL,
           \`reason_details\` TEXT NULL,
           \`refund_type\` ENUM('ORIGINAL_PAYMENT','STORE_CREDIT','BANK_TRANSFER','EXCHANGE') NULL,
           \`currency\` VARCHAR(3) NOT NULL DEFAULT 'INR',
@@ -1767,7 +1771,7 @@ export class TenantProvisioningService {
           \`quantity_returned\` DECIMAL(18,4) NOT NULL,
           \`quantity_received\` DECIMAL(18,4) NOT NULL DEFAULT 0,
           \`quantity_restocked\` DECIMAL(18,4) NOT NULL DEFAULT 0,
-          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`uom_id\` VARCHAR(255) NULL,
           \`unit_price\` DECIMAL(18,4) NOT NULL,
           \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
           \`line_total\` DECIMAL(18,4) NOT NULL,
@@ -1778,6 +1782,7 @@ export class TenantProvisioningService {
           \`inspection_notes\` TEXT NULL,
           \`is_restocked\` TINYINT NOT NULL DEFAULT 0,
           \`restocked_quantity\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`sales_order_item_id\` CHAR(36) NULL,
           \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
           \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
           PRIMARY KEY (\`id\`),
@@ -1785,7 +1790,8 @@ export class TenantProvisioningService {
           CONSTRAINT \`fk_sri_return\` FOREIGN KEY (\`sales_return_id\`) REFERENCES \`sales_returns\` (\`id\`) ON DELETE CASCADE,
           CONSTRAINT \`fk_sri_product\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\` (\`id\`),
           CONSTRAINT \`fk_sri_variant\` FOREIGN KEY (\`variant_id\`) REFERENCES \`product_variants\` (\`id\`),
-          CONSTRAINT \`fk_sri_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`)
+          CONSTRAINT \`fk_sri_uom\` FOREIGN KEY (\`uom_id\`) REFERENCES \`units_of_measure\` (\`id\`),
+          CONSTRAINT \`fk_sri_order_item\` FOREIGN KEY (\`sales_order_item_id\`) REFERENCES \`sales_order_items\` (\`id\`) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
@@ -2313,7 +2319,7 @@ export class TenantProvisioningService {
           \`from_location_id\` VARCHAR(255) NULL,
           \`to_location_id\` VARCHAR(255) NULL,
           \`quantity\` DECIMAL(18,4) NOT NULL,
-          \`uom_id\` VARCHAR(255) NOT NULL,
+          \`uom_id\` VARCHAR(255) NULL,
           \`unit_cost\` DECIMAL(18,4) NULL,
           \`total_cost\` DECIMAL(18,4) NULL,
           \`reference_type\` VARCHAR(50) NULL,
@@ -2451,6 +2457,8 @@ export class TenantProvisioningService {
           \`quantity_rejected\` DECIMAL(18,4) NOT NULL DEFAULT 0,
           \`uom_id\` VARCHAR(255) NOT NULL,
           \`unit_price\` DECIMAL(18,4) NULL,
+          \`discount_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`tax_amount\` DECIMAL(18,4) NOT NULL DEFAULT 0,
           \`line_value\` DECIMAL(18,4) NULL,
           \`status\` ENUM('PENDING_QC','QC_PASSED','QC_FAILED','PARTIALLY_ACCEPTED','ACCEPTED') NOT NULL DEFAULT 'PENDING_QC',
           \`batch_number\` VARCHAR(100) NULL,
@@ -3383,6 +3391,190 @@ export class TenantProvisioningService {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
+      // ── Human Resources ──────────────────────────────────────────────────
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`hr_departments\` (
+          \`id\`              CHAR(36)      NOT NULL,
+          \`department_code\` VARCHAR(30)   NOT NULL,
+          \`name\`            VARCHAR(100)  NOT NULL,
+          \`description\`     TEXT          NULL,
+          \`parent_id\`       CHAR(36)      NULL,
+          \`manager_id\`      CHAR(36)      NULL,
+          \`is_active\`       TINYINT(1)    NOT NULL DEFAULT 1,
+          \`created_by\`      CHAR(36)      NULL,
+          \`created_at\`      DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\`      DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          \`deleted_at\`      DATETIME(6)   NULL,
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`uk_dept_code\` (\`department_code\`),
+          CONSTRAINT \`fk_dept_parent\` FOREIGN KEY (\`parent_id\`) REFERENCES \`hr_departments\` (\`id\`) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`hr_designations\` (
+          \`id\`               CHAR(36)     NOT NULL,
+          \`designation_code\` VARCHAR(30)  NOT NULL,
+          \`name\`             VARCHAR(100) NOT NULL,
+          \`department_id\`    CHAR(36)     NULL,
+          \`description\`      TEXT         NULL,
+          \`is_active\`        TINYINT(1)   NOT NULL DEFAULT 1,
+          \`created_by\`       CHAR(36)     NULL,
+          \`created_at\`       DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\`       DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          \`deleted_at\`       DATETIME(6)  NULL,
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`uk_desig_code\` (\`designation_code\`),
+          CONSTRAINT \`fk_desig_dept\` FOREIGN KEY (\`department_id\`) REFERENCES \`hr_departments\` (\`id\`) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`hr_employees\` (
+          \`id\`                      CHAR(36)      NOT NULL,
+          \`employee_code\`           VARCHAR(30)   NOT NULL,
+          \`first_name\`              VARCHAR(50)   NOT NULL,
+          \`last_name\`               VARCHAR(50)   NOT NULL,
+          \`email\`                   VARCHAR(150)  NULL,
+          \`phone\`                   VARCHAR(20)   NULL,
+          \`date_of_birth\`           DATE          NULL,
+          \`gender\`                  ENUM('MALE','FEMALE','OTHER') NULL,
+          \`marital_status\`          ENUM('SINGLE','MARRIED','DIVORCED','WIDOWED') NULL,
+          \`national_id\`             VARCHAR(50)   NULL,
+          \`address\`                 TEXT          NULL,
+          \`hire_date\`               DATE          NOT NULL,
+          \`employment_type\`         ENUM('FULL_TIME','PART_TIME','CONTRACT','INTERNSHIP') NOT NULL DEFAULT 'FULL_TIME',
+          \`employment_status\`       ENUM('ACTIVE','INACTIVE','ON_LEAVE','TERMINATED','RESIGNED') NOT NULL DEFAULT 'ACTIVE',
+          \`department_id\`           CHAR(36)      NULL,
+          \`designation_id\`          CHAR(36)      NULL,
+          \`reporting_to_id\`         CHAR(36)      NULL,
+          \`basic_salary\`            DECIMAL(15,2) NOT NULL DEFAULT 0,
+          \`salary_basis\`            ENUM('MONTHLY','DAILY','HOURLY') NOT NULL DEFAULT 'MONTHLY',
+          \`bank_name\`               VARCHAR(100)  NULL,
+          \`bank_account_number\`     VARCHAR(50)   NULL,
+          \`emergency_contact_name\`  VARCHAR(100)  NULL,
+          \`emergency_contact_phone\` VARCHAR(20)   NULL,
+          \`notes\`                   TEXT          NULL,
+          \`is_active\`               TINYINT(1)    NOT NULL DEFAULT 1,
+          \`created_by\`              CHAR(36)      NULL,
+          \`created_at\`              DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\`              DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          \`deleted_at\`              DATETIME(6)   NULL,
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`uk_emp_code\`  (\`employee_code\`),
+          UNIQUE KEY \`uk_emp_email\` (\`email\`),
+          CONSTRAINT \`fk_emp_dept\`   FOREIGN KEY (\`department_id\`)  REFERENCES \`hr_departments\`  (\`id\`) ON DELETE SET NULL,
+          CONSTRAINT \`fk_emp_desig\`  FOREIGN KEY (\`designation_id\`) REFERENCES \`hr_designations\` (\`id\`) ON DELETE SET NULL,
+          CONSTRAINT \`fk_emp_report\` FOREIGN KEY (\`reporting_to_id\`) REFERENCES \`hr_employees\`   (\`id\`) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`hr_attendance\` (
+          \`id\`              CHAR(36)     NOT NULL,
+          \`employee_id\`     CHAR(36)     NOT NULL,
+          \`attendance_date\` DATE         NOT NULL,
+          \`status\`          ENUM('PRESENT','ABSENT','HALF_DAY','LATE','ON_LEAVE','HOLIDAY') NOT NULL DEFAULT 'PRESENT',
+          \`check_in_time\`   TIME         NULL,
+          \`check_out_time\`  TIME         NULL,
+          \`work_hours\`      DECIMAL(4,2) NULL,
+          \`overtime_hours\`  DECIMAL(4,2) NOT NULL DEFAULT 0,
+          \`notes\`           TEXT         NULL,
+          \`created_at\`      DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\`      DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`uq_att_emp_date\` (\`employee_id\`, \`attendance_date\`),
+          CONSTRAINT \`fk_att_emp\` FOREIGN KEY (\`employee_id\`) REFERENCES \`hr_employees\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`hr_leave_types\` (
+          \`id\`                     CHAR(36)    NOT NULL,
+          \`name\`                   VARCHAR(100) NOT NULL,
+          \`code\`                   VARCHAR(20)  NOT NULL,
+          \`days_allowed\`           INT          NOT NULL DEFAULT 0,
+          \`is_carry_forward\`       TINYINT(1)   NOT NULL DEFAULT 0,
+          \`max_carry_forward_days\` INT          NOT NULL DEFAULT 0,
+          \`is_paid\`                TINYINT(1)   NOT NULL DEFAULT 1,
+          \`description\`            TEXT         NULL,
+          \`is_active\`              TINYINT(1)   NOT NULL DEFAULT 1,
+          \`created_by\`             CHAR(36)     NULL,
+          \`created_at\`             DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\`             DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          \`deleted_at\`             DATETIME(6)  NULL,
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`uk_leave_type_code\` (\`code\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`hr_leave_requests\` (
+          \`id\`               CHAR(36)      NOT NULL,
+          \`request_code\`     VARCHAR(30)   NOT NULL,
+          \`employee_id\`      CHAR(36)      NOT NULL,
+          \`leave_type_id\`    CHAR(36)      NOT NULL,
+          \`start_date\`       DATE          NOT NULL,
+          \`end_date\`         DATE          NOT NULL,
+          \`total_days\`       DECIMAL(4,1)  NOT NULL,
+          \`reason\`           TEXT          NULL,
+          \`status\`           ENUM('PENDING','APPROVED','REJECTED','CANCELLED') NOT NULL DEFAULT 'PENDING',
+          \`approved_by\`      CHAR(36)      NULL,
+          \`approved_at\`      DATETIME(6)   NULL,
+          \`rejection_reason\` TEXT          NULL,
+          \`created_by\`       CHAR(36)      NULL,
+          \`created_at\`       DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\`       DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          \`deleted_at\`       DATETIME(6)   NULL,
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`uk_lr_code\` (\`request_code\`),
+          CONSTRAINT \`fk_lr_emp\`   FOREIGN KEY (\`employee_id\`)   REFERENCES \`hr_employees\`   (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_lr_ltype\` FOREIGN KEY (\`leave_type_id\`) REFERENCES \`hr_leave_types\` (\`id\`) ON DELETE RESTRICT
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`hr_payrolls\` (
+          \`id\`               CHAR(36)      NOT NULL,
+          \`payroll_code\`     VARCHAR(30)   NOT NULL,
+          \`employee_id\`      CHAR(36)      NOT NULL,
+          \`payroll_month\`    TINYINT       NOT NULL,
+          \`payroll_year\`     SMALLINT      NOT NULL,
+          \`basic_salary\`     DECIMAL(15,2) NOT NULL DEFAULT 0,
+          \`total_earnings\`   DECIMAL(15,2) NOT NULL DEFAULT 0,
+          \`total_deductions\` DECIMAL(15,2) NOT NULL DEFAULT 0,
+          \`net_salary\`       DECIMAL(15,2) NOT NULL DEFAULT 0,
+          \`status\`           ENUM('DRAFT','APPROVED','PAID') NOT NULL DEFAULT 'DRAFT',
+          \`payment_date\`     DATE          NULL,
+          \`approved_by\`      CHAR(36)      NULL,
+          \`approved_at\`      DATETIME(6)   NULL,
+          \`notes\`            TEXT          NULL,
+          \`created_by\`       CHAR(36)      NULL,
+          \`created_at\`       DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\`       DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          \`deleted_at\`       DATETIME(6)   NULL,
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`uk_payroll_code\` (\`payroll_code\`),
+          UNIQUE KEY \`uq_payroll_emp_month\` (\`employee_id\`, \`payroll_month\`, \`payroll_year\`),
+          CONSTRAINT \`fk_pay_emp\` FOREIGN KEY (\`employee_id\`) REFERENCES \`hr_employees\` (\`id\`) ON DELETE RESTRICT
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`hr_payroll_components\` (
+          \`id\`         CHAR(36)      NOT NULL,
+          \`payroll_id\` CHAR(36)      NOT NULL,
+          \`name\`       VARCHAR(100)  NOT NULL,
+          \`type\`       ENUM('EARNING','DEDUCTION') NOT NULL,
+          \`amount\`     DECIMAL(15,2) NOT NULL DEFAULT 0,
+          \`notes\`      TEXT          NULL,
+          \`created_at\` DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          CONSTRAINT \`fk_pc_payroll\` FOREIGN KEY (\`payroll_id\`) REFERENCES \`hr_payrolls\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
       this.logger.log('All tenant tables created successfully');
     } finally {
       await queryRunner.release();
@@ -3405,6 +3597,9 @@ export class TenantProvisioningService {
         { type: 'SUPPLIER', prefix: 'SUPP' },
         { type: 'PRODUCT', prefix: 'PRD' },
         { type: 'QUOTATION', prefix: 'QTN' },
+        { type: 'EMPLOYEE', prefix: 'EMP' },
+        { type: 'LEAVE_REQUEST', prefix: 'LR' },
+        { type: 'PAYROLL', prefix: 'PAY' },
       ];
 
       for (const seq of sequences) {
@@ -3947,6 +4142,135 @@ export class TenantProvisioningService {
           code: 'audit_logs.read',
           name: 'View Audit Logs',
           module: 'audit_logs',
+        },
+
+        // HR - Departments
+        { code: 'hr.departments.read', name: 'View Departments', module: 'hr' },
+        {
+          code: 'hr.departments.create',
+          name: 'Create Departments',
+          module: 'hr',
+        },
+        {
+          code: 'hr.departments.update',
+          name: 'Update Departments',
+          module: 'hr',
+        },
+        {
+          code: 'hr.departments.delete',
+          name: 'Delete Departments',
+          module: 'hr',
+        },
+
+        // HR - Designations
+        {
+          code: 'hr.designations.read',
+          name: 'View Designations',
+          module: 'hr',
+        },
+        {
+          code: 'hr.designations.create',
+          name: 'Create Designations',
+          module: 'hr',
+        },
+        {
+          code: 'hr.designations.update',
+          name: 'Update Designations',
+          module: 'hr',
+        },
+        {
+          code: 'hr.designations.delete',
+          name: 'Delete Designations',
+          module: 'hr',
+        },
+
+        // HR - Employees
+        { code: 'hr.employees.read', name: 'View Employees', module: 'hr' },
+        {
+          code: 'hr.employees.create',
+          name: 'Create Employees',
+          module: 'hr',
+        },
+        {
+          code: 'hr.employees.update',
+          name: 'Update Employees',
+          module: 'hr',
+        },
+        {
+          code: 'hr.employees.delete',
+          name: 'Delete Employees',
+          module: 'hr',
+        },
+
+        // HR - Attendance
+        { code: 'hr.attendance.read', name: 'View Attendance', module: 'hr' },
+        {
+          code: 'hr.attendance.create',
+          name: 'Record Attendance',
+          module: 'hr',
+        },
+        {
+          code: 'hr.attendance.update',
+          name: 'Update Attendance',
+          module: 'hr',
+        },
+
+        // HR - Leave Types
+        {
+          code: 'hr.leave-types.read',
+          name: 'View Leave Types',
+          module: 'hr',
+        },
+        {
+          code: 'hr.leave-types.create',
+          name: 'Create Leave Types',
+          module: 'hr',
+        },
+        {
+          code: 'hr.leave-types.update',
+          name: 'Update Leave Types',
+          module: 'hr',
+        },
+        {
+          code: 'hr.leave-types.delete',
+          name: 'Delete Leave Types',
+          module: 'hr',
+        },
+
+        // HR - Leave Requests
+        {
+          code: 'hr.leave-requests.read',
+          name: 'View Leave Requests',
+          module: 'hr',
+        },
+        {
+          code: 'hr.leave-requests.create',
+          name: 'Submit Leave Requests',
+          module: 'hr',
+        },
+        {
+          code: 'hr.leave-requests.approve',
+          name: 'Approve/Reject Leave Requests',
+          module: 'hr',
+        },
+        {
+          code: 'hr.leave-requests.delete',
+          name: 'Delete Leave Requests',
+          module: 'hr',
+        },
+
+        // HR - Payroll
+        { code: 'hr.payroll.read', name: 'View Payroll', module: 'hr' },
+        { code: 'hr.payroll.create', name: 'Process Payroll', module: 'hr' },
+        {
+          code: 'hr.payroll.approve',
+          name: 'Approve & Pay Payroll',
+          module: 'hr',
+        },
+        {
+          code: 'hr.payroll.delete',
+          name: 'Delete Draft Payroll',
+          module: 'hr',
         },
       ];
 

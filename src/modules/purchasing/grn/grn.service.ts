@@ -472,7 +472,7 @@ export class GrnService {
             receivedQuantity: Number(item.quantityAccepted ?? 0),
             rejectedQuantity: 0,
             unitPrice: Number(item.unitPrice),
-            taxAmount: 0,
+            taxAmount: Number(item.taxAmount ?? 0),
           })),
           grn.purchaseOrder,
         );

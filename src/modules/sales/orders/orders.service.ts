@@ -321,9 +321,6 @@ export class OrdersService {
     };
   }
 
-  /**
-   * Find all orders with filters and pagination
-   */
   async findAll(
     //paginationDto: PaginationDto,
     filterDto: OrderFilterDto,

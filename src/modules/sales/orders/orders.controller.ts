@@ -124,7 +124,9 @@ export class OrdersController {
 
   @Post(':id/items')
   @Permissions('orders.update')
-  @ApiOperation({ summary: 'Add an item to an existing order (draft/pending only)' })
+  @ApiOperation({
+    summary: 'Add an item to an existing order (draft/pending only)',
+  })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   async addItem(
     @Param('id', ParseUUIDPipe) id: string,
@@ -137,7 +139,9 @@ export class OrdersController {
   @Delete(':id/items/:itemId')
   @Permissions('orders.update')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Remove an item from an order (draft/pending only)' })
+  @ApiOperation({
+    summary: 'Remove an item from an order (draft/pending only)',
+  })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiParam({ name: 'itemId', type: 'string', format: 'uuid' })
   async removeItem(

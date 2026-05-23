@@ -7,17 +7,25 @@ import { CreateAttendanceDto } from './dto/create-attendance.dto';
 
 @Injectable()
 export class AttendanceService {
-  constructor(private readonly tenantConnectionManager: TenantConnectionManager) {}
+  constructor(
+    private readonly tenantConnectionManager: TenantConnectionManager,
+  ) {}
 
   private async getRepo(): Promise<Repository<Attendance>> {
     return this.tenantConnectionManager.getRepository(Attendance);
   }
 
-  async upsert(dto: CreateAttendanceDto, createdBy?: string): Promise<Attendance> {
+  async upsert(
+    dto: CreateAttendanceDto,
+    createdBy?: string,
+  ): Promise<Attendance> {
     const repo = await this.getRepo();
 
     let record = await repo.findOne({
-      where: { employeeId: dto.employeeId, attendanceDate: new Date(dto.attendanceDate) as any },
+      where: {
+        employeeId: dto.employeeId,
+        attendanceDate: new Date(dto.attendanceDate) as any,
+      },
     });
 
     if (!record) {
@@ -30,8 +38,9 @@ export class AttendanceService {
     if (dto.checkInTime && dto.checkOutTime) {
       const [inH, inM] = dto.checkInTime.split(':').map(Number);
       const [outH, outM] = dto.checkOutTime.split(':').map(Number);
-      const totalMins = (outH * 60 + outM) - (inH * 60 + inM);
-      record.workHours = totalMins > 0 ? Math.round((totalMins / 60) * 100) / 100 : 0;
+      const totalMins = outH * 60 + outM - (inH * 60 + inM);
+      record.workHours =
+        totalMins > 0 ? Math.round((totalMins / 60) * 100) / 100 : 0;
     }
 
     if (!record.status) record.status = AttendanceStatus.PRESENT;
@@ -48,7 +57,8 @@ export class AttendanceService {
   }): Promise<{ data: Attendance[]; total: number }> {
     const { employeeId, from, to, status, page = 1, limit = 50 } = params;
     const repo = await this.getRepo();
-    const qb = repo.createQueryBuilder('a')
+    const qb = repo
+      .createQueryBuilder('a')
       .leftJoinAndSelect('a.employee', 'emp');
 
     if (employeeId) qb.andWhere('a.employeeId = :employeeId', { employeeId });
@@ -73,14 +83,18 @@ export class AttendanceService {
     return item;
   }
 
-  async update(id: string, dto: Partial<CreateAttendanceDto>): Promise<Attendance> {
+  async update(
+    id: string,
+    dto: Partial<CreateAttendanceDto>,
+  ): Promise<Attendance> {
     const record = await this.findOne(id);
     Object.assign(record, dto);
     if (dto.checkInTime && dto.checkOutTime) {
       const [inH, inM] = dto.checkInTime.split(':').map(Number);
       const [outH, outM] = dto.checkOutTime.split(':').map(Number);
-      const totalMins = (outH * 60 + outM) - (inH * 60 + inM);
-      record.workHours = totalMins > 0 ? Math.round((totalMins / 60) * 100) / 100 : 0;
+      const totalMins = outH * 60 + outM - (inH * 60 + inM);
+      record.workHours =
+        totalMins > 0 ? Math.round((totalMins / 60) * 100) / 100 : 0;
     }
     const repo = await this.getRepo();
     return repo.save(record);

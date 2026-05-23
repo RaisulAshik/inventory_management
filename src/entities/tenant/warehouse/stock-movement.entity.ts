@@ -59,7 +59,7 @@ export class StockMovement {
   })
   quantity: number;
 
-  @Column({ name: 'uom_id' })
+  @Column({ name: 'uom_id', nullable: true })
   uomId: string;
 
   @Column({

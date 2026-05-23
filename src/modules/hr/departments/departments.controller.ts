@@ -5,6 +5,7 @@ import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
+import { Permissions } from '@common/decorators/permissions.decorator';
 
 @ApiTags('HR - Departments')
 @ApiBearerAuth()
@@ -13,12 +14,14 @@ export class DepartmentsController {
   constructor(private readonly service: DepartmentsService) {}
 
   @Post()
+  @Permissions('hr.departments.create')
   @ApiOperation({ summary: 'Create department' })
   create(@Body() dto: CreateDepartmentDto, @CurrentUser() user: JwtPayload) {
     return this.service.create(dto, user.sub);
   }
 
   @Get()
+  @Permissions('hr.departments.read')
   @ApiOperation({ summary: 'List departments' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
@@ -28,18 +31,21 @@ export class DepartmentsController {
   }
 
   @Get(':id')
+  @Permissions('hr.departments.read')
   @ApiOperation({ summary: 'Get department by ID' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.findOne(id);
   }
 
   @Patch(':id')
+  @Permissions('hr.departments.update')
   @ApiOperation({ summary: 'Update department' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateDepartmentDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
+  @Permissions('hr.departments.delete')
   @ApiOperation({ summary: 'Delete department' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.remove(id);
