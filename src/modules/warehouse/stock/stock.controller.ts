@@ -143,12 +143,17 @@ export class StockController {
   @ApiQuery({ name: 'categoryId', required: false })
   @ApiQuery({ name: 'productId', required: false })
   @ApiQuery({ name: 'sku', required: false })
-  @ApiQuery({ name: 'lowStock', required: false, type: Boolean })
-  @ApiQuery({ name: 'outOfStock', required: false, type: Boolean })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['inStock', 'lowStock', 'outOfStock'],
+  })
   async exportStock(
     @Query() filterDto: ExportStockFilterDto,
     @Res() res: Response,
   ) {
+    if (filterDto.status === 'outOfStock') filterDto.outOfStock = true;
+    else if (filterDto.status === 'lowStock') filterDto.lowStock = true;
     const exportFormat = filterDto.format ?? 'csv';
     const rows = await this.stockService.exportStockData(filterDto);
     const timestamp = new Date().toISOString().slice(0, 10);
