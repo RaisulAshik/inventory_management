@@ -36,6 +36,8 @@ export class StockController {
   @Permissions('stock.read')
   @ApiOperation({ summary: 'Get stock with filters and pagination' })
   async getStock(@Query() filterDto: StockFilterDto) {
+    if (filterDto.status === 'outOfStock') filterDto.outOfStock = true;
+    else if (filterDto.status === 'lowStock') filterDto.lowStock = true;
     const result = await this.stockService.getStock(filterDto, filterDto);
     return result;
   }

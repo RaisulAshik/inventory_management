@@ -30,6 +30,11 @@ export class StockFilterDto extends PaginationDto {
   @IsString()
   sku?: string;
 
+  @ApiPropertyOptional({ enum: ['inStock', 'lowStock', 'outOfStock'] })
+  @IsOptional()
+  @IsIn(['inStock', 'lowStock', 'outOfStock'])
+  status?: 'inStock' | 'lowStock' | 'outOfStock';
+
   @ApiPropertyOptional()
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
