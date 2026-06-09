@@ -36,7 +36,11 @@ export const getMasterDbConfig = (
   logging: configService.get<string>('NODE_ENV') === 'development',
   timezone: '+05:30',
   charset: 'utf8mb4',
+  connectTimeout: 20000,
   extra: {
     connectionLimit: 10,
+    connectTimeout: 20000,
+    waitForConnections: true,
+    queueLimit: 0,
   },
 });

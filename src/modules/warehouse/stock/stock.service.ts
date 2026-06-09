@@ -488,4 +488,128 @@ Get location-wise inventory
       relations: ['product', 'variant', 'location', 'batch'],
     });
   }
+
+  /**
+   * Fetch raw stock data for export (no pagination)
+   */
+  async exportStockData(filterDto: StockFilterDto): Promise<any[]> {
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+
+    let query = `
+      SELECT
+        p.product_name       AS \`Product Name\`,
+        p.sku                AS \`SKU\`,
+        c.category_name      AS \`Category\`,
+        w.warehouse_name     AS \`Warehouse\`,
+        v.variant_name       AS \`Variant\`,
+        s.quantity_on_hand   AS \`On Hand\`,
+        s.quantity_reserved  AS \`Reserved\`,
+        (s.quantity_on_hand - s.quantity_reserved) AS \`Available\`,
+        COALESCE(p.cost_price, 0) AS \`Unit Cost\`,
+        ROUND(s.quantity_on_hand * COALESCE(p.cost_price, 0), 4) AS \`Total Value\`,
+        p.reorder_level      AS \`Reorder Level\`,
+        s.last_stock_date    AS \`Last Stock Date\`
+      FROM inventory_stock s
+      INNER JOIN products p ON s.product_id = p.id
+      LEFT JOIN product_categories c ON p.category_id = c.id
+      LEFT JOIN warehouses w ON s.warehouse_id = w.id
+      LEFT JOIN product_variants v ON s.variant_id = v.id
+      WHERE p.deleted_at IS NULL
+    `;
+
+    const params: any[] = [];
+
+    if (filterDto.warehouseId) {
+      query += ` AND s.warehouse_id = ?`;
+      params.push(filterDto.warehouseId);
+    }
+    if (filterDto.categoryId) {
+      query += ` AND p.category_id = ?`;
+      params.push(filterDto.categoryId);
+    }
+    if (filterDto.productId) {
+      query += ` AND s.product_id = ?`;
+      params.push(filterDto.productId);
+    }
+    if (filterDto.sku) {
+      query += ` AND p.sku LIKE ?`;
+      params.push(`%${filterDto.sku}%`);
+    }
+    if (filterDto.lowStock) {
+      query += ` AND (s.quantity_on_hand - s.quantity_reserved) <= p.reorder_level`;
+    }
+    if (filterDto.outOfStock) {
+      query += ` AND (s.quantity_on_hand - s.quantity_reserved) <= 0`;
+    }
+
+    query += ` ORDER BY w.warehouse_name ASC, p.product_name ASC`;
+
+    return dataSource.query(query, params);
+  }
+
+  /**
+   * Fetch raw stock movements for export (no pagination)
+   */
+  async exportMovementsData(filterDto: {
+    productId?: string;
+    warehouseId?: string;
+    movementType?: string;
+    fromDate?: string;
+    toDate?: string;
+  }): Promise<any[]> {
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+
+    let query = `
+      SELECT
+        m.movement_number    AS \`Movement #\`,
+        m.movement_date      AS \`Date\`,
+        m.movement_type      AS \`Type\`,
+        p.product_name       AS \`Product Name\`,
+        p.sku                AS \`SKU\`,
+        v.variant_name       AS \`Variant\`,
+        fw.warehouse_name    AS \`From Warehouse\`,
+        tw.warehouse_name    AS \`To Warehouse\`,
+        m.quantity           AS \`Quantity\`,
+        u.uom_name           AS \`UOM\`,
+        m.unit_cost          AS \`Unit Cost\`,
+        ROUND(m.quantity * COALESCE(m.unit_cost, 0), 4) AS \`Total Cost\`,
+        m.reference_type     AS \`Reference Type\`,
+        m.reference_number   AS \`Reference #\`,
+        m.created_by         AS \`Created By\`
+      FROM stock_movements m
+      INNER JOIN products p ON m.product_id = p.id
+      LEFT JOIN product_variants v ON m.variant_id = v.id
+      LEFT JOIN warehouses fw ON m.from_warehouse_id = fw.id
+      LEFT JOIN warehouses tw ON m.to_warehouse_id = tw.id
+      LEFT JOIN units_of_measure u ON m.uom_id = u.id
+      WHERE 1=1
+    `;
+
+    const params: any[] = [];
+
+    if (filterDto.productId) {
+      query += ` AND m.product_id = ?`;
+      params.push(filterDto.productId);
+    }
+    if (filterDto.warehouseId) {
+      query += ` AND (m.from_warehouse_id = ? OR m.to_warehouse_id = ?)`;
+      params.push(filterDto.warehouseId, filterDto.warehouseId);
+    }
+    if (filterDto.movementType) {
+      query += ` AND m.movement_type = ?`;
+      params.push(filterDto.movementType);
+    }
+    if (filterDto.fromDate) {
+      query += ` AND DATE(m.movement_date) >= ?`;
+      params.push(filterDto.fromDate);
+    }
+    if (filterDto.toDate) {
+      query += ` AND DATE(m.movement_date) <= ?`;
+      params.push(filterDto.toDate);
+    }
+
+    query += ` ORDER BY m.movement_date DESC`;
+
+    return dataSource.query(query, params);
+  }
 }

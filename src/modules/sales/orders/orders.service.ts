@@ -565,6 +565,7 @@ export class OrdersService {
     updatedOrder.taxAmount = taxTotal;
     updatedOrder.totalAmount =
       subTotal +
+      taxTotal +
       Number(updatedOrder.shippingAmount || 0) -
       Number(updatedOrder.discountAmount || 0);
     await orderRepo.save(updatedOrder);
@@ -640,6 +641,7 @@ export class OrdersService {
     updatedOrder.taxAmount = taxTotal;
     updatedOrder.totalAmount =
       subTotal +
+      taxTotal +
       Number(updatedOrder.shippingAmount || 0) -
       Number(updatedOrder.discountAmount || 0);
     await orderRepo.save(updatedOrder);
@@ -688,6 +690,7 @@ export class OrdersService {
     updatedOrder.taxAmount = taxTotal;
     updatedOrder.totalAmount =
       subTotal +
+      taxTotal +
       Number(updatedOrder.shippingAmount || 0) -
       Number(updatedOrder.discountAmount || 0);
     await orderRepo.save(updatedOrder);

@@ -702,7 +702,7 @@ export class PurchaseOrdersService {
         status: PurchaseOrderStatus.SENT,
       },
       relations: ['items'],
-      order: { expectedDate: 'ASC' },
+      order: { expectedDeliveryDate: 'ASC' },
     });
   }
 

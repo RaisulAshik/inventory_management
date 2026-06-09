@@ -171,7 +171,7 @@ export class PurchaseOrderResponseDto {
     this.poNumber = po.poNumber;
     this.status = po.status;
     this.orderDate = po.poDate;
-    this.expectedDeliveryDate = po.expectedDate;
+    this.expectedDeliveryDate = po.expectedDeliveryDate;
     this.warehouseId = po.warehouseId;
     this.warehouseName = po.warehouse?.warehouseName;
     this.currency = po.currency;
@@ -341,7 +341,7 @@ export class PurchaseOrderDetailResponseDto {
     this.poNumber = po.poNumber;
     this.status = po.status;
     this.orderDate = po.poDate;
-    this.expectedDeliveryDate = po.expectedDate;
+    this.expectedDeliveryDate = po.expectedDeliveryDate;
     this.warehouseId = po.warehouseId;
     this.warehouseName = po.warehouse?.warehouseName;
     this.currency = po.currency;

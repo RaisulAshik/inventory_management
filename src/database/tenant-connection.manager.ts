@@ -61,12 +61,16 @@ export class TenantConnectionManager implements OnModuleDestroy {
       entities: Object.values(TenantEntities).filter(
         (entity) => typeof entity === 'function',
       ),
-      synchronize: false, // Never sync in production
+      synchronize: false,
       logging: this.configService.get<string>('NODE_ENV') === 'development',
-      timezone: '+06.00',
+      timezone: '+06:00',
       charset: 'utf8mb4',
+      connectTimeout: 20000,
       extra: {
         connectionLimit: 5,
+        connectTimeout: 20000,
+        waitForConnections: true,
+        queueLimit: 0,
       },
     });
 

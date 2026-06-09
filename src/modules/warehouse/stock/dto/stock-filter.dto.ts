@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsBoolean, IsUUID, IsEnum, IsDateString, IsString } from 'class-validator';
+import { IsOptional, IsBoolean, IsUUID, IsEnum, IsDateString, IsString, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PaginationDto } from '@common/dto/pagination.dto';
 import { StockMovementType } from '@common/enums';
@@ -68,4 +68,18 @@ export class StockMovementFilterDto extends PaginationDto {
   @IsOptional()
   @IsDateString()
   toDate?: string;
+}
+
+export class ExportStockFilterDto extends StockFilterDto {
+  @ApiPropertyOptional({ enum: ['csv', 'xlsx'], default: 'csv' })
+  @IsOptional()
+  @IsIn(['csv', 'xlsx'])
+  format?: 'csv' | 'xlsx';
+}
+
+export class ExportMovementFilterDto extends StockMovementFilterDto {
+  @ApiPropertyOptional({ enum: ['csv', 'xlsx'], default: 'csv' })
+  @IsOptional()
+  @IsIn(['csv', 'xlsx'])
+  format?: 'csv' | 'xlsx';
 }

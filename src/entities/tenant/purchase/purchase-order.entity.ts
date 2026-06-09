@@ -34,7 +34,7 @@ export class PurchaseOrder {
   orderDate: Date;
 
   @Column({ name: 'expected_date', type: 'date', nullable: true })
-  expectedDate: Date;
+  expectedDeliveryDate: Date;
 
   @Column({
     type: 'enum',
