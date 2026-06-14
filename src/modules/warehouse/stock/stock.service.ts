@@ -505,7 +505,8 @@ Get location-wise inventory
         s.quantity_on_hand   AS \`On Hand\`,
         s.quantity_reserved  AS \`Reserved\`,
         (s.quantity_on_hand - s.quantity_reserved) AS \`Available\`,
-        COALESCE(p.cost_price, 0) AS \`Unit Cost\`,
+        COALESCE(p.cost_price, 0)    AS \`Unit Cost\`,
+        COALESCE(p.selling_price, 0) AS \`Unit Sell Price\`,
         ROUND(s.quantity_on_hand * COALESCE(p.cost_price, 0), 4) AS \`Total Value\`,
         p.reorder_level      AS \`Reorder Level\`,
         s.last_stock_date    AS \`Last Stock Date\`

@@ -462,6 +462,23 @@ export class GrnService {
     await dataSource.transaction(async (manager) => {
       const grnRepo = manager.getRepository(GoodsReceivedNote);
 
+      // Re-read and lock the GRN row inside the transaction so that two
+      // simultaneous approve requests are serialized — the second one will
+      // see status=ACCEPTED and bail out cleanly instead of double-stocking.
+      const locked = await grnRepo.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked) throw new BadRequestException('GRN not found');
+      if (
+        locked.status !== GRNStatus.PENDING_QC &&
+        locked.status !== GRNStatus.QC_PASSED
+      ) {
+        throw new BadRequestException(
+          `GRN cannot be approved in status '${locked.status}'. Submit it first, then optionally run QC check.`,
+        );
+      }
+
       // 1. Approve GRN — recalculate totalValue from accepted items
       grn.status = GRNStatus.ACCEPTED;
       grn.approvedBy = userId;
