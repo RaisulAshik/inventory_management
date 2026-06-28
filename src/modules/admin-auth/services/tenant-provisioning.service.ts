@@ -1635,6 +1635,33 @@ export class TenantProvisioningService {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS \`expenses\` (
+          \`id\`                  VARCHAR(36)      NOT NULL,
+          \`expense_number\`      VARCHAR(50)      NOT NULL,
+          \`expense_date\`        DATE             NOT NULL,
+          \`expense_account_id\`  VARCHAR(36)      NOT NULL,
+          \`paid_from_account_id\` VARCHAR(36)     NOT NULL,
+          \`amount\`              DECIMAL(18,4)    NOT NULL,
+          \`tax_amount\`          DECIMAL(18,4)    NOT NULL DEFAULT 0,
+          \`total_amount\`        DECIMAL(18,4)    NOT NULL,
+          \`description\`         TEXT             NOT NULL,
+          \`reference_number\`    VARCHAR(100)     NULL,
+          \`notes\`               TEXT             NULL,
+          \`category\`            VARCHAR(100)     NULL,
+          \`status\`              ENUM('POSTED','CANCELLED') NOT NULL DEFAULT 'POSTED',
+          \`journal_entry_id\`    VARCHAR(36)      NULL,
+          \`created_by\`          VARCHAR(255)     NOT NULL,
+          \`created_at\`          DATETIME(6)      NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\`          DATETIME(6)      NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`UQ_expense_number\` (\`expense_number\`),
+          CONSTRAINT \`fk_exp_account\`    FOREIGN KEY (\`expense_account_id\`)   REFERENCES \`chart_of_accounts\` (\`id\`),
+          CONSTRAINT \`fk_exp_paid_from\`  FOREIGN KEY (\`paid_from_account_id\`) REFERENCES \`chart_of_accounts\` (\`id\`),
+          CONSTRAINT \`fk_exp_je\`         FOREIGN KEY (\`journal_entry_id\`)     REFERENCES \`journal_entries\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
       // ─── eCommerce Extras ─────────────────────────────────────────────────
 
       await queryRunner.query(`

@@ -32,9 +32,11 @@ export class AdjustSupplierDueDto {
 }
 
 export class SupplierDueFilterDto extends PaginationDto {
-  //@IsOptional() @IsString() search?: string;
   @IsOptional() @IsEnum(DueStatus) status?: DueStatus;
   @IsOptional() @IsUUID() supplierId?: string;
+  @IsOptional() @IsString() referenceNumber?: string;
+  @IsOptional() @IsString() supplier?: string;
+  // @IsOptional() @IsString() search?: string;
   @IsOptional()
   @Transform(({ value }) => value === 'true')
   @IsBoolean()

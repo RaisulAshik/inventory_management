@@ -57,12 +57,19 @@ export class SupplierDuesService {
       qb.andWhere('due.dueDate >= :from', { from: filterDto.fromDate });
     if (filterDto.toDate)
       qb.andWhere('due.dueDate <= :to', { to: filterDto.toDate });
-    if (filterDto.search) {
+    if (filterDto.referenceNumber)
+      qb.andWhere('due.referenceNumber LIKE :ref', {
+        ref: `%${filterDto.referenceNumber}%`,
+      });
+    if (filterDto.supplier)
+      qb.andWhere('supplier.companyName LIKE :sup', {
+        sup: `%${filterDto.supplier}%`,
+      });
+    if (filterDto.search)
       qb.andWhere(
-        '(due.referenceNumber LIKE :s OR due.billNumber LIKE :s OR supplier.name LIKE :s OR supplier.companyName LIKE :s)',
+        '(due.referenceNumber LIKE :s OR due.billNumber LIKE :s OR supplier.companyName LIKE :s)',
         { s: `%${filterDto.search}%` },
       );
-    }
 
     if (!filterDto.sortBy) {
       filterDto.sortBy = 'dueDate';
