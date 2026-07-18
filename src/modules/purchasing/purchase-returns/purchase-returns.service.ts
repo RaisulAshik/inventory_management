@@ -69,7 +69,7 @@ export class PurchaseReturnsService {
       currency = grn.currency;
 
       // Validate items against GRN
-      this.validateReturnItemsAgainstGrn(grn, createDto.items);
+      await this.validateReturnItemsAgainstGrn(grn, createDto.items, dataSource);
     } else if (createDto.purchaseOrderId) {
       const poRepo = dataSource.getRepository(PurchaseOrder);
       const po = await poRepo.findOne({
@@ -132,7 +132,13 @@ export class PurchaseReturnsService {
   /**
    * Validate return items against GRN
    */
-  private validateReturnItemsAgainstGrn(grn: GoodsReceivedNote, items: any[]) {
+  private async validateReturnItemsAgainstGrn(
+    grn: GoodsReceivedNote,
+    items: any[],
+    dataSource: DataSource,
+  ): Promise<void> {
+    const existingReturnsRepo = dataSource.getRepository(PurchaseReturnItem);
+
     for (const itemDto of items) {
       const grnItem = grn.items.find(
         (i) =>
@@ -146,14 +152,33 @@ export class PurchaseReturnsService {
         );
       }
 
-      // Check returnable quantity
-      const returnableQty =
-        Number(grnItem.quantityAccepted) -
-        (Number(grnItem.quantityRejected) || 0);
-      if (itemDto.quantity > returnableQty) {
+      // Only accepted items entered stock and can be returned
+      const returnableQty = Number(grnItem.quantityAccepted) || 0;
+
+      // Check already returned quantity against this GRN
+      const alreadyReturned = await existingReturnsRepo
+        .createQueryBuilder('item')
+        .innerJoin('item.purchaseReturn', 'return')
+        .where('return.grnId = :grnId', { grnId: grn.id })
+        .andWhere('item.productId = :productId', {
+          productId: itemDto.productId,
+        })
+        .andWhere('return.status NOT IN (:...statuses)', {
+          statuses: [
+            PurchaseReturnStatus.CANCELLED,
+            PurchaseReturnStatus.REJECTED,
+          ],
+        })
+        .select('SUM(item.quantity)', 'total')
+        .getRawOne();
+
+      const returnedQty = Number.parseFloat(alreadyReturned?.total) || 0;
+      const availableForReturn = returnableQty - returnedQty;
+
+      if (itemDto.quantity > availableForReturn) {
         throw new BadRequestException(
           `Cannot return ${itemDto.quantity} units of product ${itemDto.productId}. ` +
-            `Only ${returnableQty} available for return.`,
+            `Only ${availableForReturn} available for return (${returnableQty} accepted, ${returnedQty} already returned).`,
         );
       }
     }
@@ -199,7 +224,7 @@ export class PurchaseReturnsService {
         .select('SUM(item.quantity)', 'total')
         .getRawOne();
 
-      const returnedQty = parseFloat(alreadyReturned?.total) || 0;
+      const returnedQty = Number.parseFloat(alreadyReturned?.total) || 0;
       const receivedQty = Number(poItem.quantityReceived) || 0;
       const availableForReturn = receivedQty - returnedQty;
 
@@ -246,8 +271,7 @@ export class PurchaseReturnsService {
   ): Promise<void> {
     const itemRepo = dataSource.getRepository(PurchaseReturnItem);
 
-    for (let i = 0; i < items.length; i++) {
-      const itemDto = items[i];
+    for (const itemDto of items) {
 
       const lineTotal =
         itemDto.quantity * itemDto.unitPrice + (itemDto.taxAmount || 0);
@@ -438,6 +462,37 @@ export class PurchaseReturnsService {
       throw new BadRequestException('Only approved returns can be shipped');
     }
 
+    // Pre-check available stock for all items before entering the transaction
+    const stockRepo = dataSource.getRepository(InventoryStock);
+    const shortfalls: string[] = [];
+
+    for (const item of purchaseReturn.items) {
+      const stock = await stockRepo.findOne({
+        where: {
+          productId: item.productId,
+          warehouseId: purchaseReturn.warehouseId,
+          variantId: item.variantId || IsNull(),
+        },
+      });
+
+      const available = stock
+        ? Number(stock.quantityOnHand) - Number(stock.quantityReserved)
+        : 0;
+
+      if (Number(item.quantity) > available) {
+        const label = item.product?.productName ?? item.productId;
+        shortfalls.push(
+          `${label}: requested ${item.quantity}, available ${available}`,
+        );
+      }
+    }
+
+    if (shortfalls.length > 0) {
+      throw new BadRequestException(
+        `Insufficient stock for the following item(s):\n${shortfalls.join('\n')}`,
+      );
+    }
+
     await dataSource.transaction(async (manager) => {
       const stockRepo = manager.getRepository(InventoryStock);
       const movementRepo = manager.getRepository(StockMovement);
@@ -454,12 +509,6 @@ export class PurchaseReturnsService {
         });
 
         if (stock) {
-          if (Number(stock.quantityOnHand) < Number(item.quantity)) {
-            throw new BadRequestException(
-              `Insufficient stock for product ${item.product?.productName}`,
-            );
-          }
-
           stock.quantityOnHand -= Number(item.quantity);
           await stockRepo.save(stock);
         }
@@ -605,7 +654,7 @@ export class PurchaseReturnsService {
    */
   async reject(
     id: string,
-    rejectedBy: string,
+    _rejectedBy: string,
     reason: string,
   ): Promise<PurchaseReturn> {
     const returnRepo = await this.getPurchaseReturnRepository();

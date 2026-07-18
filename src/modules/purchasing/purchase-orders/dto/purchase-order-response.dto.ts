@@ -214,9 +214,11 @@ export class PurchaseOrderResponseDto {
         productSku: item.product?.sku || item.sku,
         variantId: item.variantId,
         quantityOrdered: Number(item.quantityOrdered),
-        receivedQuantity: Number(item.receivedQuantity) || 0,
+        // Entity field is quantityReceived (updated on GRN approval)
+        receivedQuantity: Number(item.quantityReceived ?? item.receivedQuantity) || 0,
         pendingQuantity:
-          Number(item.quantityOrdered) - (Number(item.receivedQuantity) || 0),
+          Number(item.quantityOrdered) -
+          (Number(item.quantityReceived ?? item.receivedQuantity) || 0),
         unitPrice: Number(item.unitPrice),
         discountPercentage: Number(item.discountPercentage),
         discountAmount: Number(item.discountAmount),
@@ -231,7 +233,8 @@ export class PurchaseOrderResponseDto {
         0,
       );
       this.receivedQuantity = po.items.reduce(
-        (sum: any, item: any) => sum + (Number(item.receivedQuantity) || 0),
+        (sum: any, item: any) =>
+          sum + (Number(item.quantityReceived ?? item.receivedQuantity) || 0),
         0,
       );
     } else {
@@ -386,9 +389,11 @@ export class PurchaseOrderDetailResponseDto {
         // productSku: item.sku,
         variantId: item.variantId,
         quantityOrdered: Number(item.quantityOrdered),
-        receivedQuantity: Number(item.receivedQuantity) || 0,
+        // Entity field is quantityReceived (updated on GRN approval)
+        receivedQuantity: Number(item.quantityReceived ?? item.receivedQuantity) || 0,
         pendingQuantity:
-          Number(item.quantityOrdered) - (Number(item.receivedQuantity) || 0),
+          Number(item.quantityOrdered) -
+          (Number(item.quantityReceived ?? item.receivedQuantity) || 0),
         unitPrice: Number(item.unitPrice),
         discountPercentage: Number(item.discountPercentage),
         discountAmount: Number(item.discountAmount),
@@ -403,7 +408,8 @@ export class PurchaseOrderDetailResponseDto {
         0,
       );
       this.receivedQuantity = po.items.reduce(
-        (sum: any, item: any) => sum + (Number(item.receivedQuantity) || 0),
+        (sum: any, item: any) =>
+          sum + (Number(item.quantityReceived ?? item.receivedQuantity) || 0),
         0,
       );
     } else {

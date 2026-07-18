@@ -88,6 +88,42 @@ export class OrdersService {
       );
     }
 
+    // Stock availability check — run before generating any sequence number
+    if (createOrderDto.warehouseId && createOrderDto.items?.length) {
+      const productRepo = dataSource.getRepository(Product);
+      const shortfalls: string[] = [];
+
+      for (const item of createOrderDto.items) {
+        const product = await productRepo.findOne({
+          where: { id: item.productId },
+          select: ['id', 'productName', 'sku', 'isStockable'],
+        });
+
+        if (!product?.isStockable) continue;
+
+        const available = await this.stockService.getAvailableQuantity(
+          item.productId,
+          createOrderDto.warehouseId,
+          item.variantId,
+        );
+
+        if (Number(item.quantityOrdered) > available) {
+          const label = product.sku
+            ? `${product.productName} (${product.sku})`
+            : product.productName;
+          shortfalls.push(
+            `${label}: requested ${item.quantityOrdered}, available ${available}`,
+          );
+        }
+      }
+
+      if (shortfalls.length > 0) {
+        throw new BadRequestException(
+          `Insufficient stock for the following item(s):\n${shortfalls.join('\n')}`,
+        );
+      }
+    }
+
     // Generate order number
     const orderNumber = await getNextSequence(dataSource, 'SO');
 
