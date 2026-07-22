@@ -14,6 +14,7 @@ import {
 import { GoodsReceivedNote } from '@entities/tenant/purchase/goods-received-note.entity';
 import { PurchaseReturn } from '@entities/tenant/purchase/purchase-return.entity';
 import { SupplierPayment } from '@entities/tenant/dueManagement/supplier-payment.entity';
+import { SupplierDue } from '@entities/tenant/dueManagement/supplier-due.entity';
 import { BankAccount } from '@entities/tenant/accounting/bank-account.entity';
 import { StockAdjustment } from '@entities/tenant/warehouse/stock-adjustment.entity';
 import { SalesReturn } from '@entities/tenant/eCommerce/sales-return.entity';
@@ -522,6 +523,67 @@ export class AccountingIntegrationService {
     } catch (err) {
       this.logger.error(
         `Failed to post GRN JE for ${grn.grnNumber}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  /**
+   * Call after a supplier due is adjusted (write-off / credit agreement).
+   * DR Accounts Payable  /  CR Discount Received (falls back to the
+   * purchase-returns contra account when no discount account is configured).
+   * Requires: acc.default_ap_account and one of
+   * acc.default_discount_received_account | acc.default_purchase_returns_account
+   */
+  async postSupplierDueAdjustment(
+    due: SupplierDue,
+    amount: number,
+    reason?: string,
+  ): Promise<void> {
+    try {
+      const [ap, discountReceived, purchaseReturns] = await Promise.all([
+        this.getSetting('acc.default_ap_account'),
+        this.getSetting('acc.default_discount_received_account'),
+        this.getSetting('acc.default_purchase_returns_account'),
+      ]);
+      const creditAccount = discountReceived || purchaseReturns;
+
+      if (!ap || !creditAccount) {
+        this.logger.warn(
+          `Due-adjustment auto-accounting skipped for ${due.referenceNumber}: ` +
+            `configure acc.default_ap_account and acc.default_discount_received_account ` +
+            `(or acc.default_purchase_returns_account)`,
+        );
+        return;
+      }
+
+      const lines: JELine[] = [
+        {
+          accountId: ap,
+          debit: amount,
+          credit: 0,
+          description: `Payable reduced by adjustment – ${due.referenceNumber}`,
+        },
+        {
+          accountId: creditAccount,
+          debit: 0,
+          credit: amount,
+          description: `Due adjustment${reason ? ': ' + reason : ''} – ${due.referenceNumber}`,
+        },
+      ];
+
+      await this.postEntry({
+        date: new Date(),
+        type: JournalEntryType.ADJUSTMENT,
+        referenceType: 'SUPPLIER_DUE',
+        referenceId: due.id,
+        referenceNumber: due.referenceNumber,
+        description: `Supplier due adjusted – ${due.referenceNumber}${reason ? ' (' + reason + ')' : ''}`,
+        currency: due.currency || 'USD',
+        lines,
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to post due-adjustment JE for ${due.referenceNumber}: ${(err as Error).message}`,
       );
     }
   }

@@ -12,6 +12,7 @@ import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 import { DueStatus } from '@common/enums';
 import { SupplierDue, SupplierDueReferenceType } from '@entities/tenant';
+import { AccountingIntegrationService } from '@modules/accounting/service/accounting-integration.service';
 import {
   SupplierDueFilterDto,
   CreateSupplierOpeningBalanceDto,
@@ -22,6 +23,7 @@ import {
 export class SupplierDuesService {
   constructor(
     private readonly tenantConnectionManager: TenantConnectionManager,
+    private readonly accountingIntegration: AccountingIntegrationService,
   ) {}
 
   private async getRepo(): Promise<Repository<SupplierDue>> {
@@ -210,7 +212,18 @@ export class SupplierDuesService {
 
     if (due.balanceAmount <= 0.01) due.status = DueStatus.PAID;
 
-    return repo.save(due);
+    const saved = await repo.save(due);
+
+    // Auto-post to GL: DR Accounts Payable / CR Discount Received.
+    // Fire-and-forget like other integrations — the adjustment itself
+    // must not fail if accounting posting is unavailable.
+    void this.accountingIntegration.postSupplierDueAdjustment(
+      saved,
+      dto.amount,
+      dto.reason,
+    );
+
+    return saved;
   }
 
   // ─────────────────────── ADD PAYMENT (called by SupplierPaymentsService) ───────────────────────
@@ -372,3 +385,4 @@ export class SupplierDuesService {
     };
   }
 }
+
