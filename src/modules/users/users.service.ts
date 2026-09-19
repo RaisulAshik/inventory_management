@@ -7,8 +7,7 @@ import { Repository, IsNull, DeepPartial } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { User } from '@entities/tenant/user/user.entity';
-//import { Role } from '@entities/tenant/role/role.entity';
+import { Employee } from '@entities/tenant/hr/employee.entity';
 import { UserRole } from '@entities/tenant/user/user-role.entity';
 import { Permission } from '@entities/tenant/role/permission.entity';
 import { RolePermission } from '@entities/tenant/role/role-permission.entity';
@@ -17,9 +16,17 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
+import { getNextSequence } from '@common/utils/sequence.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TenantUser } from '@/entities/master';
 
+/**
+ * Identity operations over `hr_employees`.
+ *
+ * Employees and users are one record. This service is the login-facing view of
+ * a person (credentials, roles, lockout); EmployeesService is the HR-facing
+ * view (department, salary, attendance). Both read and write the same rows.
+ */
 @Injectable()
 export class UsersService {
   constructor(
@@ -28,25 +35,25 @@ export class UsersService {
     private readonly tenantUserRepository: Repository<TenantUser>,
   ) {}
 
-  /**
-   * Get user repository for current tenant
-   */
-  private async getUserRepository(): Promise<Repository<User>> {
-    return this.tenantConnectionManager.getRepository(User);
+  private async getUserRepository(): Promise<Repository<Employee>> {
+    return this.tenantConnectionManager.getRepository(Employee);
   }
 
   /**
-   * Create new user
+   * Create a person who can sign in.
+   *
+   * `employeeCode` is generated when the caller does not supply one, because
+   * it is a required unique column on hr_employees.
    */
   async create(
     tenantId: any,
     createUserDto: CreateUserDto & { createdBy?: string } & {
       passwordHash?: string;
     },
-  ): Promise<User> {
-    const userRepo = await this.getUserRepository();
+  ): Promise<Employee> {
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+    const userRepo = dataSource.getRepository(Employee);
 
-    // Check if email already exists
     const existingUser = await userRepo.findOne({
       where: { email: createUserDto.email },
     });
@@ -55,11 +62,14 @@ export class UsersService {
       throw new BadRequestException('Email already exists');
     }
 
-    // Hash password if not already hashed
     let passwordHash = createUserDto.passwordHash;
     if (!passwordHash && createUserDto.password) {
       passwordHash = await bcrypt.hash(createUserDto.password, 10);
     }
+
+    const employeeCode =
+      createUserDto.employeeCode ??
+      (await getNextSequence(dataSource, 'EMPLOYEE'));
 
     const user = userRepo.create({
       id: uuidv4(),
@@ -67,7 +77,7 @@ export class UsersService {
       passwordHash,
       firstName: createUserDto.firstName,
       lastName: createUserDto.lastName,
-      employeeCode: createUserDto.employeeCode,
+      employeeCode,
       phone: createUserDto.phone,
       isActive: true,
       // DO NOT include roleIds here
@@ -99,21 +109,25 @@ export class UsersService {
     }
 
     return savedUser;
-
-    //turn userRepo.save(user);
   }
 
   /**
-   * Find all users with pagination
+   * Find all users with pagination.
+   *
+   * Only people with credentials are listed: an hr_employees row without an
+   * email is a payroll-only record, not a user of the system.
    */
-  async findAll(paginationDto: PaginationDto): Promise<PaginatedResult<User>> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResult<Employee>> {
     const userRepo = await this.getUserRepository();
 
     const queryBuilder = userRepo
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.userRoles', 'userRoles')
       .leftJoinAndSelect('userRoles.role', 'role')
-      .where('user.deletedAt IS NULL');
+      .where('user.deletedAt IS NULL')
+      .andWhere('user.email IS NOT NULL');
 
     // Apply search
     if (paginationDto.search) {
@@ -131,10 +145,7 @@ export class UsersService {
     return paginate(queryBuilder, paginationDto);
   }
 
-  /**
-   * Find user by ID
-   */
-  async findById(id: string): Promise<User> {
+  async findById(id: string): Promise<Employee> {
     const userRepo = await this.getUserRepository();
 
     const user = await userRepo.findOne({
@@ -149,10 +160,7 @@ export class UsersService {
     return user;
   }
 
-  /**
-   * Find user by email
-   */
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<Employee | null> {
     const userRepo = await this.getUserRepository();
 
     return userRepo.findOne({
@@ -161,10 +169,7 @@ export class UsersService {
     });
   }
 
-  /**
-   * Update user
-   */
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<Employee> {
     const userRepo = await this.getUserRepository();
 
     const user = await this.findById(id);
@@ -180,13 +185,16 @@ export class UsersService {
       }
     }
 
-    Object.assign(user, updateUserDto);
+    // `avatarUrl` is the identity-side name for hr_employees.profile_photo_url.
+    const { avatarUrl, ...rest } = updateUserDto;
+    Object.assign(user, rest);
+    if (avatarUrl !== undefined) {
+      user.profilePhotoUrl = avatarUrl;
+    }
+
     return userRepo.save(user);
   }
 
-  /**
-   * Soft delete user
-   */
   async remove(id: string): Promise<void> {
     const userRepo = await this.getUserRepository();
     const user = await this.findById(id);
@@ -195,17 +203,11 @@ export class UsersService {
     await userRepo.save(user);
   }
 
-  /**
-   * Hard delete user
-   */
   async hardDelete(id: string): Promise<void> {
     const userRepo = await this.getUserRepository();
     await userRepo.delete(id);
   }
 
-  /**
-   * Get user roles
-   */
   async getUserRoles(userId: string): Promise<string[]> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
     const userRoleRepo = dataSource.getRepository(UserRole);
@@ -218,9 +220,6 @@ export class UsersService {
     return userRoles.map((ur) => ur.role.roleCode);
   }
 
-  /**
-   * Get user permissions
-   */
   async getUserPermissions(userId: string): Promise<string[]> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
 
@@ -236,9 +235,6 @@ export class UsersService {
     return permissions.map((p) => p.permissionCode);
   }
 
-  /**
-   * Assign roles to user
-   */
   async assignRoles(
     userId: string,
     roleIds: string[],
@@ -263,9 +259,6 @@ export class UsersService {
     await userRoleRepo.save(userRoles);
   }
 
-  /**
-   * Update last login
-   */
   async updateLastLogin(userId: string, ipAddress: string): Promise<void> {
     const userRepo = await this.getUserRepository();
 
@@ -275,9 +268,6 @@ export class UsersService {
     });
   }
 
-  /**
-   * Increment failed login attempts
-   */
   async incrementFailedLoginAttempts(userId: string): Promise<void> {
     const userRepo = await this.getUserRepository();
     const user = await this.findById(userId);
@@ -292,9 +282,6 @@ export class UsersService {
     await userRepo.save(user);
   }
 
-  /**
-   * Reset failed login attempts
-   */
   async resetFailedLoginAttempts(userId: string): Promise<void> {
     const userRepo = await this.getUserRepository();
     const user = await this.findById(userId);
@@ -305,9 +292,6 @@ export class UsersService {
     await userRepo.save(user);
   }
 
-  /**
-   * Update password
-   */
   async updatePassword(userId: string, passwordHash: string): Promise<void> {
     const userRepo = await this.getUserRepository();
 
@@ -317,23 +301,14 @@ export class UsersService {
     });
   }
 
-  /**
-   * Activate user
-   */
-  async activate(id: string): Promise<User> {
+  async activate(id: string): Promise<Employee> {
     return this.update(id, { isActive: true } as UpdateUserDto);
   }
 
-  /**
-   * Deactivate user
-   */
-  async deactivate(id: string): Promise<User> {
+  async deactivate(id: string): Promise<Employee> {
     return this.update(id, { isActive: false } as UpdateUserDto);
   }
 
-  /**
-   * Count users
-   */
   async count(): Promise<number> {
     const userRepo = await this.getUserRepository();
     return userRepo.count({ where: { deletedAt: IsNull() } });

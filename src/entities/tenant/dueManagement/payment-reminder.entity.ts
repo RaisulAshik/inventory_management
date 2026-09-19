@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { CustomerDue } from './customer-due.entity';
 import { Customer } from '../eCommerce/customer.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 
 export enum ReminderType {
   EMAIL = 'EMAIL',
@@ -136,7 +136,7 @@ export class PaymentReminder {
   @JoinColumn({ name: 'customer_due_id' })
   customerDue: CustomerDue;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'sent_by' })
-  sentByUser: User;
+  sentByUser: Employee;
 }

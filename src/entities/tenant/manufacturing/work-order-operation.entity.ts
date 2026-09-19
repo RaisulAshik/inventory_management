@@ -10,7 +10,7 @@ import {
 import { WorkOrder } from './work-order.entity';
 import { BomOperation } from './bom-operation.entity';
 import { Workstation } from './workstation.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 
 export enum WorkOrderOperationStatus {
   PENDING = 'PENDING',
@@ -186,9 +186,9 @@ export class WorkOrderOperation {
   @JoinColumn({ name: 'workstation_id' })
   workstation: Workstation;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'operator_id' })
-  operator: User;
+  operator: Employee;
 
   // Computed
   get completionPercentage(): number {

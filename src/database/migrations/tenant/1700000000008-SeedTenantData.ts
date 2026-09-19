@@ -1,6 +1,10 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import * as bcrypt from 'bcrypt';
+import {
+  PERMISSIONS,
+  ROLE_PERMISSIONS,
+} from '../../../common/constants/permissions';
 
 export class SeedTenantData1700000000008 implements MigrationInterface {
   name = 'SeedTenantData1700000000008';
@@ -46,185 +50,52 @@ export class SeedTenantData1700000000008 implements MigrationInterface {
     `);
 
     // =====================================================
-    // SEED PERMISSIONS
+    // SEED PERMISSIONS AND ROLE GRANTS
+    // The catalogue lives in src/common/constants/permissions.ts, shared
+    // with the tenant provisioning service so the two cannot drift.
     // =====================================================
-    const permissions = [
-      // Dashboard
-      { code: 'dashboard.view', name: 'View Dashboard', module: 'dashboard' },
+    const permissionIds = new Map<string, string>();
 
-      // Products
-      { code: 'products.read', name: 'View Products', module: 'products' },
-      { code: 'products.create', name: 'Create Products', module: 'products' },
-      { code: 'products.update', name: 'Update Products', module: 'products' },
-      { code: 'products.delete', name: 'Delete Products', module: 'products' },
+    for (const perm of PERMISSIONS) {
+      const id = uuidv4();
+      permissionIds.set(perm.code, id);
+      await queryRunner.query(
+        `INSERT INTO \`permissions\` (\`id\`, \`permission_code\`, \`permission_name\`, \`module\`)
+         VALUES (?, ?, ?, ?)`,
+        [id, perm.code, perm.name, perm.module],
+      );
+    }
 
-      // Categories
-      {
-        code: 'categories.read',
-        name: 'View Categories',
-        module: 'categories',
-      },
-      {
-        code: 'categories.create',
-        name: 'Create Categories',
-        module: 'categories',
-      },
-      {
-        code: 'categories.update',
-        name: 'Update Categories',
-        module: 'categories',
-      },
-      {
-        code: 'categories.delete',
-        name: 'Delete Categories',
-        module: 'categories',
-      },
+    // ADMIN receives the full catalogue.
+    for (const permissionId of permissionIds.values()) {
+      await queryRunner.query(
+        `INSERT INTO \`role_permissions\` (\`id\`, \`role_id\`, \`permission_id\`)
+         VALUES (?, ?, ?)`,
+        [uuidv4(), adminRoleId, permissionId],
+      );
+    }
 
-      // Customers
-      { code: 'customers.read', name: 'View Customers', module: 'customers' },
-      {
-        code: 'customers.create',
-        name: 'Create Customers',
-        module: 'customers',
-      },
-      {
-        code: 'customers.update',
-        name: 'Update Customers',
-        module: 'customers',
-      },
-      {
-        code: 'customers.delete',
-        name: 'Delete Customers',
-        module: 'customers',
-      },
+    // The other system roles receive their default grants.
+    const systemRoleIds: Record<string, string> = {
+      MANAGER: managerRoleId,
+      SALES: salesRoleId,
+      PURCHASE: purchaseRoleId,
+      WAREHOUSE: warehouseRoleId,
+    };
 
-      // Suppliers
-      { code: 'suppliers.read', name: 'View Suppliers', module: 'suppliers' },
-      {
-        code: 'suppliers.create',
-        name: 'Create Suppliers',
-        module: 'suppliers',
-      },
-      {
-        code: 'suppliers.update',
-        name: 'Update Suppliers',
-        module: 'suppliers',
-      },
-      {
-        code: 'suppliers.delete',
-        name: 'Delete Suppliers',
-        module: 'suppliers',
-      },
+    for (const [roleCode, codes] of Object.entries(ROLE_PERMISSIONS)) {
+      const roleId = systemRoleIds[roleCode];
+      if (!roleId) continue;
 
-      // Sales Orders
-      {
-        code: 'sales_orders.read',
-        name: 'View Sales Orders',
-        module: 'sales_orders',
-      },
-      {
-        code: 'sales_orders.create',
-        name: 'Create Sales Orders',
-        module: 'sales_orders',
-      },
-      {
-        code: 'sales_orders.update',
-        name: 'Update Sales Orders',
-        module: 'sales_orders',
-      },
-      {
-        code: 'sales_orders.delete',
-        name: 'Delete Sales Orders',
-        module: 'sales_orders',
-      },
-      {
-        code: 'sales_orders.approve',
-        name: 'Approve Sales Orders',
-        module: 'sales_orders',
-      },
-
-      // Purchase Orders
-      {
-        code: 'purchase_orders.read',
-        name: 'View Purchase Orders',
-        module: 'purchase_orders',
-      },
-      {
-        code: 'purchase_orders.create',
-        name: 'Create Purchase Orders',
-        module: 'purchase_orders',
-      },
-      {
-        code: 'purchase_orders.update',
-        name: 'Update Purchase Orders',
-        module: 'purchase_orders',
-      },
-      {
-        code: 'purchase_orders.delete',
-        name: 'Delete Purchase Orders',
-        module: 'purchase_orders',
-      },
-      {
-        code: 'purchase_orders.approve',
-        name: 'Approve Purchase Orders',
-        module: 'purchase_orders',
-      },
-
-      // Inventory
-      { code: 'inventory.read', name: 'View Inventory', module: 'inventory' },
-      {
-        code: 'inventory.adjust',
-        name: 'Adjust Inventory',
-        module: 'inventory',
-      },
-      {
-        code: 'inventory.transfer',
-        name: 'Transfer Inventory',
-        module: 'inventory',
-      },
-
-      // Warehouses
-      {
-        code: 'warehouses.read',
-        name: 'View Warehouses',
-        module: 'warehouses',
-      },
-      {
-        code: 'warehouses.create',
-        name: 'Create Warehouses',
-        module: 'warehouses',
-      },
-      {
-        code: 'warehouses.update',
-        name: 'Update Warehouses',
-        module: 'warehouses',
-      },
-      {
-        code: 'warehouses.delete',
-        name: 'Delete Warehouses',
-        module: 'warehouses',
-      },
-
-      // Reports
-      { code: 'reports.view', name: 'View Reports', module: 'reports' },
-      { code: 'reports.export', name: 'Export Reports', module: 'reports' },
-
-      // Settings
-      { code: 'settings.read', name: 'View Settings', module: 'settings' },
-      { code: 'settings.update', name: 'Update Settings', module: 'settings' },
-
-      // Users
-      { code: 'users.read', name: 'View Users', module: 'users' },
-      { code: 'users.create', name: 'Create Users', module: 'users' },
-      { code: 'users.update', name: 'Update Users', module: 'users' },
-      { code: 'users.delete', name: 'Delete Users', module: 'users' },
-    ];
-
-    for (const perm of permissions) {
-      await queryRunner.query(`
-        INSERT INTO \`permissions\` (\`id\`, \`permission_code\`, \`permission_name\`, \`module\`)
-        VALUES ('${uuidv4()}', '${perm.code}', '${perm.name}', '${perm.module}')
-      `);
+      for (const code of codes) {
+        const permissionId = permissionIds.get(code);
+        if (!permissionId) continue;
+        await queryRunner.query(
+          `INSERT INTO \`role_permissions\` (\`id\`, \`role_id\`, \`permission_id\`)
+           VALUES (?, ?, ?)`,
+          [uuidv4(), roleId, permissionId],
+        );
+      }
     }
 
     // =====================================================
@@ -334,6 +205,7 @@ export class SeedTenantData1700000000008 implements MigrationInterface {
     await queryRunner.query(`DELETE FROM \`tax_rates\``);
     await queryRunner.query(`DELETE FROM \`tax_categories\``);
     await queryRunner.query(`DELETE FROM \`units_of_measure\``);
+    await queryRunner.query(`DELETE FROM \`role_permissions\``);
     await queryRunner.query(`DELETE FROM \`permissions\``);
     await queryRunner.query(`DELETE FROM \`roles\``);
     await queryRunner.query(`DELETE FROM \`sequences\``);

@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -27,8 +28,11 @@ import { TenantResponseDto } from './dto/tenant-response.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
 
+import { AdminJwtAuthGuard } from '@modules/admin-auth/guards/admin-jwt-auth.guard';
+
 @ApiTags('Tenants (Master)')
 @ApiBearerAuth()
+@UseGuards(AdminJwtAuthGuard)
 @Controller('master/tenants')
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
@@ -50,9 +54,7 @@ export class TenantsController {
   @Permissions('master.tenants.read')
   @ApiOperation({ summary: 'Get all tenants with filters and pagination' })
   @ApiPaginatedResponse(TenantResponseDto)
-  async findAll(
-    @Query() filterDto: TenantFilterDto,
-  ) {
+  async findAll(@Query() filterDto: TenantFilterDto) {
     const result = await this.tenantsService.findAll(filterDto);
     return {
       data: result.data.map((t) => new TenantResponseDto(t)),

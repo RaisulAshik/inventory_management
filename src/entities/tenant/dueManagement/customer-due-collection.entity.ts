@@ -10,7 +10,7 @@ import {
 import { BankAccount } from '../accounting/bank-account.entity';
 import { Customer } from '../eCommerce/customer.entity';
 import { PaymentMethod } from '../eCommerce/payment-method.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 
 export enum CollectionStatus {
   DRAFT = 'DRAFT',
@@ -140,9 +140,9 @@ export class CustomerDueCollection {
   @JoinColumn({ name: 'bank_account_id' })
   bankAccount: BankAccount;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'received_by' })
-  receivedByUser: User;
+  receivedByUser: Employee;
 
   // Helper
   get isFullyAllocated(): boolean {

@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { BankAccount } from './bank-account.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 
 export enum ReconciliationStatus {
   DRAFT = 'DRAFT',
@@ -200,7 +200,7 @@ export class BankReconciliation {
   @JoinColumn({ name: 'bank_account_id' })
   bankAccount: BankAccount;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'reconciled_by' })
-  reconciledByUser: User;
+  reconciledByUser: Employee;
 }

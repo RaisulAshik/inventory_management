@@ -7,7 +7,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { ExportSchedule } from './export-schedule.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 
 export enum RecipientType {
   USER = 'USER',
@@ -76,7 +76,7 @@ export class ExportScheduleRecipient {
   @JoinColumn({ name: 'schedule_id' })
   schedule: ExportSchedule;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user: Employee;
 }

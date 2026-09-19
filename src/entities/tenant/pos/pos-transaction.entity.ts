@@ -13,7 +13,7 @@ import { Customer } from '../eCommerce/customer.entity';
 import { SalesOrder } from '../eCommerce/sales-order.entity';
 import { Store } from './store.entity';
 import { PosTerminal } from './pos-terminal.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 import { PosTransactionItem } from './pos-transaction-item.entity';
 import { PosTransactionPayment } from './pos-transaction-payment.entity';
 
@@ -173,9 +173,9 @@ export class PosTransaction {
   @JoinColumn({ name: 'customer_id' })
   customer: Customer;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'cashier_id' })
-  cashier: User;
+  cashier: Employee;
 
   @OneToMany(() => PosTransactionItem, (item) => item.transaction)
   items: PosTransactionItem[];

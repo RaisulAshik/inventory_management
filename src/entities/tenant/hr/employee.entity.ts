@@ -18,7 +18,16 @@ import {
 } from '@common/enums';
 import { Department } from './department.entity';
 import { Designation } from './designation.entity';
+import { UserRole } from '../user/user-role.entity';
+import { UserSession } from '../user/user-session.entity';
 
+/**
+ * A person in the tenant: both their HR record and their login identity.
+ *
+ * There is no separate `users` table. An employee who can sign in simply has
+ * `email` and `passwordHash` set; the columns stay nullable so that legacy
+ * rows, and staff who are paid but never access the system, remain valid.
+ */
 @Entity('hr_employees')
 export class Employee {
   @PrimaryGeneratedColumn('uuid')
@@ -38,6 +47,33 @@ export class Employee {
 
   @Column({ length: 50, nullable: true })
   phone: string;
+
+  // ── Authentication ───────────────────────────────────────────────────────
+  // Merged in from the former `users` table.
+
+  @Column({ name: 'password_hash', length: 255, nullable: true })
+  passwordHash: string;
+
+  @Column({ name: 'is_email_verified', type: 'tinyint', default: 0 })
+  isEmailVerified: boolean;
+
+  @Column({ name: 'email_verified_at', type: 'timestamp', nullable: true })
+  emailVerifiedAt: Date;
+
+  @Column({ name: 'last_login_at', type: 'timestamp', nullable: true })
+  lastLoginAt: Date;
+
+  @Column({ name: 'last_login_ip', length: 45, nullable: true })
+  lastLoginIp: string;
+
+  @Column({ name: 'password_changed_at', type: 'timestamp', nullable: true })
+  passwordChangedAt: Date;
+
+  @Column({ name: 'failed_login_attempts', type: 'int', default: 0 })
+  failedLoginAttempts: number;
+
+  @Column({ name: 'locked_until', type: 'timestamp', nullable: true })
+  lockedUntil: Date | null;
 
   @Column({ name: 'date_of_birth', type: 'date', nullable: true })
   dateOfBirth: Date;
@@ -84,7 +120,9 @@ export class Employee {
   @Column({ name: 'reporting_to', nullable: true })
   reportingTo: string;
 
-  @Column({ name: 'hire_date', type: 'date' })
+  // Nullable since the merge: the tenant's first administrator is an identity
+  // before they are an employee, and has no meaningful hire date.
+  @Column({ name: 'hire_date', type: 'date', nullable: true })
   hireDate: Date;
 
   @Column({ name: 'confirmation_date', type: 'date', nullable: true })
@@ -178,7 +216,25 @@ export class Employee {
   @OneToMany('HrPayroll', 'employee')
   payrolls: any[];
 
+  // Authentication relations, merged in from the former `users` table. The
+  // join tables keep their original names; their `user_id` column now holds
+  // an hr_employees id.
+  @OneToMany(() => UserRole, (userRole) => userRole.employee)
+  userRoles: UserRole[];
+
+  @OneToMany(() => UserSession, (session) => session.employee)
+  sessions: UserSession[];
+
   get fullName(): string {
     return [this.firstName, this.lastName].filter(Boolean).join(' ');
+  }
+
+  get isLocked(): boolean {
+    return !!this.lockedUntil && this.lockedUntil > new Date();
+  }
+
+  /** True when this person has credentials and can sign in. */
+  get canSignIn(): boolean {
+    return !!this.email && !!this.passwordHash;
   }
 }

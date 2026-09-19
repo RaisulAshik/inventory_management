@@ -56,15 +56,14 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       request.tenantDatabase,
     );
 
-    const poolStatus = dataSource ? 'HIT' : 'MISS';
-    this.logger.warn(
-      `[SESSION-CHECK] ${request.method} ${request.url} | db=${request.tenantDatabase} | hash=${tokenHash.substring(0, 8)}… | pool=${poolStatus}`,
-    );
-
     if (!dataSource) {
-      // Pool not yet populated for this tenant (e.g. very first request after cold start).
-      // JWT signature is already validated above — fail open so the service layer
-      // establishes the connection normally.
+      // Pool not yet populated for this tenant (e.g. the very first request
+      // after a cold start). The JWT signature and expiry are already
+      // validated above, so admit the request and let the service layer open
+      // the connection. Note this briefly re-admits a logged-out token.
+      this.logger.debug(
+        `Session check skipped: no pooled connection yet for ${request.tenantDatabase}`,
+      );
       return true;
     }
 
@@ -77,23 +76,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         );
 
       if (!rows || rows.length === 0) {
-        // Extra diagnostic: how many sessions exist at all right now?
-        const [{ cnt }] = await dataSource.query(
-          'SELECT COUNT(*) AS cnt FROM user_sessions',
-        );
-        this.logger.warn(
-          `[SESSION-CHECK] NOT FOUND | url=${request.url} | hash=${tokenHash} | totalSessions=${cnt}`,
-        );
-
         throw new UnauthorizedException(
           'Session has been invalidated. Please log in again.',
         );
       }
 
       const expiresAt = new Date(rows[0].expires_at);
-      this.logger.warn(
-        `[SESSION-CHECK] ${request.method} ${request.url} | found id=${rows[0].id} expires=${expiresAt.toISOString()}`,
-      );
 
       if (expiresAt < new Date()) {
         throw new UnauthorizedException(
@@ -102,9 +90,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       }
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err;
-      // Unexpected DB error — fail open to avoid locking users out on transient errors
+      // Unexpected DB error. Fail open rather than locking every user out of
+      // the tenant on a transient fault; the JWT itself is already verified.
       this.logger.error(
-        `[SESSION-CHECK] DB error (failing open): ${(err as Error).message}`,
+        `Session check failed, admitting request: ${(err as Error).message}`,
       );
       return true;
     }

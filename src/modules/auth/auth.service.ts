@@ -1,6 +1,5 @@
 import {
   Injectable,
-  Logger,
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
@@ -11,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'node:crypto';
 import { UsersService } from '@modules/users/users.service';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { User } from '@entities/tenant/user/user.entity';
+import { Employee } from '@entities/tenant/hr/employee.entity';
 import { UserSession } from '@entities/tenant/user/user-session.entity';
 import { JwtPayload } from '@common/interfaces';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -21,7 +20,6 @@ import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -32,7 +30,7 @@ export class AuthService {
   /**
    * Validate user credentials
    */
-  async validateUser(email: string, password: string): Promise<User | null> {
+  async validateUser(email: string, password: string): Promise<Employee | null> {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
@@ -268,7 +266,7 @@ export class AuthService {
    * Generate access and refresh tokens
    */
   private async generateTokens(
-    user: User,
+    user: Employee,
     roles: string[],
     permissions: string[],
   ) {
@@ -309,15 +307,10 @@ export class AuthService {
     const dataSource = await this.tenantConnectionManager.getDataSource();
     const sessionRepo = dataSource.getRepository(UserSession);
 
-    const computedHash = this.hashToken(accessToken);
-    this.logger.warn(
-      `[SESSION-CREATE] userId=${userId} tokenHash=${computedHash.substring(0, 8)}…`,
-    );
-
     const session = sessionRepo.create({
       id: uuidv4(),
       userId,
-      tokenHash: computedHash,
+      tokenHash: this.hashToken(accessToken),
       refreshTokenHash: this.hashToken(refreshToken),
       ipAddress,
       deviceType: this.parseDeviceType(userAgent),
@@ -331,7 +324,6 @@ export class AuthService {
     });
 
     await sessionRepo.save(session);
-    this.logger.warn(`[SESSION-CREATE] saved id=${session.id}`);
   }
 
   /**

@@ -20,7 +20,7 @@ import {
   SalesOrderItem,
   InventoryStock,
 } from '@/entities/tenant';
-import { User } from '@/entities/tenant/user/user.entity';
+import { Employee } from '@/entities/tenant/hr/employee.entity';
 import { getNextSequence } from '@/common/utils/sequence.util';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { QuotationFilterDto } from './dto/quotation-filter.dto';
@@ -54,7 +54,7 @@ export class QuotationsService {
 
     const productRepo = await this.getRepo<Product>(Product);
     const quotationRepo = await this.getRepo<Quotation>(Quotation);
-    const userRepo = await this.getRepo<User>(User);
+    const userRepo = await this.getRepo<Employee>(Employee);
 
     // Validate salesPersonId — silently strip if user doesn't exist
     if (dto.salesPersonId) {

@@ -9,7 +9,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Warehouse } from '../warehouse/warehouse.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 import { PosTerminal } from './pos-terminal.entity';
 import { PriceList } from '../inventory/price-list.entity';
 
@@ -105,9 +105,9 @@ export class Store {
   @JoinColumn({ name: 'warehouse_id' })
   warehouse: Warehouse;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'manager_id' })
-  manager: User;
+  manager: Employee;
 
   @ManyToOne(() => PriceList)
   @JoinColumn({ name: 'default_price_list_id' })

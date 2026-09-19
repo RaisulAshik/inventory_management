@@ -16,6 +16,7 @@ import {
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { Public } from '@common/decorators/public.decorator';
+import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -45,14 +46,19 @@ export class AuthController {
     return this.authService.login(loginDto, ipAddress, userAgent);
   }
 
-  @Public()
   @Post('register')
-  @ApiOperation({ summary: 'Register new user' })
+  @ApiBearerAuth()
+  @Permissions('users.create')
+  @ApiOperation({ summary: 'Register a new user into the current tenant' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 403, description: 'Missing users.create permission' })
   async register(@Req() req: any, @Body() registerDto: RegisterDto) {
-    // tenantId comes from tenant middleware (req.tenantId), not JWT (no token on register)
-    const tenantId = req.tenantId || req.user?.tenantId;
+    // Deliberately NOT @Public(). While it was, anyone who knew a tenant code
+    // could create an active user in that tenant just by sending the
+    // X-Tenant-ID header. Creating users is an administrative action, so it
+    // carries the same permission as POST /users.
+    const tenantId = req.user?.tenantId || req.tenantId;
     return this.authService.register(tenantId, registerDto);
   }
 

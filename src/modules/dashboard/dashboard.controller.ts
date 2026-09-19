@@ -7,22 +7,27 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
+import { Permissions } from '@common/decorators/permissions.decorator';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth()
+// Applied at class level: every endpoint here exposes revenue, receivables,
+// payables or stock valuation, none of which should be readable by any
+// authenticated user who simply holds no permissions at all.
+@Permissions('dashboard.view')
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('overview')
-@ApiOperation({ summary: 'Get dashboard overview statistics' })
+  @ApiOperation({ summary: 'Get dashboard overview statistics' })
   @ApiResponse({ status: 200, description: 'Overview statistics retrieved' })
   async getOverviewStats() {
     return this.dashboardService.getOverviewStats();
   }
 
   @Get('sales-trend')
-@ApiOperation({ summary: 'Get sales trend data' })
+  @ApiOperation({ summary: 'Get sales trend data' })
   @ApiQuery({
     name: 'period',
     enum: ['daily', 'weekly', 'monthly'],
@@ -37,54 +42,54 @@ export class DashboardController {
   }
 
   @Get('top-products')
-@ApiOperation({ summary: 'Get top selling products' })
+  @ApiOperation({ summary: 'Get top selling products' })
   @ApiQuery({ name: 'limit', type: 'number', required: false })
   async getTopSellingProducts(@Query('limit') limit: number = 10) {
     return this.dashboardService.getTopSellingProducts(limit);
   }
 
   @Get('top-customers')
-@ApiOperation({ summary: 'Get top customers' })
+  @ApiOperation({ summary: 'Get top customers' })
   @ApiQuery({ name: 'limit', type: 'number', required: false })
   async getTopCustomers(@Query('limit') limit: number = 10) {
     return this.dashboardService.getTopCustomers(limit);
   }
 
   @Get('low-stock')
-@ApiOperation({ summary: 'Get low stock products' })
+  @ApiOperation({ summary: 'Get low stock products' })
   @ApiQuery({ name: 'limit', type: 'number', required: false })
   async getLowStockProducts(@Query('limit') limit: number = 20) {
     return this.dashboardService.getLowStockProducts(limit);
   }
 
   @Get('recent-orders')
-@ApiOperation({ summary: 'Get recent orders' })
+  @ApiOperation({ summary: 'Get recent orders' })
   @ApiQuery({ name: 'limit', type: 'number', required: false })
   async getRecentOrders(@Query('limit') limit: number = 10) {
     return this.dashboardService.getRecentOrders(limit);
   }
 
   @Get('pending-purchase-orders')
-@ApiOperation({ summary: 'Get pending purchase orders' })
+  @ApiOperation({ summary: 'Get pending purchase orders' })
   @ApiQuery({ name: 'limit', type: 'number', required: false })
   async getPendingPurchaseOrders(@Query('limit') limit: number = 10) {
     return this.dashboardService.getPendingPurchaseOrders(limit);
   }
 
   @Get('stock-valuation')
-@ApiOperation({ summary: 'Get stock valuation by warehouse' })
+  @ApiOperation({ summary: 'Get stock valuation by warehouse' })
   async getStockValuationByWarehouse() {
     return this.dashboardService.getStockValuationByWarehouse();
   }
 
   @Get('receivables')
-@ApiOperation({ summary: 'Get receivables aging summary' })
+  @ApiOperation({ summary: 'Get receivables aging summary' })
   async getReceivablesSummary() {
     return this.dashboardService.getReceivablesSummary();
   }
 
   @Get('payables')
-@ApiOperation({ summary: 'Get payables aging summary' })
+  @ApiOperation({ summary: 'Get payables aging summary' })
   async getPayablesSummary() {
     return this.dashboardService.getPayablesSummary();
   }

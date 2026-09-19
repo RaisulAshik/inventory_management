@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -28,7 +29,10 @@ import { PlanResponseDto } from './dto/plan-response.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansService } from './plans.service';
 
+import { AdminJwtAuthGuard } from '@modules/admin-auth/guards/admin-jwt-auth.guard';
+
 @ApiTags('Subscription Plans (Master)')
+@UseGuards(AdminJwtAuthGuard)
 @Controller('master/plans')
 export class PlansController {
   constructor(private readonly plansService: PlansService) {}

@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { PosSession } from './pos-session.entity';
 import { Store } from './store.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 
 export enum CashMovementType {
   CASH_IN = 'CASH_IN',
@@ -115,9 +115,9 @@ export class CashMovement {
   @JoinColumn({ name: 'store_id' })
   store: Store;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'created_by' })
-  createdByUser: User;
+  createdByUser: Employee;
 
   // Helper
   get isInflow(): boolean {

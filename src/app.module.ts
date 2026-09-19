@@ -7,7 +7,12 @@ import {
 } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import {
+  APP_GUARD,
+  APP_FILTER,
+  APP_INTERCEPTOR,
+  DiscoveryModule,
+} from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -28,6 +33,7 @@ import { TransformInterceptor } from '@common/interceptors/transform.interceptor
 import { LoggingInterceptor } from '@common/interceptors/logging.interceptor';
 import { TenantMiddleware } from '@common/middleware/tenant.middleware';
 import { LoggingMiddleware } from '@common/middleware/logger.middleware';
+import { PermissionsCatalogueValidator } from '@common/permissions-catalogue.validator';
 
 // Modules
 import { AuthModule } from '@modules/auth/auth.module';
@@ -92,6 +98,9 @@ import { RolesModule } from '@modules/roles/roles.module';
     // Database module for tenant connections
     DatabaseModule,
 
+    // Lets PermissionsCatalogueValidator walk the registered controllers
+    DiscoveryModule,
+
     // Feature modules
     AdminAuthModule, // Master DB - Admin Authentication
     MasterModule, // Master DB - SaaS Admin (Plans, Tenants)
@@ -113,6 +122,9 @@ import { RolesModule } from '@modules/roles/roles.module';
     RolesModule, // Tenant DB - Roles & Permissions Management
   ],
   providers: [
+    // Refuses to boot if a route is guarded by an ungrantable permission
+    PermissionsCatalogueValidator,
+
     // Global guards (order matters!)
     {
       provide: APP_GUARD,

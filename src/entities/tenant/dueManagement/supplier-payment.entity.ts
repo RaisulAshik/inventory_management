@@ -10,7 +10,7 @@ import {
 import { BankAccount } from '../accounting/bank-account.entity';
 import { PaymentMethod } from '../eCommerce/payment-method.entity';
 import { Supplier } from '../inventory/supplier.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 
 export enum SupplierPaymentStatus {
   DRAFT = 'DRAFT',
@@ -153,9 +153,9 @@ export class SupplierPayment {
   @JoinColumn({ name: 'bank_account_id' })
   bankAccount: BankAccount;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'approved_by' })
-  approvedByUser: User;
+  approvedByUser: Employee;
 
   // Computed
   get netPaymentAmount(): number {

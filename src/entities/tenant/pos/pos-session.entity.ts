@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { Store } from './store.entity';
 import { PosTerminal } from './pos-terminal.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 import { PosTransaction } from './pos-transaction.entity';
 
 export enum PosSessionStatus {
@@ -184,9 +184,9 @@ export class PosSession {
   @JoinColumn({ name: 'terminal_id' })
   terminal: PosTerminal;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user: Employee;
 
   @OneToMany(() => PosTransaction, (transaction) => transaction.session)
   transactions: PosTransaction[];

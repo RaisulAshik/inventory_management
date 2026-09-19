@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { ImportTemplate } from './import-template.entity';
 import { ImportJobStatus, ImportMode } from '@common/enums';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 import { FileUpload } from './file-upload.entity';
 import { ImportJobError } from './import-job-error.entity';
 
@@ -120,9 +120,9 @@ export class ImportJob {
   @JoinColumn({ name: 'file_upload_id' })
   fileUpload: FileUpload;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'created_by' })
-  createdByUser: User;
+  createdByUser: Employee;
 
   @OneToMany(() => ImportJobError, (error) => error.importJob)
   errors: ImportJobError[];

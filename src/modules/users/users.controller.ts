@@ -22,7 +22,6 @@ import {
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { PaginationDto } from '@common/dto/pagination.dto';
-import { Roles } from '@common/decorators/roles.decorator';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
@@ -38,7 +37,6 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @Roles('ADMIN', 'MANAGER')
   @Permissions('users.create')
   @ApiOperation({ summary: 'Create a new user' })
   @ApiResponse({
@@ -105,7 +103,6 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
   @Permissions('users.delete')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete user (soft delete)' })
@@ -116,7 +113,6 @@ export class UsersController {
   }
 
   @Post(':id/roles')
-  @Roles('ADMIN')
   @Permissions('users.manage-roles')
   @ApiOperation({ summary: 'Assign roles to user' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
@@ -153,7 +149,6 @@ export class UsersController {
   }
 
   @Post(':id/activate')
-  @Roles('ADMIN', 'MANAGER')
   @Permissions('users.update')
   @ApiOperation({ summary: 'Activate user' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
@@ -163,7 +158,6 @@ export class UsersController {
   }
 
   @Post(':id/deactivate')
-  @Roles('ADMIN', 'MANAGER')
   @Permissions('users.update')
   @ApiOperation({ summary: 'Deactivate user' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })

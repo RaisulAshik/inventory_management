@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 //import { Exclude, Expose, Type } from 'class-transformer';
-import { User } from '@entities/tenant/user/user.entity';
+import { Employee } from '@entities/tenant/hr/employee.entity';
 
 class RoleDto {
   @ApiProperty()
@@ -56,7 +56,7 @@ export class UserResponseDto {
   @ApiPropertyOptional({ type: [RoleDto] })
   roles?: RoleDto[];
 
-  constructor(user: User) {
+  constructor(user: Employee) {
     this.id = user.id;
     this.email = user.email;
     this.firstName = user.firstName;
@@ -64,7 +64,7 @@ export class UserResponseDto {
     this.fullName = user.fullName;
     this.employeeCode = user.employeeCode;
     this.phone = user.phone;
-    this.avatarUrl = user.avatarUrl;
+    this.avatarUrl = user.profilePhotoUrl;
     this.isActive = user.isActive;
     this.isEmailVerified = user.isEmailVerified;
     this.lastLoginAt = user.lastLoginAt;

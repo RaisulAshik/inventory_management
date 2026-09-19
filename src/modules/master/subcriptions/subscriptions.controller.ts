@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,8 +27,11 @@ import {
   UpdateSubscriptionDto,
 } from './dto/update-subscription.dto';
 
+import { AdminJwtAuthGuard } from '@modules/admin-auth/guards/admin-jwt-auth.guard';
+
 @ApiTags('Subscriptions (Master)')
 @ApiBearerAuth()
+@UseGuards(AdminJwtAuthGuard)
 @Controller('master/subscriptions')
 export class SubscriptionsController {
   constructor(private readonly subscriptionsService: SubscriptionsService) {}

@@ -12,7 +12,7 @@ import { WorkOrderOperation } from './work-order-operation.entity';
 import { Product } from '../inventory/product.entity';
 import { ProductVariant } from '../inventory/product-variant.entity';
 import { Warehouse } from '../warehouse/warehouse.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 import { UnitOfMeasure } from '../inventory/unit-of-measure.entity';
 import { WarehouseLocation } from '../warehouse/warehouse-location.entity';
 import { InventoryBatch } from '../warehouse/inventory-batch.entity';
@@ -214,9 +214,9 @@ export class ProductionOutput {
   @JoinColumn({ name: 'uom_id' })
   uom: UnitOfMeasure;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'produced_by' })
-  producedByUser: User;
+  producedByUser: Employee;
 
   // Computed
   get yieldPercentage(): number {

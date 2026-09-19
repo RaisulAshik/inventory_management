@@ -6,7 +6,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 
 export enum FileUploadStatus {
   PENDING = 'PENDING',
@@ -109,9 +109,9 @@ export class FileUpload {
   createdAt: Date;
 
   // Relations
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'uploaded_by' })
-  uploadedByUser: User;
+  uploadedByUser: Employee;
 
   // Computed
   get fileSizeFormatted(): string {

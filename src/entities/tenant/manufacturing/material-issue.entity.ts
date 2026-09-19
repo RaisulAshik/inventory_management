@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { WorkOrder } from './work-order.entity';
 import { Warehouse } from '../warehouse/warehouse.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 import { MaterialIssueItem } from './material-issue-item.entity';
 
 export enum MaterialIssueStatus {
@@ -108,9 +108,9 @@ export class MaterialIssue {
   @JoinColumn({ name: 'warehouse_id' })
   warehouse: Warehouse;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'issued_by' })
-  issuedByUser: User;
+  issuedByUser: Employee;
 
   @OneToMany(() => MaterialIssueItem, (item) => item.materialIssue)
   items: MaterialIssueItem[];

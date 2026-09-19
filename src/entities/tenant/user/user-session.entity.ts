@@ -6,13 +6,21 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { User } from './user.entity';
+import { Employee } from '../hr/employee.entity';
 
+/**
+ * A live sign-in session.
+ *
+ * As with user_roles, the table and its `user_id` column keep their names but
+ * that column now holds an `hr_employees` id. JwtAuthGuard queries this table
+ * by raw SQL, so the names are intentionally left stable.
+ */
 @Entity('user_sessions')
 export class UserSession {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  /** An `hr_employees.id`, despite the column name. */
   @Column({ name: 'user_id' })
   userId: string;
 
@@ -53,11 +61,11 @@ export class UserSession {
   createdAt: Date;
 
   // Relations
-  @ManyToOne(() => User, (user) => user.sessions, {
+  @ManyToOne(() => Employee, (employee) => employee.sessions, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  employee: Employee;
 
   // Helper
   get isExpired(): boolean {

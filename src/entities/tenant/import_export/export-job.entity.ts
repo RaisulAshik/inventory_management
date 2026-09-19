@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { ExportJobStatus, FileFormat } from '@common/enums';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 
 @Entity('export_jobs')
 export class ExportJob {
@@ -94,9 +94,9 @@ export class ExportJob {
   updatedAt: Date;
 
   // Relations
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'created_by' })
-  createdByUser: User;
+  createdByUser: Employee;
 
   // Computed
   get progressPercentage(): number {

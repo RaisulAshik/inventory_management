@@ -8,6 +8,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,7 +22,10 @@ import { SystemSettingsService } from './system-settings.service';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { Public } from '@common/decorators/public.decorator';
 
+import { AdminJwtAuthGuard } from '@modules/admin-auth/guards/admin-jwt-auth.guard';
+
 @ApiTags('System Settings (Master)')
+@UseGuards(AdminJwtAuthGuard)
 @Controller('master/settings')
 export class SystemSettingsController {
   constructor(private readonly settingsService: SystemSettingsService) {}

@@ -10,7 +10,7 @@ import {
 import { ProductVariant } from '../inventory/product-variant.entity';
 import { Product } from '../inventory/product.entity';
 import { GoodsReceivedNote } from '../purchase/goods-received-note.entity';
-import { User } from '../user/user.entity';
+import { Employee } from '../hr/employee.entity';
 import { ProductionOutput } from './production-output.entity';
 
 export enum InspectionType {
@@ -154,9 +154,9 @@ export class QualityInspection {
   @JoinColumn({ name: 'production_output_id' })
   productionOutput: ProductionOutput;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Employee)
   @JoinColumn({ name: 'inspector_id' })
-  inspector: User;
+  inspector: Employee;
 
   // Computed
   get passRate(): number {

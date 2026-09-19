@@ -52,8 +52,13 @@ export class PermissionsGuard implements CanActivate {
       tenantId: request.user.tenantId,
       roles: request.user.roles ?? [],
       permissions: request.user.permissions ?? [],
-      isAdmin: request.tenantContext?.isAdmin,
-      type: request.tenantContext?.type,
+      // The admin flag comes from the validated JWT (JwtStrategy and
+      // AdminJwtStrategy both preserve it on request.user). It must NOT be read
+      // from request.tenantContext: TenantMiddleware skips /master routes
+      // entirely, so tenantContext is undefined there and admins were being
+      // rejected on their own control-plane endpoints.
+      isAdmin: request.user.isAdmin,
+      type: request.user.type,
     };
 
     // =====================================================
