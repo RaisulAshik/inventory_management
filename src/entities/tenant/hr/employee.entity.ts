@@ -81,7 +81,12 @@ export class Employee {
   @Column({ type: 'enum', enum: Gender, nullable: true })
   gender: Gender;
 
-  @Column({ name: 'marital_status', type: 'enum', enum: MaritalStatus, nullable: true })
+  @Column({
+    name: 'marital_status',
+    type: 'enum',
+    enum: MaritalStatus,
+    nullable: true,
+  })
   maritalStatus: MaritalStatus;
 
   @Column({ name: 'national_id', length: 100, nullable: true })
@@ -158,7 +163,13 @@ export class Employee {
   })
   salaryBasis: SalaryBasis;
 
-  @Column({ name: 'basic_salary', type: 'decimal', precision: 18, scale: 4, default: 0 })
+  @Column({
+    name: 'basic_salary',
+    type: 'decimal',
+    precision: 18,
+    scale: 4,
+    default: 0,
+  })
   basicSalary: number;
 
   @Column({ name: 'bank_name', length: 200, nullable: true })
@@ -200,7 +211,10 @@ export class Employee {
   @JoinColumn({ name: 'designation_id' })
   designation: Designation;
 
-  @ManyToOne(() => Employee, (e) => e.subordinates, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Employee, (e) => e.subordinates, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'reporting_to' })
   manager: Employee;
 

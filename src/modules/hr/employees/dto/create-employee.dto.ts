@@ -1,11 +1,26 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsString, IsNotEmpty, IsOptional, IsEmail, IsEnum,
-  IsUUID, IsDateString, IsNumber, Min, MaxLength,
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEmail,
+  IsEnum,
+  IsUUID,
+  IsDateString,
+  IsNumber,
+  Min,
+  MaxLength,
+  IsArray,
+  MinLength,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
-  EmploymentType, EmploymentStatus, Gender, MaritalStatus, SalaryBasis,
+  EmploymentType,
+  EmploymentStatus,
+  Gender,
+  MaritalStatus,
+  SalaryBasis,
 } from '@common/enums';
 
 export class CreateEmployeeDto {
@@ -123,12 +138,18 @@ export class CreateEmployeeDto {
   @IsDateString()
   confirmationDate?: string;
 
-  @ApiPropertyOptional({ enum: EmploymentType, default: EmploymentType.FULL_TIME })
+  @ApiPropertyOptional({
+    enum: EmploymentType,
+    default: EmploymentType.FULL_TIME,
+  })
   @IsOptional()
   @IsEnum(EmploymentType)
   employmentType?: EmploymentType;
 
-  @ApiPropertyOptional({ enum: EmploymentStatus, default: EmploymentStatus.PROBATION })
+  @ApiPropertyOptional({
+    enum: EmploymentStatus,
+    default: EmploymentStatus.PROBATION,
+  })
   @IsOptional()
   @IsEnum(EmploymentStatus)
   employmentStatus?: EmploymentStatus;
@@ -164,4 +185,33 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // ── Login ────────────────────────────────────────────────────────────────
+  // An employee and a user are the same record. Supplying a password gives
+  // this person credentials; omitting it creates a payroll-only record with
+  // no way to sign in. `email` above is required when a password is given.
+
+  @ApiPropertyOptional({
+    example: 'Password123!',
+    description:
+      'Grants this employee a login. Requires email. Omit for staff who never sign in.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  @MaxLength(50)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message:
+      'Password must contain uppercase, lowercase, number, and special character',
+  })
+  password?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Roles to assign. Requires a password.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  roleIds?: string[];
 }

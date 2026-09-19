@@ -1,27 +1,105 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { Employee } from '@entities/tenant/hr/employee.entity';
-import { LeaveRequest } from '@entities/tenant/hr/leave-request.entity';
+import { Role } from '@entities/tenant/role/role.entity';
+import { UserRole } from '@entities/tenant/user/user-role.entity';
 import { LeaveRequestStatus } from '@common/enums';
 import { getNextSequence } from '@common/utils/sequence.util';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 
+const SALT_ROUNDS = 10;
+
 @Injectable()
 export class EmployeesService {
-  constructor(private readonly tenantConnectionManager: TenantConnectionManager) {}
+  constructor(
+    private readonly tenantConnectionManager: TenantConnectionManager,
+  ) {}
 
   private async getRepo(): Promise<Repository<Employee>> {
     return this.tenantConnectionManager.getRepository(Employee);
   }
 
+  /**
+   * Create a person, optionally with a login and roles.
+   *
+   * Employee and user are one record, so this is the single place a member of
+   * staff comes into existence. Supplying `password` gives them credentials;
+   * `roleIds` then decides what they can do. The whole thing is one
+   * transaction, so a bad role id cannot leave a half-created employee who
+   * can sign in but has no permissions.
+   */
   async create(dto: CreateEmployeeDto, createdBy?: string): Promise<Employee> {
+    const { password, roleIds, ...employeeData } = dto;
+
+    if (password && !dto.email) {
+      throw new BadRequestException(
+        'An email address is required to give an employee a login',
+      );
+    }
+    if (roleIds?.length && !password) {
+      throw new BadRequestException(
+        'Roles can only be assigned to an employee who has a login',
+      );
+    }
+
     const dataSource = await this.tenantConnectionManager.getDataSource();
+
+    if (dto.email) {
+      const clash = await dataSource
+        .getRepository(Employee)
+        .findOne({ where: { email: dto.email }, withDeleted: true });
+      if (clash) {
+        throw new BadRequestException(`Email ${dto.email} is already in use`);
+      }
+    }
+
+    if (roleIds?.length) {
+      const found = await dataSource
+        .getRepository(Role)
+        .createQueryBuilder('r')
+        .where('r.id IN (:...ids)', { ids: roleIds })
+        .getCount();
+      if (found !== roleIds.length) {
+        throw new BadRequestException('One or more role IDs are invalid');
+      }
+    }
+
     const employeeCode = await getNextSequence(dataSource, 'EMPLOYEE');
-    const repo = dataSource.getRepository(Employee);
-    const employee = repo.create({ ...dto, employeeCode, createdBy });
-    return repo.save(employee);
+    const passwordHash = password
+      ? await bcrypt.hash(password, SALT_ROUNDS)
+      : undefined;
+
+    return dataSource.transaction(async (manager) => {
+      const employee = manager.getRepository(Employee).create({
+        ...employeeData,
+        employeeCode,
+        passwordHash,
+        createdBy,
+      });
+      const saved = await manager.getRepository(Employee).save(employee);
+
+      if (roleIds?.length) {
+        const userRoleRepo = manager.getRepository(UserRole);
+        await userRoleRepo.save(
+          roleIds.map((roleId) =>
+            userRoleRepo.create({
+              userId: saved.id,
+              roleId,
+              assignedBy: createdBy,
+            }),
+          ),
+        );
+      }
+
+      return saved;
+    });
   }
 
   async findAll(params: {
@@ -32,9 +110,17 @@ export class EmployeesService {
     page?: number;
     limit?: number;
   }): Promise<{ data: Employee[]; total: number }> {
-    const { search, departmentId, designationId, employmentStatus, page = 1, limit = 20 } = params;
+    const {
+      search,
+      departmentId,
+      designationId,
+      employmentStatus,
+      page = 1,
+      limit = 20,
+    } = params;
     const repo = await this.getRepo();
-    const qb = repo.createQueryBuilder('e')
+    const qb = repo
+      .createQueryBuilder('e')
       .leftJoinAndSelect('e.department', 'dept')
       .leftJoinAndSelect('e.designation', 'desig')
       .where('e.deleted_at IS NULL');
@@ -45,9 +131,14 @@ export class EmployeesService {
         { s: `%${search}%` },
       );
     }
-    if (departmentId) qb.andWhere('e.departmentId = :departmentId', { departmentId });
-    if (designationId) qb.andWhere('e.designationId = :designationId', { designationId });
-    if (employmentStatus) qb.andWhere('e.employmentStatus = :employmentStatus', { employmentStatus });
+    if (departmentId)
+      qb.andWhere('e.departmentId = :departmentId', { departmentId });
+    if (designationId)
+      qb.andWhere('e.designationId = :designationId', { designationId });
+    if (employmentStatus)
+      qb.andWhere('e.employmentStatus = :employmentStatus', {
+        employmentStatus,
+      });
 
     const total = await qb.getCount();
     const data = await qb
@@ -85,7 +176,14 @@ export class EmployeesService {
   async getLeaveBalance(
     employeeId: string,
     year: number,
-  ): Promise<Array<{ leaveTypeId: string; leaveTypeName: string; used: number; maxDays: number }>> {
+  ): Promise<
+    Array<{
+      leaveTypeId: string;
+      leaveTypeName: string;
+      used: number;
+      maxDays: number;
+    }>
+  > {
     const dataSource = await this.tenantConnectionManager.getDataSource();
     const rows: any[] = await dataSource.query(
       `SELECT lt.id AS leaveTypeId, lt.name AS leaveTypeName,
@@ -107,7 +205,8 @@ export class EmployeesService {
       leaveTypeName: r.leaveTypeName,
       maxDays: Number(r.maxDays),
       used: Number(r.used),
-      remaining: Number(r.maxDays) === 0 ? null : Number(r.maxDays) - Number(r.used),
+      remaining:
+        Number(r.maxDays) === 0 ? null : Number(r.maxDays) - Number(r.used),
     }));
   }
 }

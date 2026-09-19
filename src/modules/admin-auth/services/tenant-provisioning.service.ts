@@ -133,33 +133,69 @@ export class TenantProvisioningService {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
-      // users (entity: User -> 'users')
+      // hr_employees (entity: Employee -> 'hr_employees')
+      //
+      // This is the identity table: a person's HR record and their login are
+      // one row. It is created here, ahead of every table that references it.
+      // The department/designation/reporting foreign keys are added by ALTER
+      // further down, once hr_departments and hr_designations exist.
       await queryRunner.query(`
-        CREATE TABLE IF NOT EXISTS \`users\` (
-          \`id\` CHAR(36) NOT NULL,
-          \`employee_code\` VARCHAR(50) NULL,
-          \`email\` VARCHAR(255) NOT NULL,
-          \`password_hash\` VARCHAR(255) NOT NULL,
-          \`first_name\` VARCHAR(100) NOT NULL,
-          \`last_name\` VARCHAR(100) NULL,
-          \`phone\` VARCHAR(50) NULL,
-          \`avatar_url\` VARCHAR(500) NULL,
-          \`is_active\` TINYINT(1) DEFAULT 1,
-          \`is_email_verified\` TINYINT(1) DEFAULT 0,
-          \`email_verified_at\` TIMESTAMP NULL,
-          \`last_login_at\` TIMESTAMP NULL,
-          \`last_login_ip\` VARCHAR(45) NULL,
-          \`password_changed_at\` TIMESTAMP NULL,
-          \`failed_login_attempts\` INT DEFAULT 0,
-          \`locked_until\` TIMESTAMP NULL,
-          \`created_by\` CHAR(36) NULL,
-          \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-          \`updated_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-          \`deleted_at\` DATETIME(6) NULL,
+        CREATE TABLE IF NOT EXISTS \`hr_employees\` (
+          \`id\`                      CHAR(36)      NOT NULL,
+          \`employee_code\`           VARCHAR(50)   NOT NULL,
+          \`first_name\`              VARCHAR(100)  NOT NULL,
+          \`last_name\`               VARCHAR(100)  NULL,
+          \`email\`                   VARCHAR(255)  NULL,
+          \`phone\`                   VARCHAR(50)   NULL,
+
+          -- Authentication, merged in from the former users table.
+          -- Nullable: staff who are paid but never sign in have no credentials.
+          \`password_hash\`           VARCHAR(255)  NULL,
+          \`is_email_verified\`       TINYINT(1)    NOT NULL DEFAULT 0,
+          \`email_verified_at\`       TIMESTAMP     NULL,
+          \`last_login_at\`           TIMESTAMP     NULL,
+          \`last_login_ip\`           VARCHAR(45)   NULL,
+          \`password_changed_at\`     TIMESTAMP     NULL,
+          \`failed_login_attempts\`   INT           NOT NULL DEFAULT 0,
+          \`locked_until\`            TIMESTAMP     NULL,
+
+          \`date_of_birth\`           DATE          NULL,
+          \`gender\`                  ENUM('MALE','FEMALE','OTHER') NULL,
+          \`marital_status\`          ENUM('SINGLE','MARRIED','DIVORCED','WIDOWED') NULL,
+          \`national_id\`             VARCHAR(100)  NULL,
+          \`address_line1\`           VARCHAR(255)  NULL,
+          \`address_line2\`           VARCHAR(255)  NULL,
+          \`city\`                    VARCHAR(100)  NULL,
+          \`state\`                   VARCHAR(100)  NULL,
+          \`country\`                 VARCHAR(100)  NULL,
+          \`postal_code\`             VARCHAR(20)   NULL,
+          \`emergency_contact_name\`  VARCHAR(100)  NULL,
+          \`emergency_contact_phone\` VARCHAR(50)   NULL,
+          \`department_id\`           CHAR(36)      NULL,
+          \`designation_id\`          CHAR(36)      NULL,
+          \`reporting_to\`            CHAR(36)      NULL,
+          \`hire_date\`               DATE          NULL,
+          \`confirmation_date\`       DATE          NULL,
+          \`resign_date\`             DATE          NULL,
+          \`termination_date\`        DATE          NULL,
+          \`employment_type\`         ENUM('FULL_TIME','PART_TIME','CONTRACT','INTERNSHIP') NOT NULL DEFAULT 'FULL_TIME',
+          \`employment_status\`       ENUM('ACTIVE','INACTIVE','PROBATION','ON_LEAVE','TERMINATED','RESIGNED') NOT NULL DEFAULT 'PROBATION',
+          \`salary_basis\`            ENUM('MONTHLY','DAILY','HOURLY') NOT NULL DEFAULT 'MONTHLY',
+          \`basic_salary\`            DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`bank_name\`               VARCHAR(200)  NULL,
+          \`bank_account_number\`     VARCHAR(100)  NULL,
+          \`bank_branch\`             VARCHAR(200)  NULL,
+          \`profile_photo_url\`       VARCHAR(500)  NULL,
+          \`notes\`                   TEXT          NULL,
+          \`is_active\`               TINYINT(1)    NOT NULL DEFAULT 1,
+          \`created_by\`              CHAR(36)      NULL,
+          \`created_at\`              DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\`              DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          \`deleted_at\`              DATETIME(6)   NULL,
           PRIMARY KEY (\`id\`),
-          UNIQUE KEY \`uk_user_email\` (\`email\`),
-          UNIQUE KEY \`uk_employee_code\` (\`employee_code\`),
-          INDEX \`idx_user_active\` (\`is_active\`)
+          UNIQUE KEY \`uk_emp_code\`  (\`employee_code\`),
+          UNIQUE KEY \`uk_emp_email\` (\`email\`),
+          INDEX \`idx_emp_active\` (\`is_active\`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
@@ -182,7 +218,7 @@ export class TenantProvisioningService {
           \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
           PRIMARY KEY (\`id\`),
           INDEX \`idx_session_user\` (\`user_id\`),
-          CONSTRAINT \`fk_session_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_session_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`hr_employees\` (\`id\`) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
@@ -226,7 +262,7 @@ export class TenantProvisioningService {
           \`assigned_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
           PRIMARY KEY (\`id\`),
           UNIQUE KEY \`uk_user_role\` (\`user_id\`, \`role_id\`),
-          CONSTRAINT \`fk_user_role_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_user_role_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`hr_employees\` (\`id\`) ON DELETE CASCADE,
           CONSTRAINT \`fk_user_role_role\` FOREIGN KEY (\`role_id\`) REFERENCES \`roles\` (\`id\`) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
@@ -1146,8 +1182,8 @@ export class TenantProvisioningService {
           INDEX \`idx_quotation_date\` (\`quotation_date\`),
           CONSTRAINT \`fk_quotation_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`),
           CONSTRAINT \`fk_quotation_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
-          CONSTRAINT \`fk_quotation_salesperson\` FOREIGN KEY (\`sales_person_id\`) REFERENCES \`users\` (\`id\`) ON DELETE SET NULL,
-          CONSTRAINT \`fk_quotation_createdby\` FOREIGN KEY (\`created_by\`) REFERENCES \`users\` (\`id\`) ON DELETE SET NULL
+          CONSTRAINT \`fk_quotation_salesperson\` FOREIGN KEY (\`sales_person_id\`) REFERENCES \`hr_employees\` (\`id\`) ON DELETE SET NULL,
+          CONSTRAINT \`fk_quotation_createdby\` FOREIGN KEY (\`created_by\`) REFERENCES \`hr_employees\` (\`id\`) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
@@ -2661,7 +2697,7 @@ export class TenantProvisioningService {
           INDEX \`idx_ps_store\` (\`store_id\`),
           CONSTRAINT \`fk_ps_store\` FOREIGN KEY (\`store_id\`) REFERENCES \`stores\` (\`id\`),
           CONSTRAINT \`fk_ps_terminal\` FOREIGN KEY (\`terminal_id\`) REFERENCES \`pos_terminals\` (\`id\`),
-          CONSTRAINT \`fk_ps_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`)
+          CONSTRAINT \`fk_ps_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`hr_employees\` (\`id\`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
@@ -3458,44 +3494,14 @@ export class TenantProvisioningService {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
+      // hr_employees exists already (created with the core tables, because the
+      // session and role tables key off it). Now that hr_departments and
+      // hr_designations exist, attach its foreign keys.
       await queryRunner.query(`
-        CREATE TABLE IF NOT EXISTS \`hr_employees\` (
-          \`id\`                      CHAR(36)      NOT NULL,
-          \`employee_code\`           VARCHAR(30)   NOT NULL,
-          \`first_name\`              VARCHAR(50)   NOT NULL,
-          \`last_name\`               VARCHAR(50)   NOT NULL,
-          \`email\`                   VARCHAR(150)  NULL,
-          \`phone\`                   VARCHAR(20)   NULL,
-          \`date_of_birth\`           DATE          NULL,
-          \`gender\`                  ENUM('MALE','FEMALE','OTHER') NULL,
-          \`marital_status\`          ENUM('SINGLE','MARRIED','DIVORCED','WIDOWED') NULL,
-          \`national_id\`             VARCHAR(50)   NULL,
-          \`address\`                 TEXT          NULL,
-          \`hire_date\`               DATE          NOT NULL,
-          \`employment_type\`         ENUM('FULL_TIME','PART_TIME','CONTRACT','INTERNSHIP') NOT NULL DEFAULT 'FULL_TIME',
-          \`employment_status\`       ENUM('ACTIVE','INACTIVE','ON_LEAVE','TERMINATED','RESIGNED') NOT NULL DEFAULT 'ACTIVE',
-          \`department_id\`           CHAR(36)      NULL,
-          \`designation_id\`          CHAR(36)      NULL,
-          \`reporting_to_id\`         CHAR(36)      NULL,
-          \`basic_salary\`            DECIMAL(15,2) NOT NULL DEFAULT 0,
-          \`salary_basis\`            ENUM('MONTHLY','DAILY','HOURLY') NOT NULL DEFAULT 'MONTHLY',
-          \`bank_name\`               VARCHAR(100)  NULL,
-          \`bank_account_number\`     VARCHAR(50)   NULL,
-          \`emergency_contact_name\`  VARCHAR(100)  NULL,
-          \`emergency_contact_phone\` VARCHAR(20)   NULL,
-          \`notes\`                   TEXT          NULL,
-          \`is_active\`               TINYINT(1)    NOT NULL DEFAULT 1,
-          \`created_by\`              CHAR(36)      NULL,
-          \`created_at\`              DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-          \`updated_at\`              DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-          \`deleted_at\`              DATETIME(6)   NULL,
-          PRIMARY KEY (\`id\`),
-          UNIQUE KEY \`uk_emp_code\`  (\`employee_code\`),
-          UNIQUE KEY \`uk_emp_email\` (\`email\`),
-          CONSTRAINT \`fk_emp_dept\`   FOREIGN KEY (\`department_id\`)  REFERENCES \`hr_departments\`  (\`id\`) ON DELETE SET NULL,
-          CONSTRAINT \`fk_emp_desig\`  FOREIGN KEY (\`designation_id\`) REFERENCES \`hr_designations\` (\`id\`) ON DELETE SET NULL,
-          CONSTRAINT \`fk_emp_report\` FOREIGN KEY (\`reporting_to_id\`) REFERENCES \`hr_employees\`   (\`id\`) ON DELETE SET NULL
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ALTER TABLE \`hr_employees\`
+          ADD CONSTRAINT \`fk_emp_dept\`   FOREIGN KEY (\`department_id\`)  REFERENCES \`hr_departments\`  (\`id\`) ON DELETE SET NULL,
+          ADD CONSTRAINT \`fk_emp_desig\`  FOREIGN KEY (\`designation_id\`) REFERENCES \`hr_designations\` (\`id\`) ON DELETE SET NULL,
+          ADD CONSTRAINT \`fk_emp_report\` FOREIGN KEY (\`reporting_to\`)   REFERENCES \`hr_employees\`    (\`id\`) ON DELETE SET NULL
       `);
 
       await queryRunner.query(`
@@ -3782,7 +3788,7 @@ export class TenantProvisioningService {
         ['hr_designations', 'idx_hrdes_department', 'department_id'],
         ['hr_employees', 'idx_hre_department', 'department_id'],
         ['hr_employees', 'idx_hre_designation', 'designation_id'],
-        ['hr_employees', 'idx_hre_reporting_to', 'reporting_to_id'],
+        ['hr_employees', 'idx_hre_reporting_to', 'reporting_to'],
         ['hr_leave_requests', 'idx_hrlr_employee', 'employee_id'],
         ['hr_leave_requests', 'idx_hrlr_leave_type', 'leave_type_id'],
         ['hr_payroll_components', 'idx_hrpc_payroll', 'payroll_id'],
