@@ -1,5 +1,21 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { PayrollService } from './payroll.service';
 import { CreatePayrollDto } from './dto/create-payroll.dto';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
@@ -37,7 +53,14 @@ export class PayrollController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.service.findAll({ employeeId, month, year, status, page, limit });
+    return this.service.findAll({
+      employeeId,
+      month,
+      year,
+      status,
+      page,
+      limit,
+    });
   }
 
   @Get(':id')
@@ -51,7 +74,10 @@ export class PayrollController {
   @Permissions('hr.payroll.approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Approve payroll' })
-  approve(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
+  approve(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
     return this.service.approve(id, user.sub);
   }
 
@@ -61,9 +87,10 @@ export class PayrollController {
   @ApiOperation({ summary: 'Mark payroll as paid' })
   markPaid(
     @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
     @Query('paymentDate') paymentDate?: string,
   ) {
-    return this.service.markPaid(id, paymentDate);
+    return this.service.markPaid(id, user.sub, paymentDate);
   }
 
   @Delete(':id')

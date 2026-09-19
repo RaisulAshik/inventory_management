@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Repository, DataSource, DeepPartial } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -433,80 +434,120 @@ export class PurchaseOrdersService {
   }
 
   /**
-   * Submit for approval
+   * Submit for approval.
+   *
+   * Note this does NOT record an approver. It used to set `approvedBy` to the
+   * submitter, so an order sitting in PENDING_APPROVAL already looked
+   * approved, and a rejected order kept that name forever.
    */
-  async submitForApproval(
-    id: string,
-    approvalId: string,
-    userId: string,
-  ): Promise<PurchaseOrder> {
-    const poRepo = await this.getPurchaseOrderRepository();
-    const po = await this.findById(id);
+  async submitForApproval(id: string, userId: string): Promise<PurchaseOrder> {
+    const dataSource = await this.tenantConnectionManager.getDataSource();
 
-    if (po.status !== PurchaseOrderStatus.DRAFT) {
-      throw new BadRequestException(
-        'Only draft orders can be submitted for approval',
-      );
-    }
+    await dataSource.transaction(async (manager) => {
+      const po = await manager.getRepository(PurchaseOrder).findOne({
+        where: { id },
+        relations: ['items'],
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!po) throw new NotFoundException(`Purchase order ${id} not found`);
 
-    if (!po.items || po.items.length === 0) {
-      throw new BadRequestException(
-        'Purchase order must have at least one item',
-      );
-    }
+      if (po.status !== PurchaseOrderStatus.DRAFT) {
+        throw new BadRequestException(
+          'Only draft orders can be submitted for approval',
+        );
+      }
+      if (!po.items || po.items.length === 0) {
+        throw new BadRequestException(
+          'Purchase order must have at least one item',
+        );
+      }
 
-    po.approvedBy = userId;
-    po.status = PurchaseOrderStatus.PENDING_APPROVAL;
-    await poRepo.save(po);
+      po.status = PurchaseOrderStatus.PENDING_APPROVAL;
+      if (!po.createdBy) po.createdBy = userId;
+
+      await manager.getRepository(PurchaseOrder).save(po);
+    });
 
     return this.findById(id);
   }
 
   /**
-   * Approve purchase order
+   * Approve a purchase order.
+   *
+   * Locked for the duration so two approvers cannot both read
+   * PENDING_APPROVAL and both write APPROVED.
    */
-  async approve(
-    id: string,
-    approverId: string,
-    approvedBy: string,
-  ): Promise<PurchaseOrder> {
-    const poRepo = await this.getPurchaseOrderRepository();
-    const po = await this.findById(id);
+  async approve(id: string, approvedBy: string): Promise<PurchaseOrder> {
+    const dataSource = await this.tenantConnectionManager.getDataSource();
 
-    if (po.status !== PurchaseOrderStatus.PENDING_APPROVAL) {
-      throw new BadRequestException(
-        'Only pending approval orders can be approved',
-      );
-    }
+    await dataSource.transaction(async (manager) => {
+      const po = await manager.getRepository(PurchaseOrder).findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!po) throw new NotFoundException(`Purchase order ${id} not found`);
 
-    po.status = PurchaseOrderStatus.APPROVED;
-    po.approvedBy = approvedBy;
-    po.approvedAt = new Date();
-    await poRepo.save(po);
+      if (po.status !== PurchaseOrderStatus.PENDING_APPROVAL) {
+        throw new BadRequestException(
+          'Only pending approval orders can be approved',
+        );
+      }
+      if (po.createdBy && po.createdBy === approvedBy) {
+        throw new ForbiddenException(
+          'You cannot approve a purchase order you raised',
+        );
+      }
+
+      po.status = PurchaseOrderStatus.APPROVED;
+      po.approvedBy = approvedBy;
+      po.approvedAt = new Date();
+
+      await manager.getRepository(PurchaseOrder).save(po);
+    });
 
     return this.findById(id);
   }
 
   /**
-   * Reject purchase order
+   * Reject a purchase order.
+   *
+   * The reason goes to `cancellationReason`, not `notes` — writing it to
+   * `notes` destroyed whatever the buyer had written there. PurchaseOrderStatus
+   * has no REJECTED member, so a rejected order is CANCELLED with the reason
+   * marked; adding a distinct status needs a migration for the column's enum.
    */
   async reject(
     id: string,
     rejectedBy: string,
     reason: string,
   ): Promise<PurchaseOrder> {
-    const poRepo = await this.getPurchaseOrderRepository();
-    const po = await this.findById(id);
+    const dataSource = await this.tenantConnectionManager.getDataSource();
 
-    if (po.status !== PurchaseOrderStatus.PENDING_APPROVAL) {
-      throw new BadRequestException(
-        'Only pending approval orders can be rejected',
-      );
-    }
+    await dataSource.transaction(async (manager) => {
+      const po = await manager.getRepository(PurchaseOrder).findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!po) throw new NotFoundException(`Purchase order ${id} not found`);
 
-    po.status = PurchaseOrderStatus.CANCELLED;
-    po.notes = `Rejected by: ${rejectedBy}. Reason: ${reason}`;
-    await poRepo.save(po);
+      if (po.status !== PurchaseOrderStatus.PENDING_APPROVAL) {
+        throw new BadRequestException(
+          'Only pending approval orders can be rejected',
+        );
+      }
+      if (po.createdBy && po.createdBy === rejectedBy) {
+        throw new ForbiddenException(
+          'You cannot reject a purchase order you raised',
+        );
+      }
+
+      po.status = PurchaseOrderStatus.CANCELLED;
+      po.cancelledBy = rejectedBy;
+      po.cancelledAt = new Date();
+      po.cancellationReason = `Rejected at approval: ${reason ?? 'no reason given'}`;
+
+      await manager.getRepository(PurchaseOrder).save(po);
+    });
 
     return this.findById(id);
   }

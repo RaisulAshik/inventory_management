@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
 import {
@@ -230,6 +231,10 @@ export class TransfersService {
       throw new BadRequestException('Transfer must have at least one item');
     }
 
+    // Record who put this forward, so approve() has someone to compare against
+    // when refusing self-approval.
+    if (!transfer.createdBy) transfer.createdBy = userId;
+
     transfer.status = TransferStatus.PENDING_APPROVAL;
     await transferRepo.save(transfer);
 
@@ -240,20 +245,36 @@ export class TransfersService {
    * Approve transfer
    */
   async approve(id: string, approvedBy: string): Promise<WarehouseTransfer> {
-    const transferRepo = await this.getTransferRepository();
+    const dataSource = await this.tenantConnectionManager.getDataSource();
     const transfer = await this.findById(id);
 
     if (transfer.status !== TransferStatus.PENDING_APPROVAL) {
       throw new BadRequestException('Only pending transfers can be approved');
     }
+    if (transfer.createdBy && transfer.createdBy === approvedBy) {
+      throw new ForbiddenException('You cannot approve a transfer you raised');
+    }
 
     // Validate stock availability
     await this.validateStockAvailability(transfer);
 
-    transfer.status = TransferStatus.APPROVED;
-    transfer.approvedBy = approvedBy;
-    transfer.approvedAt = new Date();
-    await transferRepo.save(transfer);
+    // Locked so two approvers cannot both pass the status check above and
+    // both commit an approval.
+    await dataSource.transaction(async (manager) => {
+      const locked = await manager.getRepository(WarehouseTransfer).findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked) throw new NotFoundException(`Transfer ${id} not found`);
+      if (locked.status !== TransferStatus.PENDING_APPROVAL) {
+        throw new BadRequestException('Only pending transfers can be approved');
+      }
+
+      locked.status = TransferStatus.APPROVED;
+      locked.approvedBy = approvedBy;
+      locked.approvedAt = new Date();
+      await manager.getRepository(WarehouseTransfer).save(locked);
+    });
 
     return this.findById(id);
   }

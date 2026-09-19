@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsNotEmpty, IsDateString, IsOptional, IsString } from 'class-validator';
+import {
+  IsUUID,
+  IsNotEmpty,
+  IsDateString,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateLeaveRequestDto {
   @ApiProperty()

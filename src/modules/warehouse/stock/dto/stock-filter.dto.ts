@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsBoolean, IsUUID, IsEnum, IsDateString, IsString, IsIn } from 'class-validator';
+import {
+  IsOptional,
+  IsBoolean,
+  IsUUID,
+  IsEnum,
+  IsDateString,
+  IsString,
+  IsIn,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PaginationDto } from '@common/dto/pagination.dto';
 import { StockMovementType } from '@common/enums';

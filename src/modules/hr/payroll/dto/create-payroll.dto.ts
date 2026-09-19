@@ -1,7 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsUUID, IsNotEmpty, IsInt, Min, Max, IsOptional,
-  IsString, IsNumber, IsDateString, ValidateNested, IsEnum, IsArray,
+  IsUUID,
+  IsNotEmpty,
+  IsInt,
+  Min,
+  Max,
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsDateString,
+  ValidateNested,
+  IsEnum,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PayrollComponentType } from '@common/enums';
@@ -47,17 +57,27 @@ export class CreatePayrollDto {
   @Type(() => Number)
   payrollYear: number;
 
-  @ApiProperty({ example: 26 })
+  @ApiPropertyOptional({
+    example: 26,
+    description:
+      'Defaults to the attendance recorded for the period. Override only to correct it.',
+  })
+  @IsOptional()
   @IsInt()
   @Min(0)
   @Type(() => Number)
-  workingDays: number;
+  workingDays?: number;
 
-  @ApiProperty({ example: 24 })
+  @ApiPropertyOptional({
+    example: 24,
+    description:
+      'Defaults to the attendance recorded for the period. Override only to correct it.',
+  })
+  @IsOptional()
   @IsInt()
   @Min(0)
   @Type(() => Number)
-  presentDays: number;
+  presentDays?: number;
 
   @ApiPropertyOptional({ example: 2 })
   @IsOptional()
@@ -80,7 +100,9 @@ export class CreatePayrollDto {
   @Type(() => Number)
   overtimeHours?: number;
 
-  @ApiPropertyOptional({ description: 'Additional earning/deduction components' })
+  @ApiPropertyOptional({
+    description: 'Additional earning/deduction components',
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

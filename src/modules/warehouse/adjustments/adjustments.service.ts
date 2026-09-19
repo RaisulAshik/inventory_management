@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
 import {
@@ -224,6 +225,10 @@ export class AdjustmentsService {
       throw new BadRequestException('Adjustment must have at least one item');
     }
 
+    // Record who put this forward, so approve() has someone to compare against
+    // when refusing self-approval.
+    if (!adjustment.createdBy) adjustment.createdBy = userId;
+
     // Calculate total value impact
     let totalValueImpact = 0;
     for (const item of adjustment.items) {
@@ -247,6 +252,11 @@ export class AdjustmentsService {
 
     if (adjustment.status !== AdjustmentStatus.PENDING_APPROVAL) {
       throw new BadRequestException('Only pending adjustments can be approved');
+    }
+    if (adjustment.createdBy && adjustment.createdBy === approvedBy) {
+      throw new ForbiddenException(
+        'You cannot approve a stock adjustment you raised',
+      );
     }
 
     await dataSource.transaction(async (manager) => {

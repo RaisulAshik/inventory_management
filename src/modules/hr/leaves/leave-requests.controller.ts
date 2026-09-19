@@ -1,5 +1,22 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { LeaveRequestsService } from './leave-requests.service';
 import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import { ApproveLeaveRequestDto } from './dto/approve-leave-request.dto';
@@ -50,7 +67,10 @@ export class LeaveRequestsController {
   @Permissions('hr.leave-requests.approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Approve leave request' })
-  approve(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
+  approve(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
     return this.service.approve(id, user.sub);
   }
 
@@ -69,9 +89,20 @@ export class LeaveRequestsController {
   @Post(':id/cancel')
   @Permissions('hr.leave-requests.create')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Cancel leave request' })
-  cancel(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.cancel(id);
+  @ApiOperation({
+    summary: 'Cancel leave request (your own, unless you can approve)',
+  })
+  @ApiResponse({ status: 403, description: 'Not your leave request' })
+  cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    // Holding the approve permission means acting for HR, who may withdraw
+    // anyone's request; everyone else may only withdraw their own.
+    const canManage = (user.permissions ?? []).includes(
+      'hr.leave-requests.approve',
+    );
+    return this.service.cancel(id, user.sub, canManage);
   }
 
   @Delete(':id')

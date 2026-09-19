@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import {
@@ -205,6 +206,8 @@ export class BudgetsService {
     const budget = await this.findOne(id);
     if (budget.status !== BudgetStatus.PENDING_APPROVAL)
       throw new BadRequestException('Only pending budgets can be approved');
+    if (budget.createdBy && budget.createdBy === userId)
+      throw new ForbiddenException('You cannot approve a budget you drafted');
     budget.status = BudgetStatus.APPROVED;
     budget.approvedBy = userId;
     budget.approvedAt = new Date();

@@ -191,12 +191,13 @@ export class PurchaseOrdersController {
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   async submitForApproval(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('approverId') approverId: string,
     @CurrentUser() currentUser: JwtPayload,
   ) {
+    // `approverId` used to be read from the body and then ignored entirely.
+    // There is nowhere to record a designated approver, so it is no longer
+    // accepted rather than silently discarded.
     const po = await this.purchaseOrdersService.submitForApproval(
       id,
-      approverId,
       currentUser.sub,
     );
     return new PurchaseOrderResponseDto(po);
@@ -206,16 +207,15 @@ export class PurchaseOrdersController {
   @Permissions('purchase-orders.approve')
   @ApiOperation({ summary: 'Approve purchase order' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({
+    status: 403,
+    description: 'You raised this purchase order yourself',
+  })
   async approve(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('approverId') approverId: string,
     @CurrentUser() currentUser: JwtPayload,
   ) {
-    const po = await this.purchaseOrdersService.approve(
-      id,
-      approverId,
-      currentUser.sub,
-    );
+    const po = await this.purchaseOrdersService.approve(id, currentUser.sub);
     return new PurchaseOrderResponseDto(po);
   }
 

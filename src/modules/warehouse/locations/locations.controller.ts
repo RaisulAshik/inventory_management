@@ -64,9 +64,7 @@ export class LocationsController {
   @Permissions('locations.read')
   @ApiOperation({ summary: 'Get all locations with filters and pagination' })
   @ApiPaginatedResponse(LocationResponseDto)
-  async findAll(
-    @Query() filterDto: LocationFilterDto,
-  ) {
+  async findAll(@Query() filterDto: LocationFilterDto) {
     const result = await this.locationsService.findAll(filterDto);
     return {
       data: result.data.map((loc) => new LocationResponseDto(loc)),

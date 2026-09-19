@@ -58,9 +58,7 @@ export class AdjustmentsController {
   @Permissions('adjustments.read')
   @ApiOperation({ summary: 'Get all adjustments with filters and pagination' })
   @ApiPaginatedResponse(AdjustmentResponseDto)
-  async findAll(
-    @Query() filterDto: AdjustmentFilterDto,
-  ) {
+  async findAll(@Query() filterDto: AdjustmentFilterDto) {
     const result = await this.adjustmentsService.findAll(filterDto);
     return {
       data: result.data.map((a) => new AdjustmentResponseDto(a)),

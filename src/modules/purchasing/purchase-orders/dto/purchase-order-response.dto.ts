@@ -215,7 +215,8 @@ export class PurchaseOrderResponseDto {
         variantId: item.variantId,
         quantityOrdered: Number(item.quantityOrdered),
         // Entity field is quantityReceived (updated on GRN approval)
-        receivedQuantity: Number(item.quantityReceived ?? item.receivedQuantity) || 0,
+        receivedQuantity:
+          Number(item.quantityReceived ?? item.receivedQuantity) || 0,
         pendingQuantity:
           Number(item.quantityOrdered) -
           (Number(item.quantityReceived ?? item.receivedQuantity) || 0),
@@ -390,7 +391,8 @@ export class PurchaseOrderDetailResponseDto {
         variantId: item.variantId,
         quantityOrdered: Number(item.quantityOrdered),
         // Entity field is quantityReceived (updated on GRN approval)
-        receivedQuantity: Number(item.quantityReceived ?? item.receivedQuantity) || 0,
+        receivedQuantity:
+          Number(item.quantityReceived ?? item.receivedQuantity) || 0,
         pendingQuantity:
           Number(item.quantityOrdered) -
           (Number(item.quantityReceived ?? item.receivedQuantity) || 0),

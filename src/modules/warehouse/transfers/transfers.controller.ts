@@ -59,9 +59,7 @@ export class TransfersController {
   @Permissions('transfers.read')
   @ApiOperation({ summary: 'Get all transfers with filters and pagination' })
   @ApiPaginatedResponse(TransferResponseDto)
-  async findAll(
-    @Query() filterDto: TransferFilterDto,
-  ) {
+  async findAll(@Query() filterDto: TransferFilterDto) {
     const result = await this.transfersService.findAll(filterDto);
     return {
       data: result.data.map((t) => new TransferResponseDto(t)),

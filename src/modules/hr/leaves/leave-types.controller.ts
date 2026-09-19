@@ -1,5 +1,20 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseUUIDPipe } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseUUIDPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { LeaveTypesService } from './leave-types.service';
 import { CreateLeaveTypeDto } from './dto/create-leave-type.dto';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
@@ -38,7 +53,10 @@ export class LeaveTypesController {
   @Patch(':id')
   @Permissions('hr.leave-types.update')
   @ApiOperation({ summary: 'Update leave type' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: Partial<CreateLeaveTypeDto> & { isActive?: boolean }) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: Partial<CreateLeaveTypeDto> & { isActive?: boolean },
+  ) {
     return this.service.update(id, dto);
   }
 

@@ -23,7 +23,12 @@ import { PaginationDto } from '@common/dto/pagination.dto';
 import { Permissions } from '@common/decorators/permissions.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
-import { StockFilterDto, StockMovementFilterDto, ExportStockFilterDto, ExportMovementFilterDto } from './dto/stock-filter.dto';
+import {
+  StockFilterDto,
+  StockMovementFilterDto,
+  ExportStockFilterDto,
+  ExportMovementFilterDto,
+} from './dto/stock-filter.dto';
 import { StockMovementDto } from './dto/stock-movement.dto';
 
 @ApiTags('Stock')
