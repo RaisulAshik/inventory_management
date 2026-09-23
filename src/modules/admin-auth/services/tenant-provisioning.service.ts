@@ -37,6 +37,22 @@ export class TenantProvisioningService {
    * Create a new tenant database
    * @param databaseName - Name of the database to create
    */
+  /**
+   * The one place a tenant database name is derived.
+   *
+   * Two call sites used to build this independently — `erp_tenant_<code>` in
+   * admin registration and `tenant_<code>` in the master API — so a tenant
+   * created through the master API recorded a database name that provisioning
+   * would never have created. Non-alphanumerics are folded to underscores
+   * because they are legal in a tenant code but awkward in a schema name.
+   */
+  static databaseNameFor(tenantCode: string): string {
+    const slug = tenantCode.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    return `${TenantProvisioningService.DATABASE_PREFIX}${slug}`;
+  }
+
+  static readonly DATABASE_PREFIX = 'erp_tenant_';
+
   async createTenantDatabase(databaseName: string): Promise<void> {
     this.logger.log(`Creating tenant database: ${databaseName}`);
 

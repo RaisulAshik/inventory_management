@@ -87,7 +87,9 @@ export class TenantsService {
     }
 
     // Generate database name
-    const databaseName = `tenant_${createTenantDto.tenantCode.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    const databaseName = TenantProvisioningService.databaseNameFor(
+      createTenantDto.tenantCode,
+    );
 
     // Create tenant
     const tenant = this.tenantRepository.create({
@@ -185,16 +187,13 @@ export class TenantsService {
       throw new BadRequestException('Database is already provisioned');
     }
 
-    // Here you would typically:
-    // 1. Create the database
-    // 2. Run migrations
-    // 3. Seed initial data
-    // For now, we'll just update the status
-
-    // In production, you'd execute SQL like:
-    // CREATE DATABASE IF NOT EXISTS ${tenantDb.databaseName};
-    // CREATE USER '${tenantDb.username}'@'%' IDENTIFIED BY '${generatedPassword}';
-    // GRANT ALL PRIVILEGES ON ${tenantDb.databaseName}.* TO '${tenantDb.username}'@'%';
+    // Actually create the schema. This used to only flip the flags below, so
+    // the endpoint reported "Database provisioned successfully" while no
+    // database and no tables existed — every request for that tenant then
+    // failed with "unknown database". provisionTenant creates the schema and
+    // runs the full table build and seed, the same path admin registration
+    // uses.
+    await this.tenantProvisioningService.provisionTenant(tenantDb.databaseName);
 
     tenantDb.isProvisioned = true;
     tenantDb.isActive = true;

@@ -299,7 +299,9 @@ export class AdminAuthService {
     }
 
     // Generate database name
-    const databaseName = `erp_tenant_${registerDto.tenantCode.toLowerCase()}`;
+    const databaseName = TenantProvisioningService.databaseNameFor(
+      registerDto.tenantCode,
+    );
 
     try {
       // Step 1: Create tenant record
