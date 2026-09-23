@@ -1062,8 +1062,12 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
     'customers.update',
     'dashboard.view',
     'orders.create',
+    'orders.payment',
     'orders.read',
     'orders.update',
+    // payments.* is the legacy spelling and no controller checks it. The
+    // enforced code for recording a payment against a sales order is
+    // orders.payment, above; without it this role could not take payment.
     'payments.create',
     'payments.read',
     'products.read',
