@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@database/database.module';
+import { UsersModule } from '@modules/users/users.module';
 
 import { DepartmentsController } from './departments/departments.controller';
 import { DepartmentsService } from './departments/departments.service';
@@ -23,7 +24,9 @@ import { PayrollController } from './payroll/payroll.controller';
 import { PayrollService } from './payroll/payroll.service';
 
 @Module({
-  imports: [DatabaseModule],
+  // UsersModule: POST /hr/employees can also create a login, which is a
+  // user record in the master database.
+  imports: [DatabaseModule, UsersModule],
   controllers: [
     DepartmentsController,
     DesignationsController,

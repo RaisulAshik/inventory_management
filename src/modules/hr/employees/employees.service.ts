@@ -6,6 +6,8 @@ import {
 import { Repository } from 'typeorm';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { Employee } from '@entities/tenant/hr/employee.entity';
+import { Role } from '@entities/tenant/role/role.entity';
+import { UsersService } from '@modules/users/users.service';
 import { LeaveRequestStatus } from '@common/enums';
 import { getNextSequence } from '@common/utils/sequence.util';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
@@ -15,6 +17,7 @@ import { UpdateEmployeeDto } from './dto/update-employee.dto';
 export class EmployeesService {
   constructor(
     private readonly tenantConnectionManager: TenantConnectionManager,
+    private readonly usersService: UsersService,
   ) {}
 
   private async getRepo(): Promise<Repository<Employee>> {
@@ -22,28 +25,97 @@ export class EmployeesService {
   }
 
   /**
-   * Create an employee.
+   * Create an employee, and optionally a login for them.
    *
-   * This is an HR record only. It grants no access: users live in the master
-   * database and have no relation to employees, so a new starter who also
-   * needs a login gets one separately through POST /users.
+   * The employee is an HR record in this tenant's database. When `password`
+   * is supplied a USER is also created, in the master database, with the
+   * requested roles granted here. The two records are NOT linked — there is
+   * no foreign key and nothing joins them — so this is a convenience for the
+   * "new starter" form, not a relationship.
+   *
+   * They are in different databases, so a single transaction is impossible.
+   * Everything that can be checked is checked before either is written, and
+   * if the login fails afterwards the employee is removed again rather than
+   * left behind half-created.
    */
   async create(dto: CreateEmployeeDto, createdBy?: string): Promise<Employee> {
+    const { password, roleIds, ...employeeData } = dto;
     const dataSource = await this.tenantConnectionManager.getDataSource();
 
+    if (password && !dto.email) {
+      throw new BadRequestException(
+        'An email address is required to create a login',
+      );
+    }
+    if (roleIds?.length && !password) {
+      throw new BadRequestException(
+        'Roles can only be granted alongside a login',
+      );
+    }
+
+    // ── validate before writing anything ──────────────────────────────────
     if (dto.email) {
       const clash = await dataSource
         .getRepository(Employee)
         .findOne({ where: { email: dto.email }, withDeleted: true });
       if (clash) {
-        throw new BadRequestException(`Email ${dto.email} is already in use`);
+        throw new BadRequestException(
+          `Email ${dto.email} is already used by another employee`,
+        );
       }
     }
 
+    if (password) {
+      const existingUser = await this.usersService.findByEmail(dto.email!);
+      if (existingUser) {
+        throw new BadRequestException(
+          `Email ${dto.email} already belongs to a user account`,
+        );
+      }
+    }
+
+    if (roleIds?.length) {
+      const found = await dataSource
+        .getRepository(Role)
+        .createQueryBuilder('r')
+        .where('r.id IN (:...ids)', { ids: roleIds })
+        .getCount();
+      if (found !== roleIds.length) {
+        throw new BadRequestException('One or more role IDs are invalid');
+      }
+    }
+
+    // ── write ─────────────────────────────────────────────────────────────
     const employeeCode = await getNextSequence(dataSource, 'EMPLOYEE');
     const repo = dataSource.getRepository(Employee);
-    const employee = repo.create({ ...dto, employeeCode, createdBy });
-    return repo.save(employee);
+    const employee = await repo.save(
+      repo.create({ ...employeeData, employeeCode, createdBy }),
+    );
+
+    if (!password) return employee;
+
+    try {
+      await this.usersService.create(
+        this.tenantConnectionManager.getTenantId()!,
+        {
+          email: dto.email!,
+          password,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          phone: dto.phone,
+          employeeCode,
+          roleIds,
+          createdBy,
+        },
+      );
+    } catch (error) {
+      // The login could not be created, so undo the employee rather than
+      // leave a record the caller did not ask for on its own.
+      await repo.delete(employee.id);
+      throw error;
+    }
+
+    return employee;
   }
 
   async findAll(params: {

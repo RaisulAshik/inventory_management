@@ -185,4 +185,35 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // ── Optional login ───────────────────────────────────────────────────────
+  // Supplying a password also creates a USER, in the master database, so this
+  // person can sign in. That user is a separate record with no link back to
+  // the employee: the two are created together for convenience only, and
+  // deleting or deactivating one does not affect the other.
+
+  @ApiPropertyOptional({
+    example: 'Password123!',
+    description:
+      'Also create a login for this person. Requires email. The login is a separate user record in the master database and is not linked to the employee.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  @MaxLength(50)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message:
+      'Password must contain uppercase, lowercase, number, and special character',
+  })
+  password?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'Roles to grant the new login in this tenant. Requires a password.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  roleIds?: string[];
 }
