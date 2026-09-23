@@ -12,7 +12,9 @@ import { AttendanceStatus } from '@common/enums';
 import { Employee } from './employee.entity';
 
 @Entity('hr_attendance')
-@Index('IDX_ATTENDANCE_EMP_DATE', ['employeeId', 'attendanceDate'], { unique: true })
+@Index('IDX_ATTENDANCE_EMP_DATE', ['employeeId', 'attendanceDate'], {
+  unique: true,
+})
 export class Attendance {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -36,10 +38,22 @@ export class Attendance {
   })
   status: AttendanceStatus;
 
-  @Column({ name: 'work_hours', type: 'decimal', precision: 5, scale: 2, nullable: true })
+  @Column({
+    name: 'work_hours',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: true,
+  })
   workHours: number;
 
-  @Column({ name: 'overtime_hours', type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({
+    name: 'overtime_hours',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 0,
+  })
   overtimeHours: number;
 
   @Column({ name: 'late_minutes', type: 'int', default: 0 })

@@ -14,7 +14,9 @@ import { HrPayrollStatus } from '@common/enums';
 import { Employee } from './employee.entity';
 
 @Entity('hr_payrolls')
-@Index('IDX_PAYROLL_EMP_MONTH', ['employeeId', 'payrollMonth', 'payrollYear'], { unique: true })
+@Index('IDX_PAYROLL_EMP_MONTH', ['employeeId', 'payrollMonth', 'payrollYear'], {
+  unique: true,
+})
 export class HrPayroll {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -46,19 +48,49 @@ export class HrPayroll {
   @Column({ name: 'leave_days', type: 'int', default: 0 })
   leaveDays: number;
 
-  @Column({ name: 'overtime_hours', type: 'decimal', precision: 6, scale: 2, default: 0 })
+  @Column({
+    name: 'overtime_hours',
+    type: 'decimal',
+    precision: 6,
+    scale: 2,
+    default: 0,
+  })
   overtimeHours: number;
 
-  @Column({ name: 'basic_salary', type: 'decimal', precision: 18, scale: 4, default: 0 })
+  @Column({
+    name: 'basic_salary',
+    type: 'decimal',
+    precision: 18,
+    scale: 4,
+    default: 0,
+  })
   basicSalary: number;
 
-  @Column({ name: 'total_earnings', type: 'decimal', precision: 18, scale: 4, default: 0 })
+  @Column({
+    name: 'total_earnings',
+    type: 'decimal',
+    precision: 18,
+    scale: 4,
+    default: 0,
+  })
   totalEarnings: number;
 
-  @Column({ name: 'total_deductions', type: 'decimal', precision: 18, scale: 4, default: 0 })
+  @Column({
+    name: 'total_deductions',
+    type: 'decimal',
+    precision: 18,
+    scale: 4,
+    default: 0,
+  })
   totalDeductions: number;
 
-  @Column({ name: 'net_pay', type: 'decimal', precision: 18, scale: 4, default: 0 })
+  @Column({
+    name: 'net_pay',
+    type: 'decimal',
+    precision: 18,
+    scale: 4,
+    default: 0,
+  })
   netPay: number;
 
   @Column({

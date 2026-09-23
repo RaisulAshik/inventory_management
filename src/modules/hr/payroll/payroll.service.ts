@@ -198,9 +198,7 @@ export class PayrollService {
   /**
    * Approve a payroll run.
    *
-   * Locked for the duration, and an employee cannot approve their own pay.
-   * Employee and user are the same record, so `employeeId` and the approver's
-   * id are directly comparable.
+   * Locked for the duration, and whoever processed the run cannot approve it.
    */
   async approve(id: string, approverId: string): Promise<HrPayroll> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
@@ -217,8 +215,13 @@ export class PayrollService {
           `Cannot approve a payroll with status ${payroll.status}`,
         );
       }
-      if (payroll.employeeId === approverId) {
-        throw new ForbiddenException('You cannot approve your own payroll');
+      // `createdBy` (a master user id), not `employeeId` (a tenant employee
+      // id): users and employees are unrelated records in different databases,
+      // so those two ids could never match.
+      if (payroll.createdBy && payroll.createdBy === approverId) {
+        throw new ForbiddenException(
+          'You cannot approve a payroll run you processed',
+        );
       }
 
       payroll.status = HrPayrollStatus.APPROVED;
@@ -250,8 +253,10 @@ export class PayrollService {
           'Only approved payrolls can be marked as paid',
         );
       }
-      if (payroll.employeeId === paidBy) {
-        throw new ForbiddenException('You cannot pay out your own payroll');
+      if (payroll.createdBy && payroll.createdBy === paidBy) {
+        throw new ForbiddenException(
+          'You cannot pay out a payroll run you processed',
+        );
       }
 
       payroll.status = HrPayrollStatus.PAID;

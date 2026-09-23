@@ -185,33 +185,4 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsString()
   notes?: string;
-
-  // ── Login ────────────────────────────────────────────────────────────────
-  // An employee and a user are the same record. Supplying a password gives
-  // this person credentials; omitting it creates a payroll-only record with
-  // no way to sign in. `email` above is required when a password is given.
-
-  @ApiPropertyOptional({
-    example: 'Password123!',
-    description:
-      'Grants this employee a login. Requires email. Omit for staff who never sign in.',
-  })
-  @IsOptional()
-  @IsString()
-  @MinLength(8)
-  @MaxLength(50)
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
-    message:
-      'Password must contain uppercase, lowercase, number, and special character',
-  })
-  password?: string;
-
-  @ApiPropertyOptional({
-    type: [String],
-    description: 'Roles to assign. Requires a password.',
-  })
-  @IsOptional()
-  @IsArray()
-  @IsUUID('4', { each: true })
-  roleIds?: string[];
 }

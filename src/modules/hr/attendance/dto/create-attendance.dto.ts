@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsNotEmpty, IsDateString, IsEnum, IsOptional, IsString, IsNumber, Min } from 'class-validator';
+import {
+  IsUUID,
+  IsNotEmpty,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsNumber,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { AttendanceStatus } from '@common/enums';
 
@@ -23,7 +32,10 @@ export class CreateAttendanceDto {
   @IsString()
   checkOutTime?: string;
 
-  @ApiPropertyOptional({ enum: AttendanceStatus, default: AttendanceStatus.PRESENT })
+  @ApiPropertyOptional({
+    enum: AttendanceStatus,
+    default: AttendanceStatus.PRESENT,
+  })
   @IsOptional()
   @IsEnum(AttendanceStatus)
   status?: AttendanceStatus;

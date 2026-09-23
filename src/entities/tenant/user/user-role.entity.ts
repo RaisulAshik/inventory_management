@@ -6,22 +6,21 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { Employee } from '../hr/employee.entity';
 import { Role } from '../role/role.entity';
 
 /**
- * Links a person to a role.
+ * Grants a role to a user, within this tenant.
  *
- * The table and its `user_id` column keep their original names, but since the
- * users/employees merge that column holds an `hr_employees` id. Renaming it
- * would mean rewriting raw SQL across the codebase for no functional gain.
+ * `userId` references `tenant_users.id` in the MASTER database, so there is
+ * no foreign key and no relation to load — the two tables live in different
+ * databases. Roles are per tenant; the user they are granted to is not.
  */
 @Entity('user_roles')
 export class UserRole {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  /** An `hr_employees.id`, despite the column name. */
+  /** A master `tenant_users.id`. Not enforceable by a foreign key. */
   @Column({ name: 'user_id' })
   userId: string;
 
@@ -35,12 +34,6 @@ export class UserRole {
   assignedAt: Date;
 
   // Relations
-  @ManyToOne(() => Employee, (employee) => employee.userRoles, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'user_id' })
-  employee: Employee;
-
   @ManyToOne(() => Role, (role) => role.userRoles, {
     onDelete: 'CASCADE',
   })

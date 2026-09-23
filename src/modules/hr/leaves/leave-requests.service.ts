@@ -225,11 +225,13 @@ export class LeaveRequestsService {
         );
       }
 
-      // Employee and user are the same record, so the approver's id and the
-      // subject's id are directly comparable.
-      if (item.employeeId === approverId) {
+      // Compared against `createdBy`, not `employeeId`: users live in the
+      // master database and employees in this one, with no relation between
+      // them, so an employee id and a user id never match. `createdBy` is the
+      // user who submitted the request, which is the meaningful test.
+      if (item.createdBy && item.createdBy === approverId) {
         throw new ForbiddenException(
-          'You cannot decide your own leave request',
+          'You cannot decide a leave request you submitted',
         );
       }
 
@@ -267,9 +269,12 @@ export class LeaveRequestsService {
    * Withdraw a request.
    *
    * `canManage` is true when the caller holds hr.leave-requests.approve;
-   * otherwise they may only cancel a request that is their own. Previously
-   * this took no caller at all, so anyone who could create a leave request
-   * could cancel anybody else's.
+   * otherwise they may only cancel a request they submitted. Previously this
+   * took no caller at all, so anyone who could create a leave request could
+   * cancel anybody else's.
+   *
+   * Ownership is `createdBy` (a master user id), not `employeeId` (a tenant
+   * employee id) — the two are unrelated records.
    */
   async cancel(
     id: string,
@@ -278,9 +283,9 @@ export class LeaveRequestsService {
   ): Promise<LeaveRequest> {
     const item = await this.findOne(id);
 
-    if (!canManage && item.employeeId !== cancelledBy) {
+    if (!canManage && item.createdBy !== cancelledBy) {
       throw new ForbiddenException(
-        'You can only cancel your own leave requests',
+        'You can only cancel leave requests you submitted',
       );
     }
 

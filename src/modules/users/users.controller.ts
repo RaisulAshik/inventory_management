@@ -81,8 +81,11 @@ export class UsersController {
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    // Two reads: the user from master, their roles from this tenant. They
+    // cannot be joined — different databases.
     const user = await this.usersService.findById(id);
-    return new UserResponseDto(user);
+    const roles = await this.usersService.getUserRoles(id);
+    return new UserResponseDto(user, roles);
   }
 
   @Patch(':id')

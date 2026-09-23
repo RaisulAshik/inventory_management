@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 //import { Exclude, Expose, Type } from 'class-transformer';
-import { Employee } from '@entities/tenant/hr/employee.entity';
+import { TenantUser } from '@entities/master/tenant-user.entity';
 
 class RoleDto {
   @ApiProperty()
@@ -53,10 +53,20 @@ export class UserResponseDto {
   @ApiProperty()
   updatedAt: Date;
 
-  @ApiPropertyOptional({ type: [RoleDto] })
-  roles?: RoleDto[];
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'Role codes held in this tenant. Populated only where the caller asked for them.',
+  })
+  roleCodes?: string[];
 
-  constructor(user: Employee) {
+  /**
+   * @param user  the master `tenant_users` record
+   * @param roles role codes read separately from the tenant database. They
+   *              cannot be loaded as a relation: roles are per tenant while
+   *              the user is not, so the two live in different databases.
+   */
+  constructor(user: TenantUser, roles?: string[]) {
     this.id = user.id;
     this.email = user.email;
     this.firstName = user.firstName;
@@ -64,19 +74,12 @@ export class UserResponseDto {
     this.fullName = user.fullName;
     this.employeeCode = user.employeeCode;
     this.phone = user.phone;
-    this.avatarUrl = user.profilePhotoUrl;
+    this.avatarUrl = user.avatarUrl;
     this.isActive = user.isActive;
     this.isEmailVerified = user.isEmailVerified;
-    this.lastLoginAt = user.lastLoginAt;
+    this.lastLoginAt = user.lastLoginAt ?? undefined;
     this.createdAt = user.createdAt;
     this.updatedAt = user.updatedAt;
-
-    if (user.userRoles) {
-      this.roles = user.userRoles.map((ur: any) => ({
-        id: ur.role.id,
-        roleCode: ur.role.roleCode,
-        roleName: ur.role.roleName,
-      }));
-    }
+    this.roleCodes = roles;
   }
 }

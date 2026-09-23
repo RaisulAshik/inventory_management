@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'node:crypto';
 import { UsersService } from '@modules/users/users.service';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { Employee } from '@entities/tenant/hr/employee.entity';
+import { TenantUser } from '@entities/master/tenant-user.entity';
 import { UserSession } from '@entities/tenant/user/user-session.entity';
 import { JwtPayload } from '@common/interfaces';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -30,7 +30,10 @@ export class AuthService {
   /**
    * Validate user credentials
    */
-  async validateUser(email: string, password: string): Promise<Employee | null> {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<TenantUser | null> {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
@@ -79,7 +82,7 @@ export class AuthService {
     const permissions = await this.usersService.getUserPermissions(user.id);
 
     // Generate tokens
-    const tokens = await this.generateTokens(user, roles, permissions);
+    const tokens = this.generateTokens(user, roles, permissions);
     // Create session
     await this.createSession(
       user.id,
@@ -175,7 +178,7 @@ export class AuthService {
       const permissions = await this.usersService.getUserPermissions(user.id);
 
       // Generate new tokens
-      const tokens = await this.generateTokens(user, roles, permissions);
+      const tokens = this.generateTokens(user, roles, permissions);
 
       // Update session
       session.tokenHash = this.hashToken(tokens.accessToken);
@@ -265,8 +268,10 @@ export class AuthService {
   /**
    * Generate access and refresh tokens
    */
-  private async generateTokens(
-    user: Employee,
+  // Not async: jwtService.sign is synchronous. Callers still await it, which
+  // is harmless.
+  private generateTokens(
+    user: TenantUser,
     roles: string[],
     permissions: string[],
   ) {

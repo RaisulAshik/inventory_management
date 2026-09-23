@@ -202,10 +202,11 @@ export class TenantProvisioningService {
 
       // hr_employees (entity: Employee -> 'hr_employees')
       //
-      // This is the identity table: a person's HR record and their login are
-      // one row. It is created here, ahead of every table that references it.
-      // The department/designation/reporting foreign keys are added by ALTER
-      // further down, once hr_departments and hr_designations exist.
+      // An HR record only. Users live in the master database and have no
+      // relation to this table. Created here rather than with the other hr_*
+      // tables so the ordering stays stable; its department, designation and
+      // reporting foreign keys are attached by ALTER further down, once
+      // hr_departments and hr_designations exist.
       await queryRunner.query(`
         CREATE TABLE IF NOT EXISTS \`hr_employees\` (
           \`id\`                      CHAR(36)      NOT NULL,
@@ -214,17 +215,6 @@ export class TenantProvisioningService {
           \`last_name\`               VARCHAR(100)  NULL,
           \`email\`                   VARCHAR(255)  NULL,
           \`phone\`                   VARCHAR(50)   NULL,
-
-          -- Authentication, merged in from the former users table.
-          -- Nullable: staff who are paid but never sign in have no credentials.
-          \`password_hash\`           VARCHAR(255)  NULL,
-          \`is_email_verified\`       TINYINT(1)    NOT NULL DEFAULT 0,
-          \`email_verified_at\`       TIMESTAMP     NULL,
-          \`last_login_at\`           TIMESTAMP     NULL,
-          \`last_login_ip\`           VARCHAR(45)   NULL,
-          \`password_changed_at\`     TIMESTAMP     NULL,
-          \`failed_login_attempts\`   INT           NOT NULL DEFAULT 0,
-          \`locked_until\`            TIMESTAMP     NULL,
 
           \`date_of_birth\`           DATE          NULL,
           \`gender\`                  ENUM('MALE','FEMALE','OTHER') NULL,
@@ -241,7 +231,7 @@ export class TenantProvisioningService {
           \`department_id\`           CHAR(36)      NULL,
           \`designation_id\`          CHAR(36)      NULL,
           \`reporting_to\`            CHAR(36)      NULL,
-          \`hire_date\`               DATE          NULL,
+          \`hire_date\`               DATE          NOT NULL,
           \`confirmation_date\`       DATE          NULL,
           \`resign_date\`             DATE          NULL,
           \`termination_date\`        DATE          NULL,
@@ -284,8 +274,7 @@ export class TenantProvisioningService {
           \`last_activity_at\` TIMESTAMP NOT NULL,
           \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
           PRIMARY KEY (\`id\`),
-          INDEX \`idx_session_user\` (\`user_id\`),
-          CONSTRAINT \`fk_session_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`hr_employees\` (\`id\`) ON DELETE CASCADE
+          INDEX \`idx_session_user\` (\`user_id\`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
@@ -329,7 +318,6 @@ export class TenantProvisioningService {
           \`assigned_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
           PRIMARY KEY (\`id\`),
           UNIQUE KEY \`uk_user_role\` (\`user_id\`, \`role_id\`),
-          CONSTRAINT \`fk_user_role_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`hr_employees\` (\`id\`) ON DELETE CASCADE,
           CONSTRAINT \`fk_user_role_role\` FOREIGN KEY (\`role_id\`) REFERENCES \`roles\` (\`id\`) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
@@ -1248,9 +1236,7 @@ export class TenantProvisioningService {
           INDEX \`idx_quotation_status\` (\`status\`),
           INDEX \`idx_quotation_date\` (\`quotation_date\`),
           CONSTRAINT \`fk_quotation_customer\` FOREIGN KEY (\`customer_id\`) REFERENCES \`customers\` (\`id\`),
-          CONSTRAINT \`fk_quotation_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`),
-          CONSTRAINT \`fk_quotation_salesperson\` FOREIGN KEY (\`sales_person_id\`) REFERENCES \`hr_employees\` (\`id\`) ON DELETE SET NULL,
-          CONSTRAINT \`fk_quotation_createdby\` FOREIGN KEY (\`created_by\`) REFERENCES \`hr_employees\` (\`id\`) ON DELETE SET NULL
+          CONSTRAINT \`fk_quotation_warehouse\` FOREIGN KEY (\`warehouse_id\`) REFERENCES \`warehouses\` (\`id\`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
@@ -2763,8 +2749,7 @@ export class TenantProvisioningService {
           UNIQUE KEY \`UQ_ps_number\` (\`session_number\`),
           INDEX \`idx_ps_store\` (\`store_id\`),
           CONSTRAINT \`fk_ps_store\` FOREIGN KEY (\`store_id\`) REFERENCES \`stores\` (\`id\`),
-          CONSTRAINT \`fk_ps_terminal\` FOREIGN KEY (\`terminal_id\`) REFERENCES \`pos_terminals\` (\`id\`),
-          CONSTRAINT \`fk_ps_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`hr_employees\` (\`id\`)
+          CONSTRAINT \`fk_ps_terminal\` FOREIGN KEY (\`terminal_id\`) REFERENCES \`pos_terminals\` (\`id\`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 

@@ -165,81 +165,75 @@ describe('LeaveRequestsService.create', () => {
   });
 });
 
+/**
+ * Ownership is `createdBy` — the master user id of whoever submitted the
+ * request — never `employeeId`. Users live in the master database and
+ * employees in the tenant, with no relation between them, so those two ids
+ * can never be compared.
+ */
 describe('LeaveRequestsService approval rules', () => {
-  it('refuses to let an employee approve their own request', async () => {
-    const { service } = makeService({
-      existing: {
-        id: 'lr-1',
-        employeeId: 'emp-1',
-        status: LeaveRequestStatus.PENDING,
-      },
-    });
-    await expect(service.approve('lr-1', 'emp-1')).rejects.toBeInstanceOf(
+  const pending = (over: Record<string, unknown> = {}) => ({
+    id: 'lr-1',
+    employeeId: 'emp-1',
+    createdBy: 'user-1',
+    status: LeaveRequestStatus.PENDING,
+    ...over,
+  });
+
+  it('refuses to let the submitter decide their own request', async () => {
+    const { service } = makeService({ existing: pending() });
+    await expect(service.approve('lr-1', 'user-1')).rejects.toBeInstanceOf(
       ForbiddenException,
     );
   });
 
   it('allows a different approver', async () => {
-    const { service, saved } = makeService({
-      existing: {
-        id: 'lr-1',
-        employeeId: 'emp-1',
-        status: LeaveRequestStatus.PENDING,
-      },
-    });
-    await service.approve('lr-1', 'emp-2');
+    const { service, saved } = makeService({ existing: pending() });
+    await service.approve('lr-1', 'user-2');
     expect(saved[0].status).toBe(LeaveRequestStatus.APPROVED);
-    expect(saved[0].approvedBy).toBe('emp-2');
+    expect(saved[0].approvedBy).toBe('user-2');
+  });
+
+  it('does not block on employeeId, which is a different namespace', async () => {
+    // The approver's user id happens to equal the subject's employee id.
+    // That is a coincidence, not self-approval, and must not be blocked.
+    const { service, saved } = makeService({ existing: pending() });
+    await service.approve('lr-1', 'emp-1');
+    expect(saved[0].status).toBe(LeaveRequestStatus.APPROVED);
   });
 
   it('refuses to decide a request that is not pending', async () => {
     const { service } = makeService({
-      existing: {
-        id: 'lr-1',
-        employeeId: 'emp-1',
-        status: LeaveRequestStatus.APPROVED,
-      },
+      existing: pending({ status: LeaveRequestStatus.APPROVED }),
     });
-    await expect(service.approve('lr-1', 'emp-2')).rejects.toThrow(
+    await expect(service.approve('lr-1', 'user-2')).rejects.toThrow(
       /Cannot approve a request with status APPROVED/,
     );
   });
 
   it('records the reason on rejection', async () => {
-    const { service, saved } = makeService({
-      existing: {
-        id: 'lr-1',
-        employeeId: 'emp-1',
-        status: LeaveRequestStatus.PENDING,
-      },
-    });
-    await service.reject('lr-1', 'emp-2', 'Peak season');
+    const { service, saved } = makeService({ existing: pending() });
+    await service.reject('lr-1', 'user-2', 'Peak season');
     expect(saved[0].status).toBe(LeaveRequestStatus.REJECTED);
     expect(saved[0].rejectionReason).toBe('Peak season');
   });
 
-  it('stops someone cancelling a request that is not theirs', async () => {
-    const { service } = makeService({
-      existing: {
-        id: 'lr-1',
-        employeeId: 'emp-1',
-        status: LeaveRequestStatus.PENDING,
-      },
-    });
-    await expect(service.cancel('lr-1', 'emp-9')).rejects.toBeInstanceOf(
+  it('stops someone cancelling a request they did not submit', async () => {
+    const { service } = makeService({ existing: pending() });
+    await expect(service.cancel('lr-1', 'user-9')).rejects.toBeInstanceOf(
       ForbiddenException,
     );
   });
 
+  it('lets the submitter cancel their own request', async () => {
+    const { service, saved } = makeService({ existing: pending() });
+    await service.cancel('lr-1', 'user-1');
+    expect(saved[0].status).toBe(LeaveRequestStatus.CANCELLED);
+  });
+
   it('lets HR cancel anyone’s request', async () => {
-    const { service, saved } = makeService({
-      existing: {
-        id: 'lr-1',
-        employeeId: 'emp-1',
-        status: LeaveRequestStatus.PENDING,
-      },
-    });
-    await service.cancel('lr-1', 'emp-9', true);
+    const { service, saved } = makeService({ existing: pending() });
+    await service.cancel('lr-1', 'user-9', true);
     expect(saved[0].status).toBe(LeaveRequestStatus.CANCELLED);
   });
 });

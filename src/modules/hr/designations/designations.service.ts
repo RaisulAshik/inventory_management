@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { Designation } from '@entities/tenant/hr/designation.entity';
@@ -7,16 +11,26 @@ import { UpdateDesignationDto } from './dto/update-designation.dto';
 
 @Injectable()
 export class DesignationsService {
-  constructor(private readonly tenantConnectionManager: TenantConnectionManager) {}
+  constructor(
+    private readonly tenantConnectionManager: TenantConnectionManager,
+  ) {}
 
   private async getRepo(): Promise<Repository<Designation>> {
     return this.tenantConnectionManager.getRepository(Designation);
   }
 
-  async create(dto: CreateDesignationDto, createdBy?: string): Promise<Designation> {
+  async create(
+    dto: CreateDesignationDto,
+    createdBy?: string,
+  ): Promise<Designation> {
     const repo = await this.getRepo();
-    const existing = await repo.findOne({ where: { designationCode: dto.designationCode } });
-    if (existing) throw new BadRequestException(`Designation code '${dto.designationCode}' already exists`);
+    const existing = await repo.findOne({
+      where: { designationCode: dto.designationCode },
+    });
+    if (existing)
+      throw new BadRequestException(
+        `Designation code '${dto.designationCode}' already exists`,
+      );
     const designation = repo.create({ ...dto, createdBy });
     return repo.save(designation);
   }
@@ -30,18 +44,24 @@ export class DesignationsService {
   }): Promise<{ data: Designation[]; total: number }> {
     const { search, departmentId, isActive, page = 1, limit = 20 } = params;
     const repo = await this.getRepo();
-    const qb = repo.createQueryBuilder('d')
+    const qb = repo
+      .createQueryBuilder('d')
       .leftJoinAndSelect('d.department', 'dept')
       .where('d.deleted_at IS NULL');
 
     if (search) {
-      qb.andWhere('(d.name LIKE :search OR d.designationCode LIKE :search)', { search: `%${search}%` });
+      qb.andWhere('(d.name LIKE :search OR d.designationCode LIKE :search)', {
+        search: `%${search}%`,
+      });
     }
-    if (departmentId) qb.andWhere('d.departmentId = :departmentId', { departmentId });
-    if (isActive !== undefined) qb.andWhere('d.isActive = :isActive', { isActive: isActive ? 1 : 0 });
+    if (departmentId)
+      qb.andWhere('d.departmentId = :departmentId', { departmentId });
+    if (isActive !== undefined)
+      qb.andWhere('d.isActive = :isActive', { isActive: isActive ? 1 : 0 });
 
     const total = await qb.getCount();
-    const data = await qb.orderBy('d.name', 'ASC')
+    const data = await qb
+      .orderBy('d.name', 'ASC')
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
@@ -51,7 +71,10 @@ export class DesignationsService {
 
   async findOne(id: string): Promise<Designation> {
     const repo = await this.getRepo();
-    const item = await repo.findOne({ where: { id }, relations: ['department'] });
+    const item = await repo.findOne({
+      where: { id },
+      relations: ['department'],
+    });
     if (!item) throw new NotFoundException(`Designation ${id} not found`);
     return item;
   }

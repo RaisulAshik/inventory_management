@@ -1,5 +1,19 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, ParseUUIDPipe } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  ParseUUIDPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
@@ -61,7 +75,10 @@ export class AttendanceController {
   @Patch(':id')
   @Permissions('hr.attendance.update')
   @ApiOperation({ summary: 'Update attendance record' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: Partial<CreateAttendanceDto>) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: Partial<CreateAttendanceDto>,
+  ) {
     return this.service.update(id, dto);
   }
 }

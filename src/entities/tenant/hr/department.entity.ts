@@ -46,7 +46,10 @@ export class Department {
   deletedAt: Date;
 
   // Self-referential hierarchy
-  @ManyToOne(() => Department, (d) => d.children, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Department, (d) => d.children, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'parent_id' })
   parent: Department;
 

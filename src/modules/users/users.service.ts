@@ -3,11 +3,12 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Repository, IsNull, DeepPartial } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { InjectRepository } from '@nestjs/typeorm';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
-import { Employee } from '@entities/tenant/hr/employee.entity';
+import { TenantUser } from '@entities/master/tenant-user.entity';
 import { UserRole } from '@entities/tenant/user/user-role.entity';
 import { Permission } from '@entities/tenant/role/permission.entity';
 import { RolePermission } from '@entities/tenant/role/role-permission.entity';
@@ -16,16 +17,17 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
-import { getNextSequence } from '@common/utils/sequence.util';
-import { InjectRepository } from '@nestjs/typeorm';
-import { TenantUser } from '@/entities/master';
 
 /**
- * Identity operations over `hr_employees`.
+ * Users live in the MASTER database (`tenant_users`), scoped to a tenant by
+ * `tenantId`. Their roles and permissions live in that tenant's own database.
  *
- * Employees and users are one record. This service is the login-facing view of
- * a person (credentials, roles, lockout); EmployeesService is the HR-facing
- * view (department, salary, attendance). Both read and write the same rows.
+ * The two sides therefore cannot be joined, and `user_roles.user_id` is a
+ * plain value with no foreign key behind it. Every lookup here is two steps:
+ * find the user in master, then resolve their roles in the tenant.
+ *
+ * Users are NOT employees. `hr_employees` is a separate HR record with no
+ * relation to this table.
  */
 @Injectable()
 export class UsersService {
@@ -35,29 +37,29 @@ export class UsersService {
     private readonly tenantUserRepository: Repository<TenantUser>,
   ) {}
 
-  private async getUserRepository(): Promise<Repository<Employee>> {
-    return this.tenantConnectionManager.getRepository(Employee);
+  /** Scopes every query to the tenant the request is for. */
+  private currentTenantId(): string {
+    const tenantId = this.tenantConnectionManager.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required');
+    }
+    return tenantId;
   }
 
-  /**
-   * Create a person who can sign in.
-   *
-   * `employeeCode` is generated when the caller does not supply one, because
-   * it is a required unique column on hr_employees.
-   */
   async create(
-    tenantId: any,
+    tenantId: string,
     createUserDto: CreateUserDto & { createdBy?: string } & {
       passwordHash?: string;
     },
-  ): Promise<Employee> {
-    const dataSource = await this.tenantConnectionManager.getDataSource();
-    const userRepo = dataSource.getRepository(Employee);
+  ): Promise<TenantUser> {
+    const email = createUserDto.email.toLowerCase();
 
-    const existingUser = await userRepo.findOne({
-      where: { email: createUserDto.email },
+    // `email` is globally unique on tenant_users, so this is not scoped to
+    // the tenant: one address belongs to one user across the platform.
+    const existingUser = await this.tenantUserRepository.findOne({
+      where: { email },
+      withDeleted: true,
     });
-
     if (existingUser) {
       throw new BadRequestException('Email already exists');
     }
@@ -66,40 +68,28 @@ export class UsersService {
     if (!passwordHash && createUserDto.password) {
       passwordHash = await bcrypt.hash(createUserDto.password, 10);
     }
+    if (!passwordHash) {
+      throw new BadRequestException('A password is required');
+    }
 
-    const employeeCode =
-      createUserDto.employeeCode ??
-      (await getNextSequence(dataSource, 'EMPLOYEE'));
-
-    const user = userRepo.create({
+    const user = this.tenantUserRepository.create({
       id: uuidv4(),
-      email: createUserDto.email,
+      tenantId: tenantId ?? this.currentTenantId(),
+      email,
       passwordHash,
       firstName: createUserDto.firstName,
       lastName: createUserDto.lastName,
-      employeeCode,
-      phone: createUserDto.phone,
-      isActive: true,
-      // DO NOT include roleIds here
-    });
-
-    const savedUser = await userRepo.save(user);
-
-    const tenantUser = this.tenantUserRepository.create({
-      tenantId: tenantId,
-      email: createUserDto.email.toLowerCase(),
-      passwordHash,
-      firstName: createUserDto.firstName,
-      lastName: createUserDto.lastName,
+      employeeCode: createUserDto.employeeCode,
       phone: createUserDto.phone,
       isAdmin: false,
       isActive: true,
-      emailVerified: false,
-    } as DeepPartial<TenantUser>);
+      isEmailVerified: false,
+      createdBy: createUserDto.createdBy,
+    });
 
-    await this.tenantUserRepository.save(tenantUser);
+    const savedUser = await this.tenantUserRepository.save(user);
 
-    // Now handle roles separately using your existing method
+    // Roles are granted in the tenant database, keyed by the master user id.
     if (createUserDto.roleIds?.length) {
       await this.assignRoles(
         savedUser.id,
@@ -111,25 +101,13 @@ export class UsersService {
     return savedUser;
   }
 
-  /**
-   * Find all users with pagination.
-   *
-   * Only people with credentials are listed: an hr_employees row without an
-   * email is a payroll-only record, not a user of the system.
-   */
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResult<Employee>> {
-    const userRepo = await this.getUserRepository();
-
-    const queryBuilder = userRepo
+  ): Promise<PaginatedResult<TenantUser>> {
+    const queryBuilder = this.tenantUserRepository
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.userRoles', 'userRoles')
-      .leftJoinAndSelect('userRoles.role', 'role')
-      .where('user.deletedAt IS NULL')
-      .andWhere('user.email IS NOT NULL');
+      .where('user.tenantId = :tenantId', { tenantId: this.currentTenantId() });
 
-    // Apply search
     if (paginationDto.search) {
       queryBuilder.andWhere(
         '(user.firstName LIKE :search OR user.lastName LIKE :search OR user.email LIKE :search)',
@@ -137,7 +115,6 @@ export class UsersService {
       );
     }
 
-    // Default sorting
     if (!paginationDto.sortBy) {
       paginationDto.sortBy = 'createdAt';
     }
@@ -145,13 +122,8 @@ export class UsersService {
     return paginate(queryBuilder, paginationDto);
   }
 
-  async findById(id: string): Promise<Employee> {
-    const userRepo = await this.getUserRepository();
-
-    const user = await userRepo.findOne({
-      where: { id },
-      relations: ['userRoles', 'userRoles.role'],
-    });
+  async findById(id: string): Promise<TenantUser> {
+    const user = await this.tenantUserRepository.findOne({ where: { id } });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -160,24 +132,18 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string): Promise<Employee | null> {
-    const userRepo = await this.getUserRepository();
-
-    return userRepo.findOne({
-      where: { email },
-      relations: ['userRoles', 'userRoles.role'],
+  async findByEmail(email: string): Promise<TenantUser | null> {
+    return this.tenantUserRepository.findOne({
+      where: { email: email.toLowerCase() },
     });
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<Employee> {
-    const userRepo = await this.getUserRepository();
-
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<TenantUser> {
     const user = await this.findById(id);
 
-    // Check if email is being changed and already exists
     if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await userRepo.findOne({
-        where: { email: updateUserDto.email },
+      const existingUser = await this.tenantUserRepository.findOne({
+        where: { email: updateUserDto.email.toLowerCase() },
       });
 
       if (existingUser) {
@@ -185,28 +151,21 @@ export class UsersService {
       }
     }
 
-    // `avatarUrl` is the identity-side name for hr_employees.profile_photo_url.
-    const { avatarUrl, ...rest } = updateUserDto;
-    Object.assign(user, rest);
-    if (avatarUrl !== undefined) {
-      user.profilePhotoUrl = avatarUrl;
-    }
-
-    return userRepo.save(user);
+    Object.assign(user, updateUserDto);
+    return this.tenantUserRepository.save(user);
   }
 
   async remove(id: string): Promise<void> {
-    const userRepo = await this.getUserRepository();
     const user = await this.findById(id);
-
     user.deletedAt = new Date();
-    await userRepo.save(user);
+    await this.tenantUserRepository.save(user);
   }
 
   async hardDelete(id: string): Promise<void> {
-    const userRepo = await this.getUserRepository();
-    await userRepo.delete(id);
+    await this.tenantUserRepository.delete(id);
   }
+
+  // ── Roles and permissions (tenant database) ──────────────────────────────
 
   async getUserRoles(userId: string): Promise<string[]> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
@@ -259,17 +218,16 @@ export class UsersService {
     await userRoleRepo.save(userRoles);
   }
 
-  async updateLastLogin(userId: string, ipAddress: string): Promise<void> {
-    const userRepo = await this.getUserRepository();
+  // ── Sign-in bookkeeping ──────────────────────────────────────────────────
 
-    await userRepo.update(userId, {
+  async updateLastLogin(userId: string, ipAddress: string): Promise<void> {
+    await this.tenantUserRepository.update(userId, {
       lastLoginAt: new Date(),
       lastLoginIp: ipAddress,
     });
   }
 
   async incrementFailedLoginAttempts(userId: string): Promise<void> {
-    const userRepo = await this.getUserRepository();
     const user = await this.findById(userId);
 
     user.failedLoginAttempts += 1;
@@ -279,38 +237,36 @@ export class UsersService {
       user.lockedUntil = new Date(Date.now() + 30 * 60 * 1000);
     }
 
-    await userRepo.save(user);
+    await this.tenantUserRepository.save(user);
   }
 
   async resetFailedLoginAttempts(userId: string): Promise<void> {
-    const userRepo = await this.getUserRepository();
     const user = await this.findById(userId);
 
     user.failedLoginAttempts = 0;
     user.lockedUntil = null;
 
-    await userRepo.save(user);
+    await this.tenantUserRepository.save(user);
   }
 
   async updatePassword(userId: string, passwordHash: string): Promise<void> {
-    const userRepo = await this.getUserRepository();
-
-    await userRepo.update(userId, {
+    await this.tenantUserRepository.update(userId, {
       passwordHash,
       passwordChangedAt: new Date(),
     });
   }
 
-  async activate(id: string): Promise<Employee> {
+  async activate(id: string): Promise<TenantUser> {
     return this.update(id, { isActive: true } as UpdateUserDto);
   }
 
-  async deactivate(id: string): Promise<Employee> {
+  async deactivate(id: string): Promise<TenantUser> {
     return this.update(id, { isActive: false } as UpdateUserDto);
   }
 
   async count(): Promise<number> {
-    const userRepo = await this.getUserRepository();
-    return userRepo.count({ where: { deletedAt: IsNull() } });
+    return this.tenantUserRepository.count({
+      where: { tenantId: this.currentTenantId(), deletedAt: IsNull() },
+    });
   }
 }

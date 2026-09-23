@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { Department } from '@entities/tenant/hr/department.entity';
@@ -7,17 +11,27 @@ import { UpdateDepartmentDto } from './dto/update-department.dto';
 
 @Injectable()
 export class DepartmentsService {
-  constructor(private readonly tenantConnectionManager: TenantConnectionManager) {}
+  constructor(
+    private readonly tenantConnectionManager: TenantConnectionManager,
+  ) {}
 
   private async getRepo(): Promise<Repository<Department>> {
     return this.tenantConnectionManager.getRepository(Department);
   }
 
-  async create(dto: CreateDepartmentDto, createdBy?: string): Promise<Department> {
+  async create(
+    dto: CreateDepartmentDto,
+    createdBy?: string,
+  ): Promise<Department> {
     const repo = await this.getRepo();
 
-    const existing = await repo.findOne({ where: { departmentCode: dto.departmentCode } });
-    if (existing) throw new BadRequestException(`Department code '${dto.departmentCode}' already exists`);
+    const existing = await repo.findOne({
+      where: { departmentCode: dto.departmentCode },
+    });
+    if (existing)
+      throw new BadRequestException(
+        `Department code '${dto.departmentCode}' already exists`,
+      );
 
     const department = repo.create({ ...dto, createdBy });
     return repo.save(department);
@@ -25,12 +39,15 @@ export class DepartmentsService {
 
   async findAll(search?: string, isActive?: boolean): Promise<Department[]> {
     const repo = await this.getRepo();
-    const qb = repo.createQueryBuilder('d')
+    const qb = repo
+      .createQueryBuilder('d')
       .leftJoinAndSelect('d.parent', 'parent')
       .where('d.deleted_at IS NULL');
 
     if (search) {
-      qb.andWhere('(d.name LIKE :s OR d.departmentCode LIKE :s)', { s: `%${search}%` });
+      qb.andWhere('(d.name LIKE :s OR d.departmentCode LIKE :s)', {
+        s: `%${search}%`,
+      });
     }
     if (isActive !== undefined) {
       qb.andWhere('d.isActive = :isActive', { isActive: isActive ? 1 : 0 });

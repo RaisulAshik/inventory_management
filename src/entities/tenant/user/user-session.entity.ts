@@ -3,24 +3,19 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  ManyToOne,
-  JoinColumn,
 } from 'typeorm';
-import { Employee } from '../hr/employee.entity';
-
 /**
- * A live sign-in session.
+ * A live sign-in session, held in the tenant the user signed in to.
  *
- * As with user_roles, the table and its `user_id` column keep their names but
- * that column now holds an `hr_employees` id. JwtAuthGuard queries this table
- * by raw SQL, so the names are intentionally left stable.
+ * As with user_roles, `userId` references `tenant_users.id` in the MASTER
+ * database, so there is no foreign key and no relation to load.
  */
 @Entity('user_sessions')
 export class UserSession {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  /** An `hr_employees.id`, despite the column name. */
+  /** A master `tenant_users.id`. Not enforceable by a foreign key. */
   @Column({ name: 'user_id' })
   userId: string;
 
@@ -59,13 +54,6 @@ export class UserSession {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
-
-  // Relations
-  @ManyToOne(() => Employee, (employee) => employee.sessions, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'user_id' })
-  employee: Employee;
 
   // Helper
   get isExpired(): boolean {
