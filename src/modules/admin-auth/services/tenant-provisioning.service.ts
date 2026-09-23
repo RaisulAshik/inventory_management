@@ -5,7 +5,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DataSource } from 'typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { PERMISSIONS, ROLE_PERMISSIONS } from '@common/constants/permissions';
 
@@ -95,6 +95,73 @@ export class TenantProvisioningService {
       this.logger.error(`Migration failed for ${databaseName}:`, error);
       throw new InternalServerErrorException(
         `Failed to run migrations: ${error.message}`,
+      );
+    } finally {
+      if (tenantDataSource.isInitialized) {
+        await tenantDataSource.destroy();
+      }
+    }
+  }
+
+  /**
+   * Add a foreign key only if it is not already present.
+   *
+   * MySQL has no ADD CONSTRAINT IF NOT EXISTS, and createTenantTables must
+   * stay safe to re-run so that an older tenant can be brought up to the
+   * current schema.
+   */
+  private async addForeignKeyIfMissing(
+    queryRunner: QueryRunner,
+    table: string,
+    constraint: string,
+    columns: string,
+    references: string,
+  ): Promise<void> {
+    const [{ n }] = await queryRunner.query(
+      `SELECT COUNT(*) AS n FROM information_schema.TABLE_CONSTRAINTS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?`,
+      [table, constraint],
+    );
+    if (Number(n) > 0) return;
+
+    await queryRunner.query(
+      `ALTER TABLE \`${table}\` ADD CONSTRAINT \`${constraint}\`
+         FOREIGN KEY (${columns}) REFERENCES ${references}`,
+    );
+  }
+
+  /**
+   * Bring an existing tenant database up to the current schema.
+   *
+   * Every CREATE TABLE in createTenantTables is IF NOT EXISTS and every
+   * foreign key is added conditionally, so this only adds what is missing and
+   * never touches existing data. Seeding is deliberately not re-run.
+   *
+   * Tenants provisioned before a module existed (HR, for one) are missing its
+   * tables entirely and return "table doesn't exist" until this is run.
+   */
+  async syncTenantSchema(databaseName: string): Promise<void> {
+    this.logger.log(`Syncing schema for tenant database: ${databaseName}`);
+
+    const tenantDataSource = new DataSource({
+      type: 'mysql',
+      host: this.configService.get<string>('masterDb.host', 'localhost'),
+      port: this.configService.get<number>('masterDb.port', 3306),
+      username: this.configService.get<string>('masterDb.username', 'root'),
+      password: this.configService.get<string>('masterDb.password', ''),
+      database: databaseName,
+      synchronize: false,
+      logging: true,
+    });
+
+    try {
+      await tenantDataSource.initialize();
+      await this.createTenantTables(tenantDataSource);
+      this.logger.log(`Schema sync complete for ${databaseName}`);
+    } catch (error: any) {
+      this.logger.error(`Schema sync failed for ${databaseName}:`, error);
+      throw new InternalServerErrorException(
+        `Failed to sync tenant schema: ${error.message}`,
       );
     } finally {
       if (tenantDataSource.isInitialized) {
@@ -3497,12 +3564,32 @@ export class TenantProvisioningService {
       // hr_employees exists already (created with the core tables, because the
       // session and role tables key off it). Now that hr_departments and
       // hr_designations exist, attach its foreign keys.
-      await queryRunner.query(`
-        ALTER TABLE \`hr_employees\`
-          ADD CONSTRAINT \`fk_emp_dept\`   FOREIGN KEY (\`department_id\`)  REFERENCES \`hr_departments\`  (\`id\`) ON DELETE SET NULL,
-          ADD CONSTRAINT \`fk_emp_desig\`  FOREIGN KEY (\`designation_id\`) REFERENCES \`hr_designations\` (\`id\`) ON DELETE SET NULL,
-          ADD CONSTRAINT \`fk_emp_report\` FOREIGN KEY (\`reporting_to\`)   REFERENCES \`hr_employees\`    (\`id\`) ON DELETE SET NULL
-      `);
+      //
+      // Added one at a time and only when absent: every CREATE TABLE here is
+      // IF NOT EXISTS so that this method can be re-run against an existing
+      // tenant to add whatever it is missing, and an unconditional
+      // ADD CONSTRAINT would break that.
+      await this.addForeignKeyIfMissing(
+        queryRunner,
+        'hr_employees',
+        'fk_emp_dept',
+        '`department_id`',
+        '`hr_departments` (`id`) ON DELETE SET NULL',
+      );
+      await this.addForeignKeyIfMissing(
+        queryRunner,
+        'hr_employees',
+        'fk_emp_desig',
+        '`designation_id`',
+        '`hr_designations` (`id`) ON DELETE SET NULL',
+      );
+      await this.addForeignKeyIfMissing(
+        queryRunner,
+        'hr_employees',
+        'fk_emp_report',
+        '`reporting_to`',
+        '`hr_employees` (`id`) ON DELETE SET NULL',
+      );
 
       await queryRunner.query(`
         CREATE TABLE IF NOT EXISTS \`hr_attendance\` (

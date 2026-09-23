@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsInt, Min, Max, IsString, IsIn, IsBoolean } from 'class-validator';
+import {
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
+  IsString,
+  IsIn,
+  IsBoolean,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class PaginationDto {
@@ -18,7 +26,12 @@ export class PaginationDto {
   @Max(500)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 500, description: 'Alias for limit' })
+  @ApiPropertyOptional({
+    default: 20,
+    minimum: 1,
+    maximum: 500,
+    description: 'Alias for limit',
+  })
   @IsOptional()
   @Transform(({ value }) => Number.parseInt(value, 10))
   @IsInt()
@@ -36,10 +49,19 @@ export class PaginationDto {
   @IsIn(['ASC', 'DESC', 'asc', 'desc'])
   sortOrder?: 'ASC' | 'DESC' | 'asc' | 'desc' = 'ASC';
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Free-text search. Falls back to `keyword` when only that is supplied.',
+  })
   @IsOptional()
+  @Transform(({ obj, value }) => value || obj?.keyword || undefined)
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ description: 'Alias for search' })
+  @IsOptional()
+  @IsString()
+  keyword?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -15,15 +15,24 @@ export async function paginate<T extends ObjectLiteral>(
 
   // Apply sorting
   if (paginationDto.sortBy) {
-    const sortOrder =
-      paginationDto.sortOrder?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+    // `sortBy` is interpolated straight into the ORDER BY clause, so it has to
+    // be a plain identifier. Anything else is ignored rather than passed to
+    // the database. Supports the `field:DIRECTION` form some clients send.
+    const [rawField, inlineOrder] = paginationDto.sortBy.split(':');
+    const field = rawField?.trim() ?? '';
 
-    // Handle nested sorting (e.g., 'product.productName')
-    if (paginationDto.sortBy.includes('.')) {
-      queryBuilder.orderBy(paginationDto.sortBy, sortOrder);
-    } else {
-      const alias = queryBuilder.alias;
-      queryBuilder.orderBy(`${alias}.${paginationDto.sortBy}`, sortOrder);
+    const sortOrder =
+      (inlineOrder ?? paginationDto.sortOrder)?.trim().toUpperCase() === 'DESC'
+        ? 'DESC'
+        : 'ASC';
+
+    // letters, digits and underscores, optionally one dot for a joined alias
+    if (/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/.test(field)) {
+      // Handle nested sorting (e.g., 'product.productName')
+      const target = field.includes('.')
+        ? field
+        : `${queryBuilder.alias}.${field}`;
+      queryBuilder.orderBy(target, sortOrder);
     }
   }
 

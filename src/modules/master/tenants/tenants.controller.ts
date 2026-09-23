@@ -122,6 +122,17 @@ export class TenantsController {
     return { message: 'Database provisioned successfully' };
   }
 
+  @Post(':id/sync-schema')
+  @Permissions('master.tenants.update')
+  @ApiOperation({
+    summary: 'Add any tables the tenant database is missing (no data change)',
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  async syncSchema(@Param('id', ParseUUIDPipe) id: string) {
+    const { database } = await this.tenantsService.syncSchema(id);
+    return { message: `Schema synced for ${database}` };
+  }
+
   @Post(':id/activate')
   @Permissions('master.tenants.update')
   @ApiOperation({ summary: 'Activate tenant' })

@@ -15,9 +15,10 @@ import { TenantFilterDto } from './dto/tenant-filter.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { TenantStatus, SubscriptionStatus } from '@common/enums';
 import { ConfigService } from '@nestjs/config';
-import { Subscription } from 'rxjs';
+import { Subscription } from '@entities/master/subscription.entity';
 import { TenantDatabase } from '@entities/master/tenant-database.entity';
 import { TenantUser } from '@entities/master/tenant-user.entity';
+import { TenantProvisioningService } from '@modules/admin-auth/services/tenant-provisioning.service';
 
 @Injectable()
 export class TenantsService {
@@ -31,7 +32,33 @@ export class TenantsService {
     @InjectRepository(Subscription, 'master')
     private readonly subscriptionRepository: Repository<Subscription>,
     private readonly configService: ConfigService,
+    private readonly tenantProvisioningService: TenantProvisioningService,
   ) {}
+
+  /**
+   * Bring an existing tenant's database up to the current schema.
+   *
+   * Adds any tables and foreign keys the tenant is missing, without touching
+   * data and without re-seeding. Needed for tenants provisioned before a
+   * module existed — an older tenant has no hr_* tables at all and every HR
+   * endpoint fails with "table doesn't exist" until this has run.
+   */
+  async syncSchema(tenantId: string): Promise<{ database: string }> {
+    await this.findById(tenantId);
+
+    const tenantDb = await this.tenantDatabaseRepository.findOne({
+      where: { tenantId },
+    });
+    if (!tenantDb) {
+      throw new NotFoundException('Tenant database configuration not found');
+    }
+
+    await this.tenantProvisioningService.syncTenantSchema(
+      tenantDb.databaseName,
+    );
+
+    return { database: tenantDb.databaseName };
+  }
 
   /**
    * Create a new tenant with database and admin user
@@ -183,9 +210,7 @@ export class TenantsService {
   /**
    * Find all tenants with filters and pagination
    */
-  async findAll(
-    filterDto: TenantFilterDto,
-  ): Promise<PaginatedResult<Tenant>> {
+  async findAll(filterDto: TenantFilterDto): Promise<PaginatedResult<Tenant>> {
     const queryBuilder = this.tenantRepository
       .createQueryBuilder('tenant')
       .leftJoinAndSelect('tenant.database', 'database')

@@ -10,12 +10,18 @@ import { PaginationDto } from '@common/dto/pagination.dto';
 import { ExpenseStatus } from '@entities/tenant/accounting/expense.entity';
 
 export class ExpenseFilterDto extends PaginationDto {
-  @ApiPropertyOptional({ format: 'uuid', description: 'Filter by expense GL account' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Filter by expense GL account',
+  })
   @IsOptional()
   @IsUUID()
   expenseAccountId?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Filter by paid-from account' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Filter by paid-from account',
+  })
   @IsOptional()
   @IsUUID()
   paidFromAccountId?: string;
@@ -35,10 +41,9 @@ export class ExpenseFilterDto extends PaginationDto {
   @IsDateString()
   toDate?: string;
 
-  @ApiPropertyOptional({ description: 'Search by description or reference number' })
-  @IsOptional()
-  @IsString()
-  keyword?: string;
+  // `keyword` comes from PaginationDto, where it is an alias for `search`.
+  // Here it matches on description or reference number. Not redeclared: a
+  // `declare` field emits nothing, so its decorators would never run.
 
   @ApiPropertyOptional({ description: 'Filter by description (partial match)' })
   @IsOptional()

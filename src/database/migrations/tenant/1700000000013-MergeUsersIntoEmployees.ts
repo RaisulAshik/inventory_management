@@ -76,9 +76,65 @@ export class MergeUsersIntoEmployees1700000000013 implements MigrationInterface 
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     if (!(await this.hasTable(queryRunner, 'hr_employees'))) {
-      throw new Error(
-        'hr_employees is missing. Provision the tenant schema before running this migration.',
-      );
+      // Tenants provisioned before the HR module existed have no hr_* tables
+      // at all. Only hr_employees is created here, because that is the table
+      // identity moves onto; the rest of the HR schema comes from
+      // POST /master/tenants/:id/sync-schema, which adds whatever is missing.
+      await queryRunner.query(`
+        CREATE TABLE \`hr_employees\` (
+          \`id\`                      CHAR(36)      NOT NULL,
+          \`employee_code\`           VARCHAR(50)   NOT NULL,
+          \`first_name\`              VARCHAR(100)  NOT NULL,
+          \`last_name\`               VARCHAR(100)  NULL,
+          \`email\`                   VARCHAR(255)  NULL,
+          \`phone\`                   VARCHAR(50)   NULL,
+          \`password_hash\`           VARCHAR(255)  NULL,
+          \`is_email_verified\`       TINYINT(1)    NOT NULL DEFAULT 0,
+          \`email_verified_at\`       TIMESTAMP     NULL,
+          \`last_login_at\`           TIMESTAMP     NULL,
+          \`last_login_ip\`           VARCHAR(45)   NULL,
+          \`password_changed_at\`     TIMESTAMP     NULL,
+          \`failed_login_attempts\`   INT           NOT NULL DEFAULT 0,
+          \`locked_until\`            TIMESTAMP     NULL,
+          \`date_of_birth\`           DATE          NULL,
+          \`gender\`                  ENUM('MALE','FEMALE','OTHER') NULL,
+          \`marital_status\`          ENUM('SINGLE','MARRIED','DIVORCED','WIDOWED') NULL,
+          \`national_id\`             VARCHAR(100)  NULL,
+          \`address_line1\`           VARCHAR(255)  NULL,
+          \`address_line2\`           VARCHAR(255)  NULL,
+          \`city\`                    VARCHAR(100)  NULL,
+          \`state\`                   VARCHAR(100)  NULL,
+          \`country\`                 VARCHAR(100)  NULL,
+          \`postal_code\`             VARCHAR(20)   NULL,
+          \`emergency_contact_name\`  VARCHAR(100)  NULL,
+          \`emergency_contact_phone\` VARCHAR(50)   NULL,
+          \`department_id\`           CHAR(36)      NULL,
+          \`designation_id\`          CHAR(36)      NULL,
+          \`reporting_to\`            CHAR(36)      NULL,
+          \`hire_date\`               DATE          NULL,
+          \`confirmation_date\`       DATE          NULL,
+          \`resign_date\`             DATE          NULL,
+          \`termination_date\`        DATE          NULL,
+          \`employment_type\`         ENUM('FULL_TIME','PART_TIME','CONTRACT','INTERNSHIP') NOT NULL DEFAULT 'FULL_TIME',
+          \`employment_status\`       ENUM('ACTIVE','INACTIVE','PROBATION','ON_LEAVE','TERMINATED','RESIGNED') NOT NULL DEFAULT 'PROBATION',
+          \`salary_basis\`            ENUM('MONTHLY','DAILY','HOURLY') NOT NULL DEFAULT 'MONTHLY',
+          \`basic_salary\`            DECIMAL(18,4) NOT NULL DEFAULT 0,
+          \`bank_name\`               VARCHAR(200)  NULL,
+          \`bank_account_number\`     VARCHAR(100)  NULL,
+          \`bank_branch\`             VARCHAR(200)  NULL,
+          \`profile_photo_url\`       VARCHAR(500)  NULL,
+          \`notes\`                   TEXT          NULL,
+          \`is_active\`               TINYINT(1)    NOT NULL DEFAULT 1,
+          \`created_by\`              CHAR(36)      NULL,
+          \`created_at\`              DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          \`updated_at\`              DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+          \`deleted_at\`              DATETIME(6)   NULL,
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`uk_emp_code\`  (\`employee_code\`),
+          UNIQUE KEY \`uk_emp_email\` (\`email\`),
+          INDEX \`idx_emp_active\` (\`is_active\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
     }
 
     // ── 1. Bring hr_employees up to the shape the entity expects ──────────

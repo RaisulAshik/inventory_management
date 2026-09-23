@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdminAuthModule } from '@modules/admin-auth/admin-auth.module';
 import { TenantsController } from './tenants/tenants.controller';
 import { TenantsService } from './tenants/tenants.service';
 import { Tenant } from '@entities/master/tenant.entity';
@@ -20,6 +21,8 @@ import { SubscriptionsService } from './subcriptions/subscriptions.service';
 
 @Module({
   imports: [
+    // Provides TenantProvisioningService for schema sync
+    AdminAuthModule,
     TypeOrmModule.forFeature(
       [
         Tenant,
