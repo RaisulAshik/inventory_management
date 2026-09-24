@@ -3,7 +3,16 @@
 // catalogue by transcription error.
 const fs = require('fs');
 
-const src = fs.readFileSync('src/common/constants/permissions.ts', 'utf8');
+// Line comments are stripped first. Without this a commented-out grant such
+// as `// 'users.read',` still matches the quoted-string scan below and would
+// be emitted as SQL, silently granting a permission someone removed on
+// purpose. Only whole-line comments are dropped, so the `// module` section
+// headers go too, which is harmless.
+const src = fs
+  .readFileSync('src/common/constants/permissions.ts', 'utf8')
+  .split('\n')
+  .filter((line) => !line.trim().startsWith('//'))
+  .join('\n');
 
 // The trailing comma after `module` is present on multi-line entries and
 // absent on the single-line ones prettier collapses, so it must be optional.

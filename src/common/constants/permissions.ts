@@ -529,6 +529,23 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   { code: 'payments.read', name: 'View Payments', module: 'payments' },
   { code: 'payments.refund', name: 'Refund Payments', module: 'payments' },
 
+  // permissions — managing the catalogue itself
+  {
+    code: 'permissions.create',
+    name: 'Create Custom Permissions',
+    module: 'permissions',
+  },
+  {
+    code: 'permissions.update',
+    name: 'Update Custom Permissions',
+    module: 'permissions',
+  },
+  {
+    code: 'permissions.delete',
+    name: 'Delete Custom Permissions',
+    module: 'permissions',
+  },
+
   // price-lists
   {
     code: 'price-lists.create',
@@ -1051,7 +1068,11 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
     'suppliers.create',
     'suppliers.read',
     'suppliers.update',
-    'users.read',
+    // 'users.read',
+    'hr.attendance.read',
+    'hr.employees.read',
+    'hr.leave-requests.read',
+    'hr.payroll.read',
     'warehouses.read',
   ],
   SALES: [

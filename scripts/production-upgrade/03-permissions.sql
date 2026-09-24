@@ -18,7 +18,7 @@
 
 START TRANSACTION;
 
--- 1. the catalogue itself (271 codes)
+-- 1. the catalogue itself (274 codes)
 INSERT INTO `permissions`
   (`id`, `permission_code`, `permission_name`, `module`, `description`)
 VALUES
@@ -167,6 +167,9 @@ VALUES
   (UUID(), 'payments.create', 'Create Payments', 'payments', 'Create Payments'),
   (UUID(), 'payments.read', 'View Payments', 'payments', 'View Payments'),
   (UUID(), 'payments.refund', 'Refund Payments', 'payments', 'Refund Payments'),
+  (UUID(), 'permissions.create', 'Create Custom Permissions', 'permissions', 'Create Custom Permissions'),
+  (UUID(), 'permissions.update', 'Update Custom Permissions', 'permissions', 'Update Custom Permissions'),
+  (UUID(), 'permissions.delete', 'Delete Custom Permissions', 'permissions', 'Delete Custom Permissions'),
   (UUID(), 'price-lists.create', 'Create Price Lists', 'price-lists', 'Create Price Lists'),
   (UUID(), 'price-lists.delete', 'Delete Price Lists', 'price-lists', 'Delete Price Lists'),
   (UUID(), 'price-lists.read', 'View Price Lists', 'price-lists', 'View Price Lists'),
@@ -305,7 +308,7 @@ SELECT UUID(), r.`id`, p.`id`
   CROSS JOIN `permissions` p
  WHERE r.`role_code` = 'ADMIN';
 
--- 3. MANAGER default grants (35)
+-- 3. MANAGER default grants (38)
 INSERT IGNORE INTO `role_permissions` (`id`, `role_id`, `permission_id`)
 SELECT UUID(), r.`id`, p.`id`
   FROM `roles` r
@@ -343,7 +346,10 @@ SELECT UUID(), r.`id`, p.`id`
     'suppliers.create',
     'suppliers.read',
     'suppliers.update',
-    'users.read',
+    'hr.attendance.read',
+    'hr.employees.read',
+    'hr.leave-requests.read',
+    'hr.payroll.read',
     'warehouses.read'
   )
  WHERE r.`role_code` = 'MANAGER';
@@ -428,7 +434,7 @@ SELECT UUID(), r.`id`, p.`id`
 
 COMMIT;
 
--- Verify: expect 271 and a non-zero grant count per role.
+-- Verify: expect 274 and a non-zero grant count per role.
 SELECT COUNT(*) AS catalogue_size FROM `permissions`;
 SELECT r.`role_code`, COUNT(rp.`id`) AS grants
   FROM `roles` r
