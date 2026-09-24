@@ -77,9 +77,14 @@ export class AuthService {
       throw new UnauthorizedException('Account is disabled');
     }
 
-    // Get user roles and permissions
-    const roles = await this.usersService.getUserRoles(user.id);
-    const permissions = await this.usersService.getUserPermissions(user.id);
+    // Roles with the permissions each carries, for the client to render menus
+    // and gate actions from. `roleCodes` and `permissions` stay as flat arrays
+    // because that is what the JWT carries and what PermissionsGuard checks.
+    const roleDetails = await this.usersService.getUserRolesDetailed(user.id);
+    const roles = roleDetails.map((r) => r.roleCode);
+    const permissions = [
+      ...new Set(roleDetails.flatMap((r) => r.permissions)),
+    ].sort();
 
     // Generate tokens
     const tokens = this.generateTokens(user, roles, permissions);
@@ -102,8 +107,13 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         fullName: user.fullName,
+        isAdmin: user.isAdmin,
+        /** Role codes only — unchanged, existing clients rely on this. */
         roles,
+        /** Every permission across those roles, de-duplicated. */
         permissions,
+        /** The same roles expanded, each with the permissions it grants. */
+        roleDetails,
       },
       tokens,
     };
@@ -174,8 +184,13 @@ export class AuthService {
       }
 
       // Get roles and permissions
-      const roles = await this.usersService.getUserRoles(user.id);
-      const permissions = await this.usersService.getUserPermissions(user.id);
+      // Same source as login, so a refreshed token cannot carry a different
+      // set of permissions from the one the user signed in with.
+      const roleDetails = await this.usersService.getUserRolesDetailed(user.id);
+      const roles = roleDetails.map((r) => r.roleCode);
+      const permissions = [
+        ...new Set(roleDetails.flatMap((r) => r.permissions)),
+      ].sort();
 
       // Generate new tokens
       const tokens = this.generateTokens(user, roles, permissions);

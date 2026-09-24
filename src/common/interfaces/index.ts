@@ -81,3 +81,17 @@ export interface PriceCalculationResult {
   taxPercentage: number;
   lineTotal: number;
 }
+
+/**
+ * A role together with the permission codes it carries.
+ *
+ * Roles and permissions live in the tenant database; the user they belong to
+ * lives in master. Nothing joins the two, so this is always assembled from a
+ * user id rather than loaded as a relation.
+ */
+export interface RoleWithPermissions {
+  id: string;
+  roleCode: string;
+  roleName: string;
+  permissions: string[];
+}

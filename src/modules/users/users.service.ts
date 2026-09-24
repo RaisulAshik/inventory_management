@@ -10,12 +10,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { TenantUser } from '@entities/master/tenant-user.entity';
 import { UserRole } from '@entities/tenant/user/user-role.entity';
+import { Role } from '@entities/tenant/role/role.entity';
 import { Permission } from '@entities/tenant/role/permission.entity';
 import { RolePermission } from '@entities/tenant/role/role-permission.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
+import { RoleWithPermissions } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
 
 /**
@@ -177,6 +179,91 @@ export class UsersService {
     });
 
     return userRoles.map((ur) => ur.role.roleCode);
+  }
+
+  /**
+   * Roles held by several users at once, each with its permission codes.
+   *
+   * Batched deliberately: the employee list needs this for a whole page, and
+   * doing it per row would be a query per employee.
+   */
+  async getRolesForUsers(
+    userIds: string[],
+  ): Promise<Map<string, RoleWithPermissions[]>> {
+    const byUser = new Map<string, RoleWithPermissions[]>();
+    if (userIds.length === 0) return byUser;
+
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+
+    const rows = await dataSource
+      .createQueryBuilder()
+      .select('ur.user_id', 'userId')
+      .addSelect('r.id', 'roleId')
+      .addSelect('r.role_code', 'roleCode')
+      .addSelect('r.role_name', 'roleName')
+      .addSelect('p.permission_code', 'permissionCode')
+      .from(UserRole, 'ur')
+      .innerJoin(Role, 'r', 'r.id = ur.role_id')
+      .leftJoin(RolePermission, 'rp', 'rp.role_id = r.id')
+      .leftJoin(Permission, 'p', 'p.id = rp.permission_id')
+      .where('ur.user_id IN (:...userIds)', { userIds })
+      .orderBy('r.role_name', 'ASC')
+      .getRawMany<{
+        userId: string;
+        roleId: string;
+        roleCode: string;
+        roleName: string;
+        permissionCode: string | null;
+      }>();
+
+    // One row per (user, role, permission); fold back into nested roles.
+    for (const row of rows) {
+      const roles = byUser.get(row.userId) ?? [];
+      if (!byUser.has(row.userId)) byUser.set(row.userId, roles);
+
+      let role = roles.find((r) => r.id === row.roleId);
+      if (!role) {
+        role = {
+          id: row.roleId,
+          roleCode: row.roleCode,
+          roleName: row.roleName,
+          permissions: [],
+        };
+        roles.push(role);
+      }
+      if (
+        row.permissionCode &&
+        !role.permissions.includes(row.permissionCode)
+      ) {
+        role.permissions.push(row.permissionCode);
+      }
+    }
+
+    return byUser;
+  }
+
+  /** The roles of one user, each with its permission codes. */
+  async getUserRolesDetailed(userId: string): Promise<RoleWithPermissions[]> {
+    const byUser = await this.getRolesForUsers([userId]);
+    return byUser.get(userId) ?? [];
+  }
+
+  /**
+   * Master users for a set of email addresses, within the current tenant.
+   *
+   * Employees and users are unrelated records, so email is the only handle
+   * the two have in common. Used to show a person's roles on the employee
+   * list; it resolves nothing and creates no link.
+   */
+  async findByEmails(emails: string[]): Promise<TenantUser[]> {
+    const wanted = emails.filter(Boolean).map((e) => e.toLowerCase());
+    if (wanted.length === 0) return [];
+
+    return this.tenantUserRepository
+      .createQueryBuilder('user')
+      .where('user.tenantId = :tenantId', { tenantId: this.currentTenantId() })
+      .andWhere('user.email IN (:...wanted)', { wanted })
+      .getMany();
   }
 
   async getUserPermissions(userId: string): Promise<string[]> {

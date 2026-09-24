@@ -9,9 +9,13 @@ import { Employee } from '@entities/tenant/hr/employee.entity';
 import { Role } from '@entities/tenant/role/role.entity';
 import { UsersService } from '@modules/users/users.service';
 import { LeaveRequestStatus } from '@common/enums';
+import { RoleWithPermissions } from '@common/interfaces';
 import { getNextSequence } from '@common/utils/sequence.util';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+
+/** An employee plus the roles of the user account sharing their email. */
+export type EmployeeWithRoles = Employee & { roles: RoleWithPermissions[] };
 
 @Injectable()
 export class EmployeesService {
@@ -125,7 +129,7 @@ export class EmployeesService {
     employmentStatus?: string;
     page?: number;
     limit?: number;
-  }): Promise<{ data: Employee[]; total: number }> {
+  }): Promise<{ data: EmployeeWithRoles[]; total: number }> {
     const {
       search,
       departmentId,
@@ -157,23 +161,66 @@ export class EmployeesService {
       });
 
     const total = await qb.getCount();
-    const data = await qb
+    const rows = await qb
       .orderBy('e.firstName', 'ASC')
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
 
-    return { data, total };
+    return { data: await this.withRoles(rows), total };
   }
 
-  async findOne(id: string): Promise<Employee> {
+  /**
+   * Attach each employee's roles, where they also have a login.
+   *
+   * Employees and users are unrelated records in different databases, so
+   * there is no relation to load. Email is the only handle they share — it is
+   * what the combined create form sets on both — and an employee without a
+   * matching user simply comes back with an empty list.
+   *
+   * Batched into two extra queries for the whole page, not one per row.
+   */
+  private async withRoles(employees: Employee[]): Promise<EmployeeWithRoles[]> {
+    // Annotated in place rather than spread into a new object: spreading
+    // would drop the entity prototype and with it the fullName getter.
+    const result = employees as EmployeeWithRoles[];
+    for (const employee of result) employee.roles = [];
+
+    const emails = result.map((e) => e.email).filter(Boolean);
+    if (emails.length === 0) return result;
+
+    const users = await this.usersService.findByEmails(emails);
+    if (users.length === 0) return result;
+
+    const rolesByUser = await this.usersService.getRolesForUsers(
+      users.map((u) => u.id),
+    );
+
+    const rolesByEmail = new Map<string, RoleWithPermissions[]>();
+    for (const user of users) {
+      rolesByEmail.set(
+        user.email.toLowerCase(),
+        rolesByUser.get(user.id) ?? [],
+      );
+    }
+
+    for (const employee of result) {
+      employee.roles =
+        rolesByEmail.get(employee.email?.toLowerCase() ?? '') ?? [];
+    }
+
+    return result;
+  }
+
+  async findOne(id: string): Promise<EmployeeWithRoles> {
     const repo = await this.getRepo();
     const employee = await repo.findOne({
       where: { id },
       relations: ['department', 'designation', 'manager'],
     });
     if (!employee) throw new NotFoundException(`Employee ${id} not found`);
-    return employee;
+    const [withRoles] = await this.withRoles([employee]);
+    return withRoles;
   }
 
   async update(id: string, dto: UpdateEmployeeDto): Promise<Employee> {

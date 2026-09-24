@@ -1,5 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+class RoleDetailDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: 'SALES' })
+  roleCode: string;
+
+  @ApiProperty({ example: 'Sales User' })
+  roleName: string;
+
+  @ApiProperty({
+    type: [String],
+    description: 'Permission codes this role grants.',
+    example: ['orders.create', 'orders.read'],
+  })
+  permissions: string[];
+}
+
 class UserDto {
   @ApiProperty()
   id: string;
@@ -16,11 +34,29 @@ class UserDto {
   @ApiProperty()
   fullName: string;
 
-  @ApiProperty({ type: [String] })
+  @ApiProperty()
+  isAdmin: boolean;
+
+  @ApiProperty({
+    type: [String],
+    description: 'Role codes only.',
+    example: ['SALES'],
+  })
   roles: string[];
 
-  @ApiProperty({ type: [String] })
+  @ApiProperty({
+    type: [String],
+    description:
+      'Every permission across all of the roles, de-duplicated. This is what the guards check.',
+  })
   permissions: string[];
+
+  @ApiProperty({
+    type: [RoleDetailDto],
+    description:
+      'The same roles expanded, each with the permissions it grants.',
+  })
+  roleDetails: RoleDetailDto[];
 }
 
 class TokensDto {
