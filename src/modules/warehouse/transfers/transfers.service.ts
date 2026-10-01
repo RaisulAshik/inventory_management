@@ -244,14 +244,22 @@ export class TransfersService {
   /**
    * Approve transfer
    */
-  async approve(id: string, approvedBy: string): Promise<WarehouseTransfer> {
+  async approve(
+    id: string,
+    approvedBy: string,
+    selfApprovalAllowed = false,
+  ): Promise<WarehouseTransfer> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
     const transfer = await this.findById(id);
 
     if (transfer.status !== TransferStatus.PENDING_APPROVAL) {
       throw new BadRequestException('Only pending transfers can be approved');
     }
-    if (transfer.createdBy && transfer.createdBy === approvedBy) {
+    if (
+      !selfApprovalAllowed &&
+      transfer.createdBy &&
+      transfer.createdBy === approvedBy
+    ) {
       throw new ForbiddenException('You cannot approve a transfer you raised');
     }
 

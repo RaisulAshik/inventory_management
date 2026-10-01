@@ -245,7 +245,11 @@ export class AdjustmentsService {
   /**
    * Approve adjustment
    */
-  async approve(id: string, approvedBy: string): Promise<StockAdjustment> {
+  async approve(
+    id: string,
+    approvedBy: string,
+    selfApprovalAllowed = false,
+  ): Promise<StockAdjustment> {
     //const adjustmentRepo = await this.getAdjustmentRepository();
     const dataSource = await this.tenantConnectionManager.getDataSource();
     const adjustment = await this.findById(id);
@@ -253,7 +257,11 @@ export class AdjustmentsService {
     if (adjustment.status !== AdjustmentStatus.PENDING_APPROVAL) {
       throw new BadRequestException('Only pending adjustments can be approved');
     }
-    if (adjustment.createdBy && adjustment.createdBy === approvedBy) {
+    if (
+      !selfApprovalAllowed &&
+      adjustment.createdBy &&
+      adjustment.createdBy === approvedBy
+    ) {
       throw new ForbiddenException(
         'You cannot approve a stock adjustment you raised',
       );

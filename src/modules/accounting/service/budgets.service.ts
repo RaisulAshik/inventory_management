@@ -201,12 +201,13 @@ export class BudgetsService {
     id: string,
     dto: ApproveBudgetDto,
     userId: string,
+    selfApprovalAllowed = false,
   ): Promise<Budget> {
     const budgetRepo = await this.getBudgetRepo();
     const budget = await this.findOne(id);
     if (budget.status !== BudgetStatus.PENDING_APPROVAL)
       throw new BadRequestException('Only pending budgets can be approved');
-    if (budget.createdBy && budget.createdBy === userId)
+    if (!selfApprovalAllowed && budget.createdBy && budget.createdBy === userId)
       throw new ForbiddenException('You cannot approve a budget you drafted');
     budget.status = BudgetStatus.APPROVED;
     budget.approvedBy = userId;

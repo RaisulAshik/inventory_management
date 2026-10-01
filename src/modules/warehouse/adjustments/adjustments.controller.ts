@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { AdjustmentsService } from './adjustments.service';
 import { Permissions } from '@common/decorators/permissions.decorator';
+import { canSelfApprove } from '@common/utils/authorization.util';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
 import { JwtPayload } from '@common/interfaces';
@@ -121,6 +122,7 @@ export class AdjustmentsController {
     const adjustment = await this.adjustmentsService.approve(
       id,
       currentUser.sub,
+      canSelfApprove(currentUser),
     );
     return new AdjustmentResponseDto(adjustment);
   }

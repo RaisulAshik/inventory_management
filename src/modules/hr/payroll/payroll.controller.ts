@@ -22,6 +22,7 @@ import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
 import { HrPayrollStatus } from '@common/enums';
 import { Permissions } from '@common/decorators/permissions.decorator';
+import { canSelfApprove } from '@common/utils/authorization.util';
 
 @ApiTags('HR - Payroll')
 @ApiBearerAuth()
@@ -78,7 +79,7 @@ export class PayrollController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.approve(id, user.sub);
+    return this.service.approve(id, user.sub, canSelfApprove(user));
   }
 
   @Post(':id/mark-paid')
@@ -90,7 +91,12 @@ export class PayrollController {
     @CurrentUser() user: JwtPayload,
     @Query('paymentDate') paymentDate?: string,
   ) {
-    return this.service.markPaid(id, user.sub, paymentDate);
+    return this.service.markPaid(
+      id,
+      user.sub,
+      paymentDate,
+      canSelfApprove(user),
+    );
   }
 
   @Delete(':id')

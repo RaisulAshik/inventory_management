@@ -200,7 +200,11 @@ export class PayrollService {
    *
    * Locked for the duration, and whoever processed the run cannot approve it.
    */
-  async approve(id: string, approverId: string): Promise<HrPayroll> {
+  async approve(
+    id: string,
+    approverId: string,
+    selfApprovalAllowed = false,
+  ): Promise<HrPayroll> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
 
     await dataSource.transaction(async (manager) => {
@@ -218,7 +222,11 @@ export class PayrollService {
       // `createdBy` (a master user id), not `employeeId` (a tenant employee
       // id): users and employees are unrelated records in different databases,
       // so those two ids could never match.
-      if (payroll.createdBy && payroll.createdBy === approverId) {
+      if (
+        !selfApprovalAllowed &&
+        payroll.createdBy &&
+        payroll.createdBy === approverId
+      ) {
         throw new ForbiddenException(
           'You cannot approve a payroll run you processed',
         );
@@ -238,6 +246,7 @@ export class PayrollService {
     id: string,
     paidBy: string,
     paymentDate?: string,
+    selfApprovalAllowed = false,
   ): Promise<HrPayroll> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
 
@@ -253,7 +262,11 @@ export class PayrollService {
           'Only approved payrolls can be marked as paid',
         );
       }
-      if (payroll.createdBy && payroll.createdBy === paidBy) {
+      if (
+        !selfApprovalAllowed &&
+        payroll.createdBy &&
+        payroll.createdBy === paidBy
+      ) {
         throw new ForbiddenException(
           'You cannot pay out a payroll run you processed',
         );

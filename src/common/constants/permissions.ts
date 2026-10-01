@@ -273,6 +273,18 @@ export const PERMISSIONS: readonly PermissionDef[] = [
     module: 'adjustments',
   },
 
+  // approvals — cross-cutting approval behaviour
+  //
+  // Lifts the maker-checker rule, which otherwise refuses to let anyone
+  // approve a document they raised themselves. ADMIN holds the whole
+  // catalogue, so a tenant admin has this automatically; grant it to another
+  // role only where one person legitimately runs both ends of a process.
+  {
+    code: 'approvals.self',
+    name: 'Approve Own Documents',
+    module: 'approvals',
+  },
+
   // audit_logs
   { code: 'audit_logs.read', name: 'View Audit Logs', module: 'audit_logs' },
 

@@ -477,7 +477,11 @@ export class PurchaseOrdersService {
    * Locked for the duration so two approvers cannot both read
    * PENDING_APPROVAL and both write APPROVED.
    */
-  async approve(id: string, approvedBy: string): Promise<PurchaseOrder> {
+  async approve(
+    id: string,
+    approvedBy: string,
+    selfApprovalAllowed = false,
+  ): Promise<PurchaseOrder> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
 
     await dataSource.transaction(async (manager) => {
@@ -492,7 +496,7 @@ export class PurchaseOrdersService {
           'Only pending approval orders can be approved',
         );
       }
-      if (po.createdBy && po.createdBy === approvedBy) {
+      if (!selfApprovalAllowed && po.createdBy && po.createdBy === approvedBy) {
         throw new ForbiddenException(
           'You cannot approve a purchase order you raised',
         );
@@ -520,6 +524,7 @@ export class PurchaseOrdersService {
     id: string,
     rejectedBy: string,
     reason: string,
+    selfApprovalAllowed = false,
   ): Promise<PurchaseOrder> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
 
@@ -535,7 +540,7 @@ export class PurchaseOrdersService {
           'Only pending approval orders can be rejected',
         );
       }
-      if (po.createdBy && po.createdBy === rejectedBy) {
+      if (!selfApprovalAllowed && po.createdBy && po.createdBy === rejectedBy) {
         throw new ForbiddenException(
           'You cannot reject a purchase order you raised',
         );

@@ -18,7 +18,7 @@
 
 START TRANSACTION;
 
--- 1. the catalogue itself (274 codes)
+-- 1. the catalogue itself (275 codes)
 INSERT INTO `permissions`
   (`id`, `permission_code`, `permission_name`, `module`, `description`)
 VALUES
@@ -73,6 +73,7 @@ VALUES
   (UUID(), 'adjustments.delete', 'Delete Adjustments', 'adjustments', 'Delete Adjustments'),
   (UUID(), 'adjustments.read', 'View Adjustments', 'adjustments', 'View Adjustments'),
   (UUID(), 'adjustments.update', 'Update Adjustments', 'adjustments', 'Update Adjustments'),
+  (UUID(), 'approvals.self', 'Approve Own Documents', 'approvals', 'Approve Own Documents'),
   (UUID(), 'audit_logs.read', 'View Audit Logs', 'audit_logs', 'View Audit Logs'),
   (UUID(), 'brands.create', 'Create Brands', 'brands', 'Create Brands'),
   (UUID(), 'brands.delete', 'Delete Brands', 'brands', 'Delete Brands'),
@@ -434,7 +435,7 @@ SELECT UUID(), r.`id`, p.`id`
 
 COMMIT;
 
--- Verify: expect 274 and a non-zero grant count per role.
+-- Verify: expect 275 and a non-zero grant count per role.
 SELECT COUNT(*) AS catalogue_size FROM `permissions`;
 SELECT r.`role_code`, COUNT(rp.`id`) AS grants
   FROM `roles` r

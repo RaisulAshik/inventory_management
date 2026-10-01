@@ -24,6 +24,7 @@ import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
 import { LeaveRequestStatus } from '@common/enums';
 import { Permissions } from '@common/decorators/permissions.decorator';
+import { canSelfApprove } from '@common/utils/authorization.util';
 
 @ApiTags('HR - Leave Requests')
 @ApiBearerAuth()
@@ -71,7 +72,7 @@ export class LeaveRequestsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.approve(id, user.sub);
+    return this.service.approve(id, user.sub, canSelfApprove(user));
   }
 
   @Post(':id/reject')
@@ -83,7 +84,12 @@ export class LeaveRequestsController {
     @Body() dto: ApproveLeaveRequestDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.reject(id, user.sub, dto.rejectionReason);
+    return this.service.reject(
+      id,
+      user.sub,
+      dto.rejectionReason,
+      canSelfApprove(user),
+    );
   }
 
   @Post(':id/cancel')

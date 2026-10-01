@@ -207,6 +207,7 @@ export class LeaveRequestsService {
     approverId: string,
     status: LeaveRequestStatus.APPROVED | LeaveRequestStatus.REJECTED,
     rejectionReason?: string,
+    selfApprovalAllowed = false,
   ): Promise<LeaveRequest> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
 
@@ -229,7 +230,11 @@ export class LeaveRequestsService {
       // master database and employees in this one, with no relation between
       // them, so an employee id and a user id never match. `createdBy` is the
       // user who submitted the request, which is the meaningful test.
-      if (item.createdBy && item.createdBy === approverId) {
+      if (
+        !selfApprovalAllowed &&
+        item.createdBy &&
+        item.createdBy === approverId
+      ) {
         throw new ForbiddenException(
           'You cannot decide a leave request you submitted',
         );
@@ -248,20 +253,32 @@ export class LeaveRequestsService {
     return this.findOne(id);
   }
 
-  async approve(id: string, approverId: string): Promise<LeaveRequest> {
-    return this.decide(id, approverId, LeaveRequestStatus.APPROVED);
+  async approve(
+    id: string,
+    approverId: string,
+    selfApprovalAllowed = false,
+  ): Promise<LeaveRequest> {
+    return this.decide(
+      id,
+      approverId,
+      LeaveRequestStatus.APPROVED,
+      undefined,
+      selfApprovalAllowed,
+    );
   }
 
   async reject(
     id: string,
     approverId: string,
     rejectionReason?: string,
+    selfApprovalAllowed = false,
   ): Promise<LeaveRequest> {
     return this.decide(
       id,
       approverId,
       LeaveRequestStatus.REJECTED,
       rejectionReason,
+      selfApprovalAllowed,
     );
   }
 

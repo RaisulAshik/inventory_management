@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { TransfersService } from './transfers.service';
 import { Permissions } from '@common/decorators/permissions.decorator';
+import { canSelfApprove } from '@common/utils/authorization.util';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
 import { JwtPayload } from '@common/interfaces';
@@ -116,7 +117,11 @@ export class TransfersController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() currentUser: JwtPayload,
   ) {
-    const transfer = await this.transfersService.approve(id, currentUser.sub);
+    const transfer = await this.transfersService.approve(
+      id,
+      currentUser.sub,
+      canSelfApprove(currentUser),
+    );
     return new TransferResponseDto(transfer);
   }
 

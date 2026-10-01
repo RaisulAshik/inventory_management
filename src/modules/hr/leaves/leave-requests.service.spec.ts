@@ -194,6 +194,23 @@ describe('LeaveRequestsService approval rules', () => {
     expect(saved[0].approvedBy).toBe('user-2');
   });
 
+  // The maker-checker rule is lifted by the 'approvals.self' permission, which
+  // ADMIN holds via the full catalogue. The services take it as a flag so that
+  // a caller which forgets to pass it gets the restriction, not the bypass.
+  it('lets a self-approval-permitted caller decide their own request', async () => {
+    const { service, saved } = makeService({ existing: pending() });
+    await service.approve('lr-1', 'user-1', true);
+    expect(saved[0].status).toBe(LeaveRequestStatus.APPROVED);
+    expect(saved[0].approvedBy).toBe('user-1');
+  });
+
+  it('still refuses self-approval when the flag is not passed', async () => {
+    const { service } = makeService({ existing: pending() });
+    await expect(
+      service.reject('lr-1', 'user-1', 'changed my mind'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('does not block on employeeId, which is a different namespace', async () => {
     // The approver's user id happens to equal the subject's employee id.
     // That is a coincidence, not self-approval, and must not be blocked.

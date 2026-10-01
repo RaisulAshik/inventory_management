@@ -12,6 +12,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Permissions } from '@common/decorators/permissions.decorator';
+import { canSelfApprove } from '@common/utils/authorization.util';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import {
   CreateBudgetDto,
@@ -98,7 +99,12 @@ export class BudgetsController {
     @Body() dto: ApproveBudgetDto,
     @CurrentUser() currentUser: JwtPayload,
   ) {
-    return this.budgetsService.approve(id, dto, currentUser.sub);
+    return this.budgetsService.approve(
+      id,
+      dto,
+      currentUser.sub,
+      canSelfApprove(currentUser),
+    );
   }
 
   @Post(':id/reject')

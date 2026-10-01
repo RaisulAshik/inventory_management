@@ -32,6 +32,7 @@ import {
 } from './dto/bulk-upload-items.dto';
 import { PurchaseOrdersService } from './purchase-orders.service';
 import { Permissions } from '@common/decorators/permissions.decorator';
+import { canSelfApprove } from '@common/utils/authorization.util';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
 import { JwtPayload } from '@common/interfaces';
@@ -215,7 +216,11 @@ export class PurchaseOrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() currentUser: JwtPayload,
   ) {
-    const po = await this.purchaseOrdersService.approve(id, currentUser.sub);
+    const po = await this.purchaseOrdersService.approve(
+      id,
+      currentUser.sub,
+      canSelfApprove(currentUser),
+    );
     return new PurchaseOrderResponseDto(po);
   }
 
@@ -232,6 +237,7 @@ export class PurchaseOrdersController {
       id,
       currentUser.sub,
       reason,
+      canSelfApprove(currentUser),
     );
     return new PurchaseOrderResponseDto(po);
   }
