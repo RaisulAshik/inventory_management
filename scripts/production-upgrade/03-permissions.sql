@@ -18,7 +18,7 @@
 
 START TRANSACTION;
 
--- 1. the catalogue itself (275 codes)
+-- 1. the catalogue itself (259 codes)
 INSERT INTO `permissions`
   (`id`, `permission_code`, `permission_name`, `module`, `description`)
 VALUES
@@ -175,10 +175,6 @@ VALUES
   (UUID(), 'price-lists.delete', 'Delete Price Lists', 'price-lists', 'Delete Price Lists'),
   (UUID(), 'price-lists.read', 'View Price Lists', 'price-lists', 'View Price Lists'),
   (UUID(), 'price-lists.update', 'Update Price Lists', 'price-lists', 'Update Price Lists'),
-  (UUID(), 'price_lists.create', 'Create Price Lists', 'price_lists', 'Create Price Lists'),
-  (UUID(), 'price_lists.delete', 'Delete Price Lists', 'price_lists', 'Delete Price Lists'),
-  (UUID(), 'price_lists.read', 'View Price Lists', 'price_lists', 'View Price Lists'),
-  (UUID(), 'price_lists.update', 'Update Price Lists', 'price_lists', 'Update Price Lists'),
   (UUID(), 'products.create', 'Create Products', 'products', 'Create Products'),
   (UUID(), 'products.delete', 'Delete Products', 'products', 'Delete Products'),
   (UUID(), 'products.export', 'Export Products', 'products', 'Export Products'),
@@ -195,18 +191,6 @@ VALUES
   (UUID(), 'purchase-returns.delete', 'Delete Purchase Returns', 'purchase-returns', 'Delete Purchase Returns'),
   (UUID(), 'purchase-returns.read', 'View Purchase Returns', 'purchase-returns', 'View Purchase Returns'),
   (UUID(), 'purchase-returns.update', 'Update Purchase Returns', 'purchase-returns', 'Update Purchase Returns'),
-  (UUID(), 'purchase_orders.approve', 'Approve Purchase Orders', 'purchase_orders', 'Approve Purchase Orders'),
-  (UUID(), 'purchase_orders.create', 'Create Purchase Orders', 'purchase_orders', 'Create Purchase Orders'),
-  (UUID(), 'purchase_orders.delete', 'Delete Purchase Orders', 'purchase_orders', 'Delete Purchase Orders'),
-  (UUID(), 'purchase_orders.read', 'View Purchase Orders', 'purchase_orders', 'View Purchase Orders'),
-  (UUID(), 'purchase_orders.receive', 'Receive Purchase Orders', 'purchase_orders', 'Receive Purchase Orders'),
-  (UUID(), 'purchase_orders.reject', 'Reject Purchase Orders', 'purchase_orders', 'Reject Purchase Orders'),
-  (UUID(), 'purchase_orders.send', 'Send Purchase Orders', 'purchase_orders', 'Send Purchase Orders'),
-  (UUID(), 'purchase_orders.update', 'Update Purchase Orders', 'purchase_orders', 'Update Purchase Orders'),
-  (UUID(), 'purchase_returns.approve', 'Approve Purchase Returns', 'purchase_returns', 'Approve Purchase Returns'),
-  (UUID(), 'purchase_returns.create', 'Create Purchase Returns', 'purchase_returns', 'Create Purchase Returns'),
-  (UUID(), 'purchase_returns.read', 'View Purchase Returns', 'purchase_returns', 'View Purchase Returns'),
-  (UUID(), 'purchase_returns.update', 'Update Purchase Returns', 'purchase_returns', 'Update Purchase Returns'),
   (UUID(), 'quotations.convert', 'Convert Quotations', 'quotations', 'Convert Quotations'),
   (UUID(), 'quotations.create', 'Create Quotations', 'quotations', 'Create Quotations'),
   (UUID(), 'quotations.delete', 'Delete Quotations', 'quotations', 'Delete Quotations'),
@@ -435,7 +419,7 @@ SELECT UUID(), r.`id`, p.`id`
 
 COMMIT;
 
--- Verify: expect 275 and a non-zero grant count per role.
+-- Verify: expect 259 and a non-zero grant count per role.
 SELECT COUNT(*) AS catalogue_size FROM `permissions`;
 SELECT r.`role_code`, COUNT(rp.`id`) AS grants
   FROM `roles` r

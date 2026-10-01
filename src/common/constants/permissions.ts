@@ -576,24 +576,6 @@ export const PERMISSIONS: readonly PermissionDef[] = [
     module: 'price-lists',
   },
 
-  // price_lists
-  {
-    code: 'price_lists.create',
-    name: 'Create Price Lists',
-    module: 'price_lists',
-  },
-  {
-    code: 'price_lists.delete',
-    name: 'Delete Price Lists',
-    module: 'price_lists',
-  },
-  { code: 'price_lists.read', name: 'View Price Lists', module: 'price_lists' },
-  {
-    code: 'price_lists.update',
-    name: 'Update Price Lists',
-    module: 'price_lists',
-  },
-
   // products
   { code: 'products.create', name: 'Create Products', module: 'products' },
   { code: 'products.delete', name: 'Delete Products', module: 'products' },
@@ -654,70 +636,6 @@ export const PERMISSIONS: readonly PermissionDef[] = [
     code: 'purchase-returns.update',
     name: 'Update Purchase Returns',
     module: 'purchase-returns',
-  },
-
-  // purchase_orders
-  {
-    code: 'purchase_orders.approve',
-    name: 'Approve Purchase Orders',
-    module: 'purchase_orders',
-  },
-  {
-    code: 'purchase_orders.create',
-    name: 'Create Purchase Orders',
-    module: 'purchase_orders',
-  },
-  {
-    code: 'purchase_orders.delete',
-    name: 'Delete Purchase Orders',
-    module: 'purchase_orders',
-  },
-  {
-    code: 'purchase_orders.read',
-    name: 'View Purchase Orders',
-    module: 'purchase_orders',
-  },
-  {
-    code: 'purchase_orders.receive',
-    name: 'Receive Purchase Orders',
-    module: 'purchase_orders',
-  },
-  {
-    code: 'purchase_orders.reject',
-    name: 'Reject Purchase Orders',
-    module: 'purchase_orders',
-  },
-  {
-    code: 'purchase_orders.send',
-    name: 'Send Purchase Orders',
-    module: 'purchase_orders',
-  },
-  {
-    code: 'purchase_orders.update',
-    name: 'Update Purchase Orders',
-    module: 'purchase_orders',
-  },
-
-  // purchase_returns
-  {
-    code: 'purchase_returns.approve',
-    name: 'Approve Purchase Returns',
-    module: 'purchase_returns',
-  },
-  {
-    code: 'purchase_returns.create',
-    name: 'Create Purchase Returns',
-    module: 'purchase_returns',
-  },
-  {
-    code: 'purchase_returns.read',
-    name: 'View Purchase Returns',
-    module: 'purchase_returns',
-  },
-  {
-    code: 'purchase_returns.update',
-    name: 'Update Purchase Returns',
-    module: 'purchase_returns',
   },
 
   // quotations

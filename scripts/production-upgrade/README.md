@@ -152,10 +152,22 @@ This substitutes for 014 **only**.
 mysql -h <host> -u <user> -p <tenant_db> < 03-permissions.sql
 ```
 
-Equivalent to migration 012: 271 catalogue rows, the full set to ADMIN, the
+Equivalent to migration 012: 259 catalogue rows, the full set to ADMIN, the
 defaults to the other four system roles. Additive and idempotent, wrapped in
 a transaction, and it prints the catalogue size and per-role grant counts at
 the end so you can check it landed.
+
+### Optional: clear the 16 retired codes
+
+```bash
+mysql -h <host> -u <user> -p <tenant_db> < 04-remove-dead-permissions.sql
+```
+
+Only for tenants provisioned before those codes were retired. It names all 16
+explicitly — no pattern matching — deletes their grants before the
+permissions, and runs in a transaction with a review query first, so you can
+`ROLLBACK` if the numbers look wrong. Skipping it is harmless: the codes are
+inert either way, they just keep cluttering the roles screen.
 
 It is **generated** from `src/common/constants/permissions.ts`, not written by
 hand, so it cannot drift from what the application enforces. Regenerate it
@@ -214,14 +226,32 @@ Expect 200s, and 271 codes across 47 modules from the last one.
 ## Afterwards
 
 The frontend gates on the codes the backend's `@Permissions()` guards actually
-check. **66** of the 271 catalogue codes are not checked by any controller:
-orphaned duplicates from a rename (`sales_orders.*` → `orders.*`,
-`stock_transfers.*` → `transfers.*`, `warehouse_locations.*` → `locations.*`,
-`inventory.*` → `stock.*`, and the underscore forms of `price_lists` /
-`purchase_orders` / `purchase_returns`), plus forward-looking codes for
-features with no endpoint yet (`reports.*`, `dashboard.analytics`,
-`quotations.send`, the `*.import` / `*.export` pairs). When building roles,
-grant the enforced spelling.
+check. **51** of the 259 catalogue codes are not checked by any controller:
+
+- **Orphaned duplicates from a rename** — `sales_orders.*` → `orders.*`,
+  `stock_transfers.*` → `transfers.*`, `stock_adjustments.*` →
+  `adjustments.*`, `sales_returns.*` → `returns.*`, `warehouse_locations.*` →
+  `locations.*`, `inventory.*` → `stock.*`, `payments.*` → `orders.payment`.
+  Grantable but inert. Grant the enforced spelling.
+- **Forward-looking** — `reports.*`, `dashboard.analytics`, `audit_logs.read`,
+  `quotations.convert` / `.send`, `settings.company`, `tax.create` /
+  `.update` / `.delete`, and the `*.import` / `*.export` pairs. No endpoint
+  yet; the code is reserved so the front end can gate on it.
+- **`approvals.self`** — enforced, but in handler code via `canSelfApprove()`
+  rather than by a `@Permissions()` decorator, because it changes a business
+  rule inside a handler instead of protecting the route. It will always look
+  unguarded to a decorator scan. Do not remove it.
+
+The underscore forms of `price_lists` / `purchase_orders` / `purchase_returns`
+**have been removed** — 16 codes, which is why the catalogue went from 275 to
+259. Only the hyphenated spelling was ever enforced, and having both listed
+under near-identical module names made the roles screen misleading. New
+tenants never receive them. For tenants provisioned earlier, the optional
+`04-remove-dead-permissions.sql` clears the rows; `03-permissions.sql` is
+additive by design and cannot.
+
+`src/common/constants/permissions.spec.ts` now fails the build if a module
+name is ever spelled two ways again.
 
 The SALES seed gap is **fixed**: that role held `payments.create` (orphaned)
 but not `orders.payment` (enforced), so it could not record order payments.
