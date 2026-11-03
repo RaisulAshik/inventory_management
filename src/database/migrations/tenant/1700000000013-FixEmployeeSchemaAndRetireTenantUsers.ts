@@ -1,25 +1,21 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
- * Two things, both consequences of users and employees being separate:
+ * `hr_employees` was missing 12 columns the Employee entity maps (the six
+ * address fields, reporting_to vs reporting_to_id, three date fields,
+ * bank_branch, profile_photo_url). TypeORM builds its SELECT list from the
+ * entity, so every HR employee query failed. Tenants provisioned before the
+ * HR module existed have no such table at all; it is created here.
  *
- *  1. `hr_employees` was missing 12 columns the Employee entity maps (the six
- *     address fields, reporting_to vs reporting_to_id, three date fields,
- *     bank_branch, profile_photo_url). TypeORM builds its SELECT list from the
- *     entity, so every HR employee query failed. Tenants provisioned before
- *     the HR module existed have no such table at all; it is created here.
- *
- *  2. The tenant database had its own `users` table duplicating the master
- *     `tenant_users`. Users belong in master — they are not tenant data — so
- *     the tenant copy is retired. Roles and sessions stay here, keyed by the
- *     master user id with no foreign key, because the two tables are in
- *     different databases.
- *
- * `users` is RENAMED, not dropped, so nothing is lost if the id remapping
- * below cannot match every row. Drop `users_retired_backup` by hand once the
- * result has been checked.
- *
- * NOTE: rewrites keys. Run against a copy of a real tenant database first.
+ * This migration used to also retire the tenant `users` table (re-keying
+ * user_roles / user_sessions to master ids, deleting grants that still
+ * matched a tenant user, then renaming `users` to `users_retired_backup`).
+ * That step is gone: the tenant `users` table is back, as a mirror of master
+ * under the same ids, and migration 015 does the re-keying. Left in place,
+ * the old step would have read every mirrored user's grants as orphans and
+ * deleted them on any tenant where this migration was still pending.
+ * Tenants that already ran it keep `users_retired_backup`; 015 recreates
+ * `users` beside it.
  */
 export class FixEmployeeSchemaAndRetireTenantUsers1700000000013 implements MigrationInterface {
   name = 'FixEmployeeSchemaAndRetireTenantUsers1700000000013';
@@ -203,70 +199,12 @@ export class FixEmployeeSchemaAndRetireTenantUsers1700000000013 implements Migra
         );
       }
     }
-
-    // ── 2. retire the tenant-local users table ────────────────────────────
-    if (!(await this.hasTable(queryRunner, 'users'))) {
-      return;
-    }
-
-    // user_roles and user_sessions currently key off the tenant `users` table.
-    // Authentication now issues the MASTER tenant_users id, so those columns
-    // have to be remapped. The two rows are matched on email, which is unique
-    // on both sides. This is a cross-database statement: it needs the tenant
-    // and master schemas to live on the same MySQL server, which they do —
-    // tenant connections are opened with the master credentials.
-    const masterDb = process.env.MASTER_DB_NAME || 'erp_master';
-
-    for (const table of ['user_roles', 'user_sessions']) {
-      if (!(await this.hasTable(queryRunner, table))) continue;
-
-      for (const name of await this.constraintNames(queryRunner, table)) {
-        await queryRunner.query(
-          `ALTER TABLE \`${table}\` DROP FOREIGN KEY \`${name}\``,
-        );
-      }
-
-      await queryRunner.query(
-        `UPDATE \`${table}\` t
-         JOIN \`users\` u        ON u.\`id\` = t.\`user_id\`
-         JOIN \`${masterDb}\`.\`tenant_users\` m ON m.\`email\` = u.\`email\`
-         SET t.\`user_id\` = m.\`id\``,
-      );
-
-      // Anything still pointing at a tenant-only user has no master
-      // counterpart and would be dead weight; remove it rather than leave a
-      // role grant that resolves to nobody.
-      const orphans = await queryRunner.query(
-        `SELECT COUNT(*) AS n FROM \`${table}\` t
-         JOIN \`users\` u ON u.\`id\` = t.\`user_id\``,
-      );
-      if (Number(orphans[0].n) > 0) {
-        await queryRunner.query(
-          `DELETE t FROM \`${table}\` t JOIN \`users\` u ON u.\`id\` = t.\`user_id\``,
-        );
-      }
-    }
-
-    // quotations and pos_sessions referenced users too. Their columns now hold
-    // master ids, which no foreign key in this database can enforce.
-    for (const table of ['quotations', 'pos_sessions']) {
-      if (!(await this.hasTable(queryRunner, table))) continue;
-      for (const name of await this.constraintNames(queryRunner, table)) {
-        await queryRunner.query(
-          `ALTER TABLE \`${table}\` DROP FOREIGN KEY \`${name}\``,
-        );
-      }
-    }
-
-    // Renamed rather than dropped: if the email match above missed anyone,
-    // their record is still here to reconcile by hand.
-    await queryRunner.query('RENAME TABLE `users` TO `users_retired_backup`');
   }
 
   public down(): Promise<void> {
-    // Not reversible. The remapped user_roles/user_sessions ids cannot be
-    // traced back without the original users table, which is why that table is
-    // renamed rather than dropped. Restore from a backup instead.
+    // Not reversible: the column changes above fold and rename data (address
+    // into address_line1, reporting_to_id into reporting_to). Restore from a
+    // backup instead.
     return Promise.reject(
       new Error(
         'FixEmployeeSchemaAndRetireTenantUsers cannot be reverted. Restore the tenant database from a backup.',

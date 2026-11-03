@@ -54,7 +54,7 @@ export class CreateUserDto {
   @ApiPropertyOptional({ type: [String], example: ['uuid1', 'uuid2'] })
   @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID('all', { each: true })
   roleIds?: string[];
 
   // Internal use

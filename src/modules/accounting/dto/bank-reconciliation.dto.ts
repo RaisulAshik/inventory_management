@@ -91,7 +91,7 @@ export class UpdateBankReconciliationDto extends PartialType(
 
 export class CompleteReconciliationDto {
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID('all', { each: true })
   reconciledTransactionIds: string[];
 
   @IsNumber()

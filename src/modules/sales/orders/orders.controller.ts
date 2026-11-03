@@ -23,6 +23,7 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto, UpdateOrderItemDto } from './dto/update-order.dto';
 import { OrderFilterDto } from './dto/order-filter.dto';
+import { OrderReportQueryDto } from './dto/order-report.dto';
 import { AddPaymentDto } from './dto/add-payment.dto';
 import { ShipOrderDto } from './dto/ship-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
@@ -88,6 +89,13 @@ export class OrdersController {
       warehouseId,
     );
     return stats;
+  }
+
+  @Get('report')
+  @Permissions('orders.read')
+  @ApiOperation({ summary: 'Aggregated sales report grouped by period or customer' })
+  async getReport(@Query() query: OrderReportQueryDto) {
+    return this.ordersService.getReport(query);
   }
 
   @Get('search/number/:orderNumber')

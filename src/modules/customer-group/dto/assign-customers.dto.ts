@@ -9,7 +9,7 @@ export class AssignCustomersDto {
     type: [String],
   })
   @IsArray()
-  @IsUUID('4', { each: true, message: 'Each customer ID must be a valid UUID' })
+  @IsUUID('all', { each: true, message: 'Each customer ID must be a valid UUID' })
   @ArrayMinSize(1, { message: 'At least one customer ID is required' })
   customerIds: string[];
 }

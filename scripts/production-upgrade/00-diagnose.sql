@@ -60,9 +60,10 @@ SELECT '5. hr tables' AS check_name,
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = @tenant_db AND TABLE_NAME LIKE 'hr\_%';
 
--- 6. Has the tenant `users` table been retired by migration 013?
---    users=1, retired=0 -> 013 has NOT run
---    users=0, retired=1 -> 013 HAS run
+-- 6. Does the tenant have its `users` table (the mirror of master users)?
+--    users=0   -> 015 has not run; every user create/edit fails until it does
+--    users=1   -> present (the mirror, or an original table 015 will re-key)
+--    retired=1 -> an earlier build of 013 ran here; see README "Rollback"
 SELECT '6. users / users_retired_backup' AS check_name,
        CONCAT('users=',    IFNULL(SUM(TABLE_NAME = 'users'), 0),
               ' retired=', IFNULL(SUM(TABLE_NAME = 'users_retired_backup'), 0)) AS result

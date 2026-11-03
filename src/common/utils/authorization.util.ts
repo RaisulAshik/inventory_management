@@ -4,11 +4,15 @@ import { JwtPayload } from '@common/interfaces';
  * Lifts the maker-checker restriction: the holder may approve documents they
  * raised themselves.
  *
- * ADMIN holds the entire catalogue (provisioning grants it by CROSS JOIN), so
- * a tenant admin gets this without anyone assigning it. Any other role gets it
- * only if someone deliberately grants it.
+ * Reserved to the ADMIN role: provisioning grants it to ADMIN (the whole
+ * catalogue, by CROSS JOIN), RolesService refuses to assign it to any other
+ * role, and canSelfApprove() additionally requires the ADMIN role, so a stray
+ * grant elsewhere has no effect.
  */
 export const SELF_APPROVAL_PERMISSION = 'approvals.self';
+
+/** The only tenant role that may hold SELF_APPROVAL_PERMISSION. */
+export const SELF_APPROVAL_ROLE = 'ADMIN';
 
 /**
  * Whether the caller holds a permission.
@@ -32,7 +36,15 @@ export function hasPermission(
  *
  * Passed into the approval services, which default it to `false` — so a caller
  * that does not supply it gets the segregation-of-duties rule enforced.
+ *
+ * A platform admin passes outright; a tenant user needs both the ADMIN role
+ * and the permission.
  */
 export function canSelfApprove(user: JwtPayload | undefined): boolean {
-  return hasPermission(user, SELF_APPROVAL_PERMISSION);
+  if (!user) return false;
+  if (user.isAdmin === true || user.type === 'admin') return true;
+  return (
+    (user.roles ?? []).includes(SELF_APPROVAL_ROLE) &&
+    hasPermission(user, SELF_APPROVAL_PERMISSION)
+  );
 }

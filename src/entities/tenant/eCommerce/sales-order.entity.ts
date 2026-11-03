@@ -28,6 +28,19 @@ export class SalesOrder {
   @Column({ name: 'order_number', length: 50, unique: true })
   orderNumber: string;
 
+  /**
+   * The customer's own purchase order number, quoted back on the sales order.
+   * Added after go-live: TenantSchemaBootstrap adds the column to existing
+   * tenants on startup.
+   */
+  @Column({
+    name: 'customer_po_number',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  customerPoNumber: string | null;
+
   @Column({ name: 'order_date', type: 'timestamp' })
   orderDate: Date;
 

@@ -39,6 +39,7 @@ import { AddPaymentDto } from './dto/add-payment.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderDto, UpdateOrderItemDto } from './dto/update-order.dto';
+import { OrderReportQueryDto, SalesReportGroupBy } from './dto/order-report.dto';
 import { CustomerDuesService } from '@/modules/due-management';
 
 @Injectable()
@@ -140,6 +141,7 @@ export class OrdersService {
     const order = orderRepo.create({
       id: uuidv4(),
       orderNumber,
+      customerPoNumber: createOrderDto.customerPoNumber || null,
       customerId: createOrderDto.customerId,
       warehouseId: createOrderDto.warehouseId,
       orderDate: createOrderDto.orderDate || new Date(),
@@ -1218,5 +1220,134 @@ export class OrdersService {
 
     const result = await dataSource.query(query, params);
     return result[0];
+  }
+  /**
+   * Aggregated sales report.
+   *
+   * Grouped in SQL rather than in the client: the list endpoints cap `limit`
+   * at 500, so grouping fetched rows would silently under-count any tenant
+   * with more documents than that.
+   *
+   * Cancelled orders are excluded unless `includeCancelled` is set — they are
+   * not revenue, and `/orders/statistics` counting them is a known wart.
+   */
+  async getReport(query: OrderReportQueryDto): Promise<any> {
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+
+    // Whitelisted expressions — `groupBy` is an enum, so nothing here is
+    // interpolated from free user input.
+    const GROUPING: Record<
+      SalesReportGroupBy,
+      { key: string; label: string; order: string; join: string }
+    > = {
+      [SalesReportGroupBy.DAY]: {
+        key: `DATE_FORMAT(o.order_date, '%Y-%m-%d')`,
+        label: `DATE_FORMAT(o.order_date, '%d %b %Y')`,
+        order: '`key` ASC',
+        join: '',
+      },
+      [SalesReportGroupBy.MONTH]: {
+        key: `DATE_FORMAT(o.order_date, '%Y-%m')`,
+        label: `DATE_FORMAT(o.order_date, '%M %Y')`,
+        order: '`key` ASC',
+        join: '',
+      },
+      [SalesReportGroupBy.YEAR]: {
+        key: `DATE_FORMAT(o.order_date, '%Y')`,
+        label: `DATE_FORMAT(o.order_date, '%Y')`,
+        order: '`key` ASC',
+        join: '',
+      },
+      [SalesReportGroupBy.CUSTOMER]: {
+        key: 'o.customer_id',
+        label: `COALESCE(NULLIF(c.company_name, ''), NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), ''), c.customer_code, 'Unknown')`,
+        order: 'total DESC',
+        join: 'LEFT JOIN customers c ON c.id = o.customer_id',
+      },
+    };
+
+    const g = GROUPING[query.groupBy];
+
+    const params: any[] = [];
+    let where = ' WHERE 1=1';
+
+    if (!query.includeCancelled) where += ` AND o.status <> 'CANCELLED'`;
+    if (query.fromDate) {
+      where += ' AND o.order_date >= ?';
+      params.push(query.fromDate);
+    }
+    if (query.toDate) {
+      where += ' AND o.order_date <= ?';
+      params.push(query.toDate);
+    }
+    if (query.customerId) {
+      where += ' AND o.customer_id = ?';
+      params.push(query.customerId);
+    }
+    if (query.warehouseId) {
+      where += ' AND o.warehouse_id = ?';
+      params.push(query.warehouseId);
+    }
+    if (query.status) {
+      where += ' AND o.status = ?';
+      params.push(query.status);
+    }
+    if (query.paymentStatus) {
+      where += ' AND o.payment_status = ?';
+      params.push(query.paymentStatus);
+    }
+
+    const sql = `
+      SELECT
+        ${g.key}   AS \`key\`,
+        ${g.label} AS label,
+        COUNT(*)                                  AS count,
+        COALESCE(SUM(o.subtotal), 0)              AS subtotal,
+        COALESCE(SUM(o.discount_amount), 0)       AS discount,
+        COALESCE(SUM(o.tax_amount), 0)            AS tax,
+        COALESCE(SUM(o.shipping_amount), 0)       AS shipping,
+        COALESCE(SUM(o.total_amount), 0)          AS total,
+        COALESCE(SUM(o.paid_amount), 0)           AS paid,
+        COALESCE(SUM(o.total_amount - o.paid_amount), 0) AS balance
+      FROM sales_orders o
+      ${g.join}
+      ${where}
+      GROUP BY \`key\`, label
+      ORDER BY ${g.order}
+    `;
+
+    const rows = await dataSource.query(sql, params);
+
+    const numeric = [
+      'count',
+      'subtotal',
+      'discount',
+      'tax',
+      'shipping',
+      'total',
+      'paid',
+      'balance',
+    ];
+    const shaped = rows.map((r: any) => {
+      const out: any = { key: String(r.key ?? ''), label: String(r.label ?? '') };
+      numeric.forEach((f) => (out[f] = Number(r[f]) || 0));
+      return out;
+    });
+
+    // Summed from the same rows, so the footer can never disagree with the
+    // body of the report.
+    const totals: any = {};
+    numeric.forEach(
+      (f) => (totals[f] = shaped.reduce((a: number, r: any) => a + r[f], 0)),
+    );
+
+    return {
+      groupBy: query.groupBy,
+      fromDate: query.fromDate ?? null,
+      toDate: query.toDate ?? null,
+      includeCancelled: !!query.includeCancelled,
+      rows: shaped,
+      totals,
+    };
   }
 }

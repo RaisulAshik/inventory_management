@@ -12,6 +12,7 @@ import { AdminAuthService } from './admin-auth.service';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
 import { AdminLocalStrategy } from './strategies/admin-local.strategy';
 import { TenantProvisioningService } from './services/tenant-provisioning.service';
+import { TenantSchemaBootstrap } from './services/tenant-schema.bootstrap';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { TenantProvisioningService } from './services/tenant-provisioning.servic
     AdminJwtStrategy,
     AdminLocalStrategy,
     TenantProvisioningService,
+    TenantSchemaBootstrap,
   ],
   exports: [AdminAuthService, TenantProvisioningService],
 })

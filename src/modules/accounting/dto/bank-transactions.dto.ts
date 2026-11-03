@@ -125,7 +125,7 @@ export class QueryBankTransactionDto {
 }
 
 export class ReconcileTransactionsDto {
-  @IsUUID('4', { each: true })
+  @IsUUID('all', { each: true })
   transactionIds: string[];
 
   @IsUUID()

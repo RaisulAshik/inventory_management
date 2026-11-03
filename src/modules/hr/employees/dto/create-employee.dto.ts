@@ -214,6 +214,6 @@ export class CreateEmployeeDto {
   })
   @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID('all', { each: true })
   roleIds?: string[];
 }

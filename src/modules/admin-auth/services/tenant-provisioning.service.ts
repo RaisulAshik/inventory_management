@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource, QueryRunner } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { PERMISSIONS, ROLE_PERMISSIONS } from '@common/constants/permissions';
+import { tenantUsersTableDdl } from '@database/tenant-users-table';
 
 @Injectable()
 export class TenantProvisioningService {
@@ -147,6 +148,31 @@ export class TenantProvisioningService {
   }
 
   /**
+   * Add an index only if it is not already present.
+   *
+   * MySQL has no ADD INDEX IF NOT EXISTS either. Without this check,
+   * re-running createTenantTables against a provisioned tenant fails on the
+   * first index it already has.
+   */
+  private async addIndexIfMissing(
+    queryRunner: QueryRunner,
+    table: string,
+    index: string,
+    column: string,
+  ): Promise<void> {
+    const [{ n }] = await queryRunner.query(
+      `SELECT COUNT(*) AS n FROM information_schema.STATISTICS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?`,
+      [table, index],
+    );
+    if (Number(n) > 0) return;
+
+    await queryRunner.query(
+      `ALTER TABLE \`${table}\` ADD INDEX \`${index}\` (\`${column}\`)`,
+    );
+  }
+
+  /**
    * Bring an existing tenant database up to the current schema.
    *
    * Every CREATE TABLE in createTenantTables is IF NOT EXISTS and every
@@ -271,6 +297,12 @@ export class TenantProvisioningService {
           INDEX \`idx_emp_active\` (\`is_active\`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
+
+      // users (entity: User -> 'users')
+      //
+      // The tenant copy of a master tenant_users row, under the same id.
+      // Master stays authoritative; UsersService keeps this in step.
+      await queryRunner.query(tenantUsersTableDdl());
 
       // user_sessions (entity: UserSession -> 'user_sessions')
       await queryRunner.query(`
@@ -1097,6 +1129,7 @@ export class TenantProvisioningService {
         CREATE TABLE IF NOT EXISTS \`sales_orders\` (
           \`id\` CHAR(36) NOT NULL,
           \`order_number\` VARCHAR(50) NOT NULL,
+          \`customer_po_number\` VARCHAR(100) NULL,
           \`order_date\` TIMESTAMP NOT NULL,
           \`created_by\` CHAR(36) NULL,
           \`created_at\` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -3883,9 +3916,7 @@ export class TenantProvisioningService {
       ];
 
       for (const [table, index, column] of fkIndexes) {
-        await queryRunner.query(
-          `ALTER TABLE \`${table}\` ADD INDEX \`${index}\` (\`${column}\`)`,
-        );
+        await this.addIndexIfMissing(queryRunner, table, index, column);
       }
 
       this.logger.log('All tenant tables created successfully');

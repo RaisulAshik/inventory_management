@@ -2,6 +2,7 @@
 export * from './role/role.entity';
 export * from './role/permission.entity';
 export * from './role/role-permission.entity';
+export * from './user/user.entity';
 export * from './user/user-role.entity';
 export * from './user/user-session.entity';
 export * from './user/audit-log.entity';

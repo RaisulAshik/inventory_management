@@ -37,6 +37,7 @@ import {
 import { PurchaseOrderFilterDto } from './dto/purchase-order-filter.dto';
 import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 import { UpdatePurchaseOrderItemDto } from './dto/update-purchase-order-item.dto';
+import { PurchaseReportQueryDto, PurchaseReportGroupBy, PurchaseReportBasis } from './dto/purchase-report.dto';
 
 @Injectable()
 export class PurchaseOrdersService {
@@ -1344,5 +1345,156 @@ export class PurchaseOrdersService {
       .andWhere('po.expectedDeliveryDate < :today', { today })
       .orderBy('po.expectedDeliveryDate', 'ASC')
       .getMany();
+  }
+  /**
+   * Aggregated purchase report, from either the orders or the receipts.
+   *
+   * Grouped in SQL for the same reason as the sales report: the list
+   * endpoints cap `limit` at 500, so client-side grouping would under-count.
+   *
+   * The two bases do not carry the same columns. Purchase orders track
+   * discount, shipping and paid amounts; goods receipts only carry a
+   * subtotal, tax and total value. The missing figures come back as 0 and
+   * `basis` is echoed so the caller knows which columns are meaningful.
+   */
+  async getReport(query: PurchaseReportQueryDto): Promise<any> {
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+    const basis = query.basis ?? PurchaseReportBasis.GRN;
+    const isPo = basis === PurchaseReportBasis.PO;
+
+    const table = isPo ? 'purchase_orders' : 'goods_received_notes';
+    const dateCol = isPo ? 'o.order_date' : 'o.receipt_date';
+
+    // Receipts have no discount/shipping/paid columns.
+    const money = isPo
+      ? {
+          subtotal: 'COALESCE(SUM(o.subtotal), 0)',
+          discount: 'COALESCE(SUM(o.discount_amount), 0)',
+          tax: 'COALESCE(SUM(o.tax_amount), 0)',
+          shipping: 'COALESCE(SUM(o.shipping_amount), 0)',
+          total: 'COALESCE(SUM(o.total_amount), 0)',
+          paid: 'COALESCE(SUM(o.paid_amount), 0)',
+          balance: 'COALESCE(SUM(o.total_amount - o.paid_amount), 0)',
+        }
+      : {
+          subtotal: 'COALESCE(SUM(o.subtotal), 0)',
+          discount: '0',
+          tax: 'COALESCE(SUM(o.tax_amount), 0)',
+          shipping: '0',
+          total: 'COALESCE(SUM(o.total_value), 0)',
+          paid: '0',
+          balance: '0',
+        };
+
+    // Whitelisted expressions — `groupBy` is an enum, nothing is interpolated
+    // from free user input.
+    const GROUPING: Record<
+      PurchaseReportGroupBy,
+      { key: string; label: string; order: string; join: string }
+    > = {
+      [PurchaseReportGroupBy.DAY]: {
+        key: `DATE_FORMAT(${dateCol}, '%Y-%m-%d')`,
+        label: `DATE_FORMAT(${dateCol}, '%d %b %Y')`,
+        order: '`key` ASC',
+        join: '',
+      },
+      [PurchaseReportGroupBy.MONTH]: {
+        key: `DATE_FORMAT(${dateCol}, '%Y-%m')`,
+        label: `DATE_FORMAT(${dateCol}, '%M %Y')`,
+        order: '`key` ASC',
+        join: '',
+      },
+      [PurchaseReportGroupBy.YEAR]: {
+        key: `DATE_FORMAT(${dateCol}, '%Y')`,
+        label: `DATE_FORMAT(${dateCol}, '%Y')`,
+        order: '`key` ASC',
+        join: '',
+      },
+      [PurchaseReportGroupBy.SUPPLIER]: {
+        key: 'o.supplier_id',
+        label: `COALESCE(NULLIF(s.company_name, ''), s.supplier_code, 'Unknown')`,
+        order: 'total DESC',
+        join: 'LEFT JOIN suppliers s ON s.id = o.supplier_id',
+      },
+    };
+
+    const g = GROUPING[query.groupBy];
+
+    const params: any[] = [];
+    let where = ' WHERE 1=1';
+
+    if (!query.includeCancelled) where += ` AND o.status <> 'CANCELLED'`;
+    if (query.fromDate) {
+      where += ` AND ${dateCol} >= ?`;
+      params.push(query.fromDate);
+    }
+    if (query.toDate) {
+      where += ` AND ${dateCol} <= ?`;
+      params.push(query.toDate);
+    }
+    if (query.supplierId) {
+      where += ' AND o.supplier_id = ?';
+      params.push(query.supplierId);
+    }
+    if (query.warehouseId) {
+      where += ' AND o.warehouse_id = ?';
+      params.push(query.warehouseId);
+    }
+    if (query.status) {
+      where += ' AND o.status = ?';
+      params.push(query.status);
+    }
+
+    const sql = `
+      SELECT
+        ${g.key}   AS \`key\`,
+        ${g.label} AS label,
+        COUNT(*)             AS count,
+        ${money.subtotal}    AS subtotal,
+        ${money.discount}    AS discount,
+        ${money.tax}         AS tax,
+        ${money.shipping}    AS shipping,
+        ${money.total}       AS total,
+        ${money.paid}        AS paid,
+        ${money.balance}     AS balance
+      FROM ${table} o
+      ${g.join}
+      ${where}
+      GROUP BY \`key\`, label
+      ORDER BY ${g.order}
+    `;
+
+    const rows = await dataSource.query(sql, params);
+
+    const numeric = [
+      'count',
+      'subtotal',
+      'discount',
+      'tax',
+      'shipping',
+      'total',
+      'paid',
+      'balance',
+    ];
+    const shaped = rows.map((r: any) => {
+      const out: any = { key: String(r.key ?? ''), label: String(r.label ?? '') };
+      numeric.forEach((f) => (out[f] = Number(r[f]) || 0));
+      return out;
+    });
+
+    const totals: any = {};
+    numeric.forEach(
+      (f) => (totals[f] = shaped.reduce((a: number, r: any) => a + r[f], 0)),
+    );
+
+    return {
+      groupBy: query.groupBy,
+      basis,
+      fromDate: query.fromDate ?? null,
+      toDate: query.toDate ?? null,
+      includeCancelled: !!query.includeCancelled,
+      rows: shaped,
+      totals,
+    };
   }
 }

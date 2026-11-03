@@ -96,6 +96,9 @@ export class OrderResponseDto {
   @ApiProperty()
   orderNumber: string;
 
+  @ApiPropertyOptional()
+  customerPoNumber?: string | null;
+
   @ApiProperty({ enum: SalesOrderStatus })
   status: SalesOrderStatus;
 
@@ -183,6 +186,7 @@ export class OrderResponseDto {
   constructor(order: SalesOrder) {
     this.id = order.id;
     this.orderNumber = order.orderNumber;
+    this.customerPoNumber = order.customerPoNumber;
     this.status = order.status;
     this.orderDate = order.orderDate;
     this.expectedDeliveryDate = order.expectedDeliveryDate;

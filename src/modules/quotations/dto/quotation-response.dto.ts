@@ -1,7 +1,7 @@
 // src/modules/quotations/dto/quotation-response.dto.ts
 
 import { Quotation } from '@/entities/tenant';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class QuotationResponseDto {
   @ApiProperty() id: string;
@@ -60,9 +60,26 @@ export class QuotationDetailResponseDto extends QuotationResponseDto {
   @ApiProperty() createdBy: string;
   @ApiProperty() updatedAt: Date;
   @ApiProperty() items: any[];
+  /** Contact details for the quotation document; same shape as on a sales order. */
+  @ApiPropertyOptional() customer?: {
+    id: string;
+    customerCode: string;
+    displayName: string;
+    email?: string;
+    phone?: string;
+  };
 
   constructor(quotation: Quotation) {
     super(quotation);
+    if (quotation.customer) {
+      this.customer = {
+        id: quotation.customer.id,
+        customerCode: quotation.customer.customerCode,
+        displayName: this.customerName,
+        email: quotation.customer.email,
+        phone: quotation.customer.phone,
+      };
+    }
     this.warehouseName = quotation.warehouse?.warehouseName ?? '';
     this.billingAddressId = quotation.billingAddressId;
     this.shippingAddressId = quotation.shippingAddressId;

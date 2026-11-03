@@ -32,15 +32,16 @@ export class EmployeesService {
    * Create an employee, and optionally a login for them.
    *
    * The employee is an HR record in this tenant's database. When `password`
-   * is supplied a USER is also created, in the master database, with the
-   * requested roles granted here. The two records are NOT linked — there is
-   * no foreign key and nothing joins them — so this is a convenience for the
-   * "new starter" form, not a relationship.
+   * is supplied a USER is also created — in master `tenant_users`, mirrored
+   * into this tenant's `users` under the same id, with the requested roles
+   * granted in `user_roles` (see UsersService.create). The employee and the
+   * user are NOT linked — there is no foreign key and nothing joins them — so
+   * this is a convenience for the "new starter" form, not a relationship.
    *
-   * They are in different databases, so a single transaction is impossible.
-   * Everything that can be checked is checked before either is written, and
-   * if the login fails afterwards the employee is removed again rather than
-   * left behind half-created.
+   * Master and tenant are different databases, so a single transaction is
+   * impossible. Everything that can be checked is checked before anything is
+   * written, and if the login fails afterwards the employee is removed again
+   * rather than left behind half-created.
    */
   async create(dto: CreateEmployeeDto, createdBy?: string): Promise<Employee> {
     const { password, roleIds, ...employeeData } = dto;

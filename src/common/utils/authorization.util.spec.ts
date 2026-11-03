@@ -2,6 +2,7 @@ import {
   canSelfApprove,
   hasPermission,
   SELF_APPROVAL_PERMISSION,
+  SELF_APPROVAL_ROLE,
 } from './authorization.util';
 import { PERMISSION_CODES } from '@common/constants/permissions';
 import { JwtPayload } from '@common/interfaces';
@@ -49,11 +50,25 @@ describe('authorization util', () => {
     expect(canSelfApprove(undefined)).toBe(false);
   });
 
-  it('allows self-approval only for a holder of the code', () => {
+  it('allows self-approval only for an ADMIN holding the code', () => {
     expect(canSelfApprove(user())).toBe(false);
+    expect(canSelfApprove(user({ roles: [SELF_APPROVAL_ROLE] }))).toBe(false);
     expect(
-      canSelfApprove(user({ permissions: [SELF_APPROVAL_PERMISSION] })),
+      canSelfApprove(
+        user({
+          roles: [SELF_APPROVAL_ROLE],
+          permissions: [SELF_APPROVAL_PERMISSION],
+        }),
+      ),
     ).toBe(true);
+  });
+
+  it('ignores the code when held through a role other than ADMIN', () => {
+    expect(
+      canSelfApprove(
+        user({ roles: ['MANAGER'], permissions: [SELF_APPROVAL_PERMISSION] }),
+      ),
+    ).toBe(false);
   });
 
   it('allows self-approval for a platform admin', () => {

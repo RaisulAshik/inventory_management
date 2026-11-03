@@ -45,6 +45,7 @@ import {
 import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 import { CreatePurchaseOrderItemDto } from './dto/create-purchase-order.dto';
 import { UpdatePurchaseOrderItemDto } from './dto/update-purchase-order-item.dto';
+import { PurchaseReportQueryDto } from './dto/purchase-report.dto';
 
 @ApiTags('Purchase Orders')
 @ApiBearerAuth()
@@ -89,6 +90,13 @@ export class PurchaseOrdersController {
       data: result.data.map((po) => new PurchaseOrderResponseDto(po)),
       meta: result.meta,
     };
+  }
+
+  @Get('report')
+  @Permissions('purchase-orders.read')
+  @ApiOperation({ summary: 'Aggregated purchase report grouped by period or supplier' })
+  async getReport(@Query() query: PurchaseReportQueryDto) {
+    return this.purchaseOrdersService.getReport(query);
   }
 
   @Get('overdue')

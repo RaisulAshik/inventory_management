@@ -15,6 +15,10 @@ import { AssignPermissionsDto } from './dto/assign-permissions.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { PERMISSION_CODES } from '@common/constants/permissions';
+import {
+  SELF_APPROVAL_PERMISSION,
+  SELF_APPROVAL_ROLE,
+} from '@common/utils/authorization.util';
 
 /** A catalogue permission, flagged with whether the application enforces it. */
 export type PermissionView = Permission & { isSystem: boolean };
@@ -84,13 +88,29 @@ export class RolesService {
     dto: AssignPermissionsDto,
   ): Promise<Role> {
     const dataSource = await this.tenantConnectionManager.getDataSource();
-    await this.findOneRole(id);
+    const role = await this.findOneRole(id);
 
     // De-duplicated up front. The unique key on (role_id, permission_id)
     // would reject the whole batch on a repeat, and counting the raw list
     // against the number of rows found would report a duplicated id as an
     // invalid one.
     const permissionIds = [...new Set(dto.permissionIds)];
+
+    // Self-approval belongs to ADMIN alone: refused on any other role, and
+    // kept on ADMIN even when the submitted list leaves it out.
+    const selfApproval = await dataSource
+      .getRepository(Permission)
+      .findOne({ where: { permissionCode: SELF_APPROVAL_PERMISSION } });
+    if (selfApproval) {
+      const requested = permissionIds.includes(selfApproval.id);
+      if (role.roleCode === SELF_APPROVAL_ROLE) {
+        if (!requested) permissionIds.push(selfApproval.id);
+      } else if (requested) {
+        throw new BadRequestException(
+          `'${SELF_APPROVAL_PERMISSION}' can only be assigned to the ${SELF_APPROVAL_ROLE} role`,
+        );
+      }
+    }
 
     if (permissionIds.length > 0) {
       const found = await dataSource

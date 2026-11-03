@@ -293,6 +293,14 @@ SELECT UUID(), r.`id`, p.`id`
   CROSS JOIN `permissions` p
  WHERE r.`role_code` = 'ADMIN';
 
+-- 2b. approvals.self is reserved to ADMIN; strip it from every other role.
+DELETE rp
+  FROM `role_permissions` rp
+  JOIN `permissions` p ON p.`id` = rp.`permission_id`
+  JOIN `roles` r       ON r.`id` = rp.`role_id`
+ WHERE p.`permission_code` = 'approvals.self'
+   AND r.`role_code` <> 'ADMIN';
+
 -- 3. MANAGER default grants (38)
 INSERT IGNORE INTO `role_permissions` (`id`, `role_id`, `permission_id`)
 SELECT UUID(), r.`id`, p.`id`

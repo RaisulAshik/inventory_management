@@ -77,7 +77,7 @@ export class UpdateCustomerGroupDto {
     description: 'Price list ID to associate with this group',
     example: 'uuid',
   })
-  @IsUUID('4')
+  @IsUUID('all')
   @IsOptional()
   defaultPriceListId?: string;
 

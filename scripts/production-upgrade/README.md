@@ -2,7 +2,7 @@
 
 Brings a production database from "provisioned by TenantProvisioningService"
 up to the current schema: the login fix, the permission catalogue sync, the
-user consolidation into master, and the HR tables.
+HR tables, and the tenant `users` table that mirrors master `tenant_users`.
 
 **Headline advice: do not hand-write SQL for this.** Only two of the changes
 are plain DDL. The other two carry real logic — conditional column and
@@ -15,30 +15,36 @@ know (that the schema predates migration tracking).
 
 ## Preconditions
 
-1. **Master and tenant must be on the same MySQL server.** Migration 013 runs
+1. **Master and tenant must be on the same MySQL server.** Migration 015 runs
+   cross-database statements such as
 
    ```sql
-   UPDATE user_roles t
-     JOIN users u ON u.id = t.user_id
-     JOIN `${MASTER_DB_NAME}`.tenant_users m ON m.email = u.email
-     SET t.user_id = m.id
+   INSERT INTO users (...)
+   SELECT ... FROM `${MASTER_DB_NAME}`.tenant_users m WHERE m.tenant_id = ?
    ```
 
-   If production splits them across servers or accounts, this statement fails
-   and 013 must be reworked before you go any further. Check 1 in
-   `00-diagnose.sql` confirms it.
+   If production splits them across servers or accounts, these fail and 015
+   must be reworked before you go any further. Check 1 in `00-diagnose.sql`
+   confirms it.
 
 2. **`MASTER_DB_NAME` must be set** in the production environment. The
    migration falls back to `erp_master`; if production names it anything else
-   and the variable is unset, 013 will point at the wrong schema.
+   and the variable is unset, 015 will point at the wrong schema.
 
-3. **Take a maintenance window.** 013 renames the tenant `users` table and
-   rewrites `user_roles.user_id` / `user_sessions.user_id`. Sessions in flight
-   will break.
+3. **Take a maintenance window.** On a tenant that still has its original
+   `users` table, 015 rewrites `users.id`, `user_roles.user_id` and
+   `user_sessions.user_id`. Sessions in flight will break.
 
 4. **Deploy the matching backend build.** These migrations bring the database
    up to code that is already running in dev. Applying them under an older
-   build will fail the other way round.
+   build will fail the other way round. On startup the build applies its own
+   additive tenant changes (`TenantSchemaBootstrap`), in every provisioned
+   tenant: it creates the `users` table and copies the tenant's master users
+   into it, and adds `sales_orders.customer_po_number`. Without them, user
+   writes fail with `Table '<tenant_db>.users' doesn't exist` and sales order
+   queries with `Unknown column`; the startup log names any tenant it could not
+   fix. 015 is still needed to re-key a tenant that holds its original pre-013
+   `users` table.
 
 ---
 
@@ -53,9 +59,9 @@ mysqldump -h <host> -u <user> -p --single-transaction --routines --triggers \
 ```
 
 Then **restore both into scratch schemas and rehearse the whole runbook there
-first.** Migration 013's own author says so in its header: *"rewrites keys.
-Run against a copy of a real tenant database first."* That rehearsal is the
-single most valuable step on this page.
+first.** Migration 015 rewrites user ids on tenants that still have their
+original `users` table, and that cannot be undone by inspection. That
+rehearsal is the single most valuable step on this page.
 
 ---
 
@@ -74,7 +80,7 @@ Read the output before doing anything else:
 | 3 — `0` | No migration history → Step 3 baseline needed |
 | 3 — `1` | Already migration-managed → **skip Step 3** |
 | 5 — fewer than 8 tables | HR is broken until Step 5 |
-| 6 — `users=1 retired=0` | Migration 013 has not run yet |
+| 6 — `users=0` | No tenant `users` table: user writes fail until 015 runs |
 | 8 — below 271 | Permission catalogue not yet synced |
 
 ---
@@ -103,7 +109,7 @@ on the first statement. Creates nothing, changes no data, idempotent.
 
 ---
 
-## Step 4 — tenant migrations 010–014
+## Step 4 — tenant migrations 010–016
 
 ```bash
 npx ts-node -r tsconfig-paths/register \
@@ -120,8 +126,10 @@ What runs:
 | 010 CreateExpensesTable | `IF NOT EXISTS`, usually a no-op | none |
 | 011 CreatePaymentTermsTable | `IF NOT EXISTS`, usually a no-op | none |
 | 012 SyncPermissionCatalogue | Permission rows to 271; tops up roles. Additive, never revokes | low |
-| 013 FixEmployeeSchema… | Creates `hr_employees`, **renames `users` → `users_retired_backup`**, remaps user ids | **high** |
+| 013 FixEmployeeSchema… | Creates or repairs `hr_employees`. No longer touches `users` (earlier builds retired it) | low |
 | 014 CreateMissingHrTables | The other seven HR tables, `IF NOT EXISTS` | none |
+| 015 RestoreTenantUsers | Creates `users` and fills it from master under the same ids. On a tenant with its original `users` table: drops foreign keys into it and **re-keys `users`, `user_roles`, `user_sessions` to master ids** | **high** on an original `users` table, otherwise low |
+| 016 AddSalesOrderCustomerPoNumber | Adds `sales_orders.customer_po_number`; a no-op once startup has added it | none |
 
 Run one at a time if you prefer; the runner applies them in order and records
 each on success.
@@ -178,11 +186,34 @@ INSERT INTO `migrations` (`timestamp`, `name`)
 VALUES (1700000000012, 'SyncPermissionCatalogue1700000000012');
 ```
 
+### 015 without ts-node
+
+```bash
+mysql -h <host> -u <user> -p < 05-tenant-users.sql   # edit the schema name first
+```
+
+Creates `users` if missing, re-keys an original `users` table to master ids,
+then copies in every master user of the tenant. The application now does the
+create-and-copy part itself on startup (Precondition 4), so this script is
+needed only for the re-keying, or where the startup log reports a failure.
+
+- It names the master schema `erp_master` directly; edit step 3 if production
+  calls it something else.
+- Step 2 only **prints** `DROP FOREIGN KEY` statements; run each one before
+  continuing. On a tenant with no original `users` table it prints nothing.
+- `SELECT @tenant_id` must not be `NULL`, and the last query,
+  `missing_in_tenant`, must return `0`.
+
+Then record it:
+
+```sql
+INSERT INTO `migrations` (`timestamp`, `name`)
+VALUES (1700000000015, 'RestoreTenantUsers1700000000015');
+```
+
 **There is no hand-SQL substitute for 013.** It branches on
 `information_schema` — which columns exist, which constraints exist, whether
-`hr_employees` is present at all — and performs a cross-database id remap
-whose correctness depends on those branches. Run it through the migration
-runner.
+`hr_employees` is present at all. Run it through the migration runner.
 
 ---
 
@@ -192,7 +223,7 @@ Re-run `00-diagnose.sql` and confirm:
 
 - check 2 returns no rows
 - check 5 lists all 8 `hr_*` tables
-- check 6 shows `users=0 retired=1`
+- check 6 shows `users=1`
 - check 8 shows `271`
 
 Then against the running API:
@@ -214,11 +245,13 @@ Expect 200s, and 271 codes across 47 modules from the last one.
 ## Rollback
 
 - **012 / 014** — `down()` exists; 012 is additive so reverting is rarely wanted.
-- **013** — the destructive one. `users` is renamed rather than dropped, so the
-  rows survive as `users_retired_backup`. Recovering from a bad run still means
-  restoring the Step 0 dump, because the id remapping is not reversible by
-  inspection.
-- Drop `users_retired_backup` by hand only once you have confirmed logins,
+- **013** — `down()` refuses; its column changes fold data together. Restore
+  the Step 0 dump.
+- **015** — on a tenant that had its original `users` table, the id re-keying
+  is not reversible by inspection: restore the Step 0 dump. Elsewhere it only
+  created and filled `users`, which the running build needs; do not drop it.
+- Tenants where an earlier build of 013 already ran also hold
+  `users_retired_backup`. Drop it by hand only once you have confirmed logins,
   role assignments and sessions all behave.
 
 ---
@@ -240,7 +273,9 @@ check. **51** of the 259 catalogue codes are not checked by any controller:
 - **`approvals.self`** — enforced, but in handler code via `canSelfApprove()`
   rather than by a `@Permissions()` decorator, because it changes a business
   rule inside a handler instead of protecting the route. It will always look
-  unguarded to a decorator scan. Do not remove it.
+  unguarded to a decorator scan. Do not remove it. Reserved to the ADMIN
+  role: the API refuses to assign it elsewhere, `canSelfApprove()` also
+  requires ADMIN, and this script strips it from any other role.
 
 The underscore forms of `price_lists` / `purchase_orders` / `purchase_returns`
 **have been removed** — 16 codes, which is why the catalogue went from 275 to

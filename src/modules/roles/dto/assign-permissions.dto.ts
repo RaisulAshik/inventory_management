@@ -9,6 +9,6 @@ export class AssignPermissionsDto {
     example: ['uuid-1', 'uuid-2'],
   })
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID('all', { each: true })
   permissionIds: string[];
 }

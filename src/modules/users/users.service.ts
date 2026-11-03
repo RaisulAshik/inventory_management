@@ -3,12 +3,13 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TenantConnectionManager } from '@database/tenant-connection.manager';
 import { TenantUser } from '@entities/master/tenant-user.entity';
+import { User } from '@entities/tenant/user/user.entity';
 import { UserRole } from '@entities/tenant/user/user-role.entity';
 import { Role } from '@entities/tenant/role/role.entity';
 import { Permission } from '@entities/tenant/role/permission.entity';
@@ -22,11 +23,14 @@ import { paginate } from '@common/utils/pagination.util';
 
 /**
  * Users live in the MASTER database (`tenant_users`), scoped to a tenant by
- * `tenantId`. Their roles and permissions live in that tenant's own database.
+ * `tenantId`, and are the authority for sign-in. Each is mirrored into the
+ * tenant's own `users` table under the same id; roles and permissions live in
+ * the tenant database alongside it.
  *
- * The two sides therefore cannot be joined, and `user_roles.user_id` is a
- * plain value with no foreign key behind it. Every lookup here is two steps:
- * find the user in master, then resolve their roles in the tenant.
+ * Master and tenant cannot be joined, so every lookup here is two steps:
+ * find the user in master, then resolve their roles in the tenant. Every
+ * write to a master user goes through this service so the tenant copy
+ * follows it.
  *
  * Users are NOT employees. `hr_employees` is a separate HR record with no
  * relation to this table.
@@ -89,18 +93,80 @@ export class UsersService {
       createdBy: createUserDto.createdBy,
     });
 
+    if (createUserDto.roleIds?.length) {
+      await this.assertRolesExist(createUserDto.roleIds);
+    }
+
     const savedUser = await this.tenantUserRepository.save(user);
 
-    // Roles are granted in the tenant database, keyed by the master user id.
-    if (createUserDto.roleIds?.length) {
-      await this.assignRoles(
-        savedUser.id,
-        createUserDto.roleIds,
-        createUserDto?.createdBy,
-      );
+    // The tenant copy and its role grants go in together, keyed by the master
+    // id. Master and tenant are different databases, so if the tenant side
+    // fails the master row is removed again rather than left as a login with
+    // no tenant record and no roles.
+    try {
+      const dataSource = await this.tenantConnectionManager.getDataSource();
+      await dataSource.transaction(async (manager) => {
+        await this.syncTenantUser(savedUser, manager);
+        if (createUserDto.roleIds?.length) {
+          await this.assignRoles(
+            savedUser.id,
+            createUserDto.roleIds,
+            createUserDto.createdBy,
+            manager,
+          );
+        }
+      });
+    } catch (error) {
+      await this.tenantUserRepository.delete(savedUser.id);
+      throw error;
     }
 
     return savedUser;
+  }
+
+  /**
+   * Write the tenant `users` copy of a master user, under the same id.
+   *
+   * An upsert, so it serves create and every later change alike. Master is
+   * authoritative; this only ever copies from it.
+   */
+  private async syncTenantUser(
+    user: TenantUser,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const repo = manager
+      ? manager.getRepository(User)
+      : await this.tenantConnectionManager.getRepository(User);
+
+    await repo.upsert(
+      {
+        id: user.id,
+        employeeCode: user.employeeCode ?? null,
+        email: user.email,
+        passwordHash: user.passwordHash,
+        firstName: user.firstName,
+        lastName: user.lastName ?? null,
+        phone: user.phone ?? null,
+        isActive: user.isActive,
+        createdBy: user.createdBy ?? null,
+        deletedAt: user.deletedAt ?? null,
+      },
+      ['id'],
+    );
+  }
+
+  /** Rejects unknown role ids before anything is written. */
+  private async assertRolesExist(roleIds: string[]): Promise<void> {
+    const ids = [...new Set(roleIds)];
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+    const found = await dataSource
+      .getRepository(Role)
+      .createQueryBuilder('r')
+      .where('r.id IN (:...ids)', { ids })
+      .getCount();
+    if (found !== ids.length) {
+      throw new BadRequestException('One or more role IDs are invalid');
+    }
   }
 
   async findAll(
@@ -154,17 +220,25 @@ export class UsersService {
     }
 
     Object.assign(user, updateUserDto);
-    return this.tenantUserRepository.save(user);
+    const saved = await this.tenantUserRepository.save(user);
+    await this.syncTenantUser(saved);
+    return saved;
   }
 
   async remove(id: string): Promise<void> {
     const user = await this.findById(id);
     user.deletedAt = new Date();
     await this.tenantUserRepository.save(user);
+    await this.syncTenantUser(user);
   }
 
   async hardDelete(id: string): Promise<void> {
     await this.tenantUserRepository.delete(id);
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+    await dataSource.transaction(async (manager) => {
+      await manager.getRepository(UserRole).delete({ userId: id });
+      await manager.getRepository(User).delete(id);
+    });
   }
 
   // ── Roles and permissions (tenant database) ──────────────────────────────
@@ -281,28 +355,41 @@ export class UsersService {
     return permissions.map((p) => p.permissionCode);
   }
 
+  /**
+   * Replace a user's roles. A delete followed by an insert, so it runs in a
+   * transaction — the caller's, when one is passed.
+   */
   async assignRoles(
     userId: string,
     roleIds: string[],
     assignedBy?: string,
+    manager?: EntityManager,
   ): Promise<void> {
+    const apply = async (m: EntityManager) => {
+      const userRoleRepo = m.getRepository(UserRole);
+      await userRoleRepo.delete({ userId });
+
+      const userRoles = [...new Set(roleIds)].map((roleId) =>
+        userRoleRepo.create({
+          id: uuidv4(),
+          userId,
+          roleId,
+          assignedBy,
+        }),
+      );
+      if (userRoles.length) await userRoleRepo.save(userRoles);
+    };
+
+    if (manager) return apply(manager);
+
+    // Called on its own, the user may predate the tenant copy; write it first
+    // so the grants have a tenant row to belong to.
+    const user = await this.findById(userId);
     const dataSource = await this.tenantConnectionManager.getDataSource();
-    const userRoleRepo = dataSource.getRepository(UserRole);
-
-    // Remove existing roles
-    await userRoleRepo.delete({ userId });
-
-    // Add new roles
-    const userRoles = roleIds.map((roleId) =>
-      userRoleRepo.create({
-        id: uuidv4(),
-        userId,
-        roleId,
-        assignedBy,
-      }),
-    );
-
-    await userRoleRepo.save(userRoles);
+    await dataSource.transaction(async (m) => {
+      await this.syncTenantUser(user, m);
+      await apply(m);
+    });
   }
 
   // ── Sign-in bookkeeping ──────────────────────────────────────────────────
@@ -341,6 +428,7 @@ export class UsersService {
       passwordHash,
       passwordChangedAt: new Date(),
     });
+    await this.syncTenantUser(await this.findById(userId));
   }
 
   async activate(id: string): Promise<TenantUser> {

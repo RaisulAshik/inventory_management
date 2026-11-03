@@ -9,6 +9,7 @@ import {
   IsArray,
   ValidateNested,
   Min,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -121,6 +122,15 @@ export class CreateOrderDto {
   @ValidateNested()
   @Type(() => AddressDto)
   shippingAddress?: AddressDto;
+
+  @ApiPropertyOptional({
+    example: 'PO-4471',
+    description: "The customer's own purchase order number",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  customerPoNumber?: string;
 
   @ApiPropertyOptional({ type: 'string', format: 'date' })
   @IsOptional()
