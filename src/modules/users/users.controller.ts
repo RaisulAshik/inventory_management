@@ -70,6 +70,31 @@ export class UsersController {
     };
   }
 
+  /**
+   * The signed-in user's own permission codes.
+   *
+   * Deliberately ungated. The `:id` variants below require `users.read`,
+   * which a Sales or Warehouse user does not have — so reading their OWN
+   * grants returned 403, the app fell back to no permissions, and they got
+   * an empty menu and a 403 page. Needing permission to discover your own
+   * permissions is a deadlock; the token already proves who you are, and
+   * this reveals nothing they could not learn by clicking around.
+   */
+  @Get('me/permissions')
+  @ApiOperation({ summary: "The signed-in user's own permissions" })
+  async getMyPermissions(@CurrentUser() user: JwtPayload) {
+    const permissions = await this.usersService.getUserPermissions(user.sub);
+    return { permissions };
+  }
+
+  /** The signed-in user's own roles. Ungated, as above. */
+  @Get('me/roles')
+  @ApiOperation({ summary: "The signed-in user's own roles" })
+  async getMyRoles(@CurrentUser() user: JwtPayload) {
+    const roles = await this.usersService.getUserRoles(user.sub);
+    return { roles };
+  }
+
   @Get(':id')
   @Permissions('users.read')
   @ApiOperation({ summary: 'Get user by ID' })
@@ -133,6 +158,7 @@ export class UsersController {
     return { message: 'Roles assigned successfully' };
   }
 
+  /** Another user's roles. Privileged: use `me/roles` for your own. */
   @Get(':id/roles')
   @Permissions('users.read')
   @ApiOperation({ summary: 'Get user roles' })
@@ -142,6 +168,10 @@ export class UsersController {
     return { roles };
   }
 
+  /**
+   * Another user's permissions. Privileged: use `me/permissions` for your
+   * own, which every signed-in user can reach.
+   */
   @Get(':id/permissions')
   @Permissions('users.read')
   @ApiOperation({ summary: 'Get user permissions' })

@@ -21,6 +21,7 @@ function makeService(
   const repo: Stub = {
     // Both the bare lookup and the one findOne() makes with relations.
     findOne: jest.fn().mockImplementation(() => Promise.resolve(employee)),
+    softRemove: jest.fn(() => Promise.resolve()),
     update: jest.fn((id: string, patch: any) => {
       updates.push({ id, ...patch });
       if (employee) Object.assign(employee, patch);
@@ -220,5 +221,27 @@ describe('EmployeesService.setSystemAccess — missing employee', () => {
     await expect(
       service.setSystemAccess('nope', { password: 'Password123!' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+/**
+ * A removed employee must not keep a working login. Before this they could
+ * still sign in after being deleted.
+ */
+describe('EmployeesService.remove', () => {
+  it('deactivates the login of the employee it removes', async () => {
+    const { service, activations } = makeService(withLogin());
+
+    await service.remove('emp-1');
+
+    expect(activations).toEqual([{ id: 'user-1', active: false }]);
+  });
+
+  it('removes an employee who has no login without complaint', async () => {
+    const { service, activations } = makeService(withoutLogin());
+
+    await service.remove('emp-1');
+
+    expect(activations).toEqual([]);
   });
 });

@@ -242,9 +242,21 @@ export class EmployeesService {
     return repo.save(employee);
   }
 
+  /**
+   * Remove an employee, and with them their way in.
+   *
+   * Every user is an employee, so a removed employee must not keep a working
+   * login — before this they could still sign in. The login is deactivated
+   * rather than deleted: it owns audit trails and created_by references, and
+   * someone returning is restored by reactivating it, not by a second
+   * account on the same address.
+   */
   async remove(id: string): Promise<void> {
     const repo = await this.getRepo();
     const employee = await this.findOne(id);
+    if (employee.userId) {
+      await this.usersService.deactivate(employee.userId);
+    }
     await repo.softRemove(employee);
   }
 
