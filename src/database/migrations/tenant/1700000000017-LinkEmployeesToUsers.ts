@@ -59,6 +59,25 @@ export class LinkEmployeesToUsers1700000000017 implements MigrationInterface {
     return Number(rows[0].n) > 0;
   }
 
+  /**
+   * Foreign keys are looked up as constraints, not indexes: MySQL creates no
+   * index of the key's own name when one already covers the column, and
+   * `uk_emp_user` does, so an index lookup never finds `fk_emp_user`.
+   */
+  private async hasForeignKey(
+    qr: QueryRunner,
+    table: string,
+    constraint: string,
+  ): Promise<boolean> {
+    const rows = await qr.query(
+      `SELECT COUNT(*) AS n FROM information_schema.TABLE_CONSTRAINTS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+         AND CONSTRAINT_NAME = ? AND CONSTRAINT_TYPE = 'FOREIGN KEY'`,
+      [table, constraint],
+    );
+    return Number(rows[0].n) > 0;
+  }
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Both tables are created by earlier migrations, but a tenant can be at
     // any point in the sequence; without them there is nothing to link.
@@ -166,7 +185,9 @@ export class LinkEmployeesToUsers1700000000017 implements MigrationInterface {
         `ALTER TABLE \`hr_employees\` ADD UNIQUE KEY \`uk_emp_user\` (\`user_id\`)`,
       );
     }
-    if (!(await this.hasIndex(queryRunner, 'hr_employees', 'fk_emp_user'))) {
+    if (
+      !(await this.hasForeignKey(queryRunner, 'hr_employees', 'fk_emp_user'))
+    ) {
       await queryRunner.query(`
         ALTER TABLE \`hr_employees\`
           ADD CONSTRAINT \`fk_emp_user\` FOREIGN KEY (\`user_id\`)
@@ -224,7 +245,7 @@ export class LinkEmployeesToUsers1700000000017 implements MigrationInterface {
    */
   public async down(queryRunner: QueryRunner): Promise<void> {
     if (!(await this.hasTable(queryRunner, 'hr_employees'))) return;
-    if (await this.hasIndex(queryRunner, 'hr_employees', 'fk_emp_user')) {
+    if (await this.hasForeignKey(queryRunner, 'hr_employees', 'fk_emp_user')) {
       await queryRunner.query(
         `ALTER TABLE \`hr_employees\` DROP FOREIGN KEY \`fk_emp_user\``,
       );

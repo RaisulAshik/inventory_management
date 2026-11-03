@@ -32,6 +32,13 @@ export class UserResponseDto {
   @ApiPropertyOptional()
   employeeCode?: string;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      "The user's employee record, where the person is edited. Present on the user list; null when the login has no employee record yet.",
+  })
+  employeeId?: string | null;
+
   @ApiPropertyOptional()
   phone?: string;
 
@@ -61,18 +68,23 @@ export class UserResponseDto {
   roleCodes?: string[];
 
   /**
-   * @param user  the master `tenant_users` record
+   * @param user  the master `tenant_users` record, plus `employeeId` where
+   *              UsersService.findAll has resolved it
    * @param roles role codes read separately from the tenant database. They
    *              cannot be loaded as a relation: roles are per tenant while
    *              the user is not, so the two live in different databases.
    */
-  constructor(user: TenantUser, roles?: string[]) {
+  constructor(
+    user: TenantUser & { employeeId?: string | null },
+    roles?: string[],
+  ) {
     this.id = user.id;
     this.email = user.email;
     this.firstName = user.firstName;
     this.lastName = user.lastName;
     this.fullName = user.fullName;
     this.employeeCode = user.employeeCode;
+    this.employeeId = user.employeeId;
     this.phone = user.phone;
     this.avatarUrl = user.avatarUrl;
     this.isActive = user.isActive;

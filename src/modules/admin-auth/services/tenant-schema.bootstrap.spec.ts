@@ -1,4 +1,48 @@
+import { DataSource } from 'typeorm';
+import { LinkEmployeesToUsers1700000000017 } from '@database/migrations/tenant/1700000000017-LinkEmployeesToUsers';
 import { TenantSchemaBootstrap } from './tenant-schema.bootstrap';
+
+// Migration 017 runs on its own tenant connection; stand both in, so no test
+// opens a real one.
+jest.mock('typeorm', () => ({
+  ...jest.requireActual('typeorm'),
+  DataSource: jest.fn(),
+}));
+jest.mock(
+  '@database/migrations/tenant/1700000000017-LinkEmployeesToUsers',
+  () => ({ LinkEmployeesToUsers1700000000017: jest.fn() }),
+);
+
+const tenantConnections: Array<{ database: string; released: boolean; destroyed: boolean }> = [];
+let migrationUp: jest.Mock;
+
+beforeEach(() => {
+  tenantConnections.length = 0;
+  migrationUp = jest.fn().mockResolvedValue(undefined);
+  (LinkEmployeesToUsers1700000000017 as unknown as jest.Mock).mockImplementation(
+    () => ({ up: migrationUp }),
+  );
+  (DataSource as unknown as jest.Mock).mockImplementation((options: any) => {
+    const record = { database: options.database, released: false, destroyed: false };
+    tenantConnections.push(record);
+    const runner = {
+      hasTable: jest.fn().mockResolvedValue(true),
+      query: jest.fn().mockResolvedValue([{ n: 0 }]),
+      release: jest.fn(() => {
+        record.released = true;
+        return Promise.resolve();
+      }),
+    };
+    return {
+      initialize: jest.fn().mockResolvedValue(undefined),
+      createQueryRunner: () => runner,
+      destroy: jest.fn(() => {
+        record.destroyed = true;
+        return Promise.resolve();
+      }),
+    };
+  });
+});
 
 /**
  * The startup check must never stop the application starting, and neither
@@ -99,6 +143,30 @@ describe('TenantSchemaBootstrap', () => {
       true,
     );
     expect(has(statements, 'INSERT IGNORE INTO `erp_tenant_2`')).toBe(true);
+  });
+
+  it('runs migration 017 on every tenant, on its own connection', async () => {
+    const { bootstrap } = makeBootstrap({ tenants: [tenant(1), tenant(2)] });
+    await bootstrap.onApplicationBootstrap();
+
+    expect(migrationUp).toHaveBeenCalledTimes(2);
+    expect(tenantConnections.map((c) => c.database)).toEqual([
+      'erp_tenant_1',
+      'erp_tenant_2',
+    ]);
+    // Closed again whatever happened, so startup leaves no pool behind.
+    expect(tenantConnections.every((c) => c.released && c.destroyed)).toBe(true);
+  });
+
+  it('carries on to the next tenant when migration 017 fails on one', async () => {
+    migrationUp
+      .mockRejectedValueOnce(new Error('fk failed'))
+      .mockResolvedValueOnce(undefined);
+    const { bootstrap } = makeBootstrap({ tenants: [tenant(1), tenant(2)] });
+
+    await expect(bootstrap.onApplicationBootstrap()).resolves.toBeUndefined();
+    expect(migrationUp).toHaveBeenCalledTimes(2);
+    expect(tenantConnections[0]).toMatchObject({ released: true, destroyed: true });
   });
 
   it('does not throw when the tenant list cannot be read', async () => {

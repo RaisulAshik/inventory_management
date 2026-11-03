@@ -1,7 +1,9 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
+import { MysqlConnectionOptions } from 'typeorm/driver/mysql/MysqlConnectionOptions';
 import { tenantUsersTableDdl } from '@database/tenant-users-table';
+import { LinkEmployeesToUsers1700000000017 } from '@database/migrations/tenant/1700000000017-LinkEmployeesToUsers';
 
 /**
  * Applies additive schema changes to every provisioned tenant, on startup.
@@ -16,10 +18,11 @@ import { tenantUsersTableDdl } from '@database/tenant-users-table';
  *    no row yet. It never re-keys an existing row — a tenant still holding
  *    its original pre-013 `users` table needs migration 015 for that;
  *  - `sales_orders.customer_po_number`;
- *  - `hr_employees.user_id`, the link from a person to their login, with
- *    existing pairs matched on email. Only the column: the unique index,
- *    the foreign key and an employee record for every user come from
- *    migration 017, which is the complete change.
+ *  - migration 017 in full: `hr_employees.user_id` linking each person to
+ *    their login (existing pairs matched on email), an employee record for
+ *    every login that has none, and the one-employee-per-login keys. Every
+ *    user is an employee, and User Management edits people through that
+ *    record, so a login without one cannot be edited at all.
  *
  * Runs over the master connection: the tenant schemas are on the same server,
  * and this is the connection provisioning already uses to build them. Each
@@ -62,8 +65,8 @@ export class TenantSchemaBootstrap implements OnApplicationBootstrap {
           'VARCHAR(100) NULL',
         ),
       );
-      await this.attempt(databaseName, 'hr_employees.user_id', () =>
-        this.ensureEmployeeUserLink(databaseName),
+      await this.attempt(databaseName, 'an employee record for every user', () =>
+        this.linkEmployeesToUsers(databaseName),
       );
     }
   }
@@ -115,27 +118,49 @@ export class TenantSchemaBootstrap implements OnApplicationBootstrap {
   }
 
   /**
-   * The employee-to-login column, and the pairs it can already resolve.
+   * Migration 017, applied in place.
    *
-   * Without it every HR employee query fails: the entity maps `userId`, so
-   * TypeORM puts it in the SELECT list. The backfill repeats what the old
-   * implicit email match used to do at read time, so nobody loses their
-   * roles between this running and migration 017.
+   * Its `up()` checks before every step — column, links, missing records,
+   * keys — so running it on each startup is safe, and once a tenant is
+   * complete it only reads. It works against the current database, so it
+   * gets a connection opened on the tenant with the master credentials, as
+   * provisioning does.
    */
-  private async ensureEmployeeUserLink(databaseName: string): Promise<void> {
-    await this.ensureColumn(databaseName, 'hr_employees', 'user_id', 'CHAR(36) NULL');
+  private async linkEmployeesToUsers(databaseName: string): Promise<void> {
+    const master = this.masterDataSource.options as MysqlConnectionOptions;
+    const tenant = new DataSource({
+      type: 'mysql',
+      host: master.host,
+      port: master.port,
+      username: master.username,
+      password: master.password,
+      database: databaseName,
+      timezone: master.timezone,
+      charset: master.charset,
+    });
+    await tenant.initialize();
+    const runner = tenant.createQueryRunner();
+    try {
+      const before = await this.countEmployees(runner);
+      await new LinkEmployeesToUsers1700000000017().up(runner);
+      const created = (await this.countEmployees(runner)) - before;
+      if (created > 0) {
+        this.logger.log(
+          `${databaseName}: created ${created} employee record(s) for users who had none`,
+        );
+      }
+    } finally {
+      await runner.release();
+      await tenant.destroy();
+    }
+  }
 
-    // Only ever fills blanks, so it is safe to repeat on every startup.
-    await this.masterDataSource.query(
-      `UPDATE \`${databaseName}\`.\`hr_employees\` e
-         JOIN \`${databaseName}\`.\`users\` u
-           ON LOWER(u.\`email\`) = LOWER(e.\`email\`)
-          AND u.\`deleted_at\` IS NULL
-       SET e.\`user_id\` = u.\`id\`
-       WHERE e.\`email\` IS NOT NULL
-         AND e.\`user_id\` IS NULL
-         AND e.\`deleted_at\` IS NULL`,
+  private async countEmployees(runner: QueryRunner): Promise<number> {
+    if (!(await runner.hasTable('hr_employees'))) return 0;
+    const [{ n }] = await runner.query(
+      'SELECT COUNT(*) AS n FROM `hr_employees`',
     );
+    return Number(n);
   }
 
   /**
