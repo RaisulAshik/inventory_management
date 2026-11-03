@@ -15,7 +15,11 @@ import { tenantUsersTableDdl } from '@database/tenant-users-table';
  *  - the `users` table, and a copy of any master user of the tenant who has
  *    no row yet. It never re-keys an existing row — a tenant still holding
  *    its original pre-013 `users` table needs migration 015 for that;
- *  - `sales_orders.customer_po_number`.
+ *  - `sales_orders.customer_po_number`;
+ *  - `hr_employees.user_id`, the link from a person to their login, with
+ *    existing pairs matched on email. Only the column: the unique index,
+ *    the foreign key and an employee record for every user come from
+ *    migration 017, which is the complete change.
  *
  * Runs over the master connection: the tenant schemas are on the same server,
  * and this is the connection provisioning already uses to build them. Each
@@ -57,6 +61,9 @@ export class TenantSchemaBootstrap implements OnApplicationBootstrap {
           'customer_po_number',
           'VARCHAR(100) NULL',
         ),
+      );
+      await this.attempt(databaseName, 'hr_employees.user_id', () =>
+        this.ensureEmployeeUserLink(databaseName),
       );
     }
   }
@@ -105,6 +112,30 @@ export class TenantSchemaBootstrap implements OnApplicationBootstrap {
     if (copied > 0) {
       this.logger.log(`${databaseName}: copied ${copied} user(s) into users`);
     }
+  }
+
+  /**
+   * The employee-to-login column, and the pairs it can already resolve.
+   *
+   * Without it every HR employee query fails: the entity maps `userId`, so
+   * TypeORM puts it in the SELECT list. The backfill repeats what the old
+   * implicit email match used to do at read time, so nobody loses their
+   * roles between this running and migration 017.
+   */
+  private async ensureEmployeeUserLink(databaseName: string): Promise<void> {
+    await this.ensureColumn(databaseName, 'hr_employees', 'user_id', 'CHAR(36) NULL');
+
+    // Only ever fills blanks, so it is safe to repeat on every startup.
+    await this.masterDataSource.query(
+      `UPDATE \`${databaseName}\`.\`hr_employees\` e
+         JOIN \`${databaseName}\`.\`users\` u
+           ON LOWER(u.\`email\`) = LOWER(e.\`email\`)
+          AND u.\`deleted_at\` IS NULL
+       SET e.\`user_id\` = u.\`id\`
+       WHERE e.\`email\` IS NOT NULL
+         AND e.\`user_id\` IS NULL
+         AND e.\`deleted_at\` IS NULL`,
+    );
   }
 
   /**

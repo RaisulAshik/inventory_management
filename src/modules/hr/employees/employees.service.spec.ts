@@ -19,6 +19,7 @@ function makeService(
   const saved: any[] = [];
   const deleted: string[] = [];
   const createdUsers: any[] = [];
+  const updates: any[] = [];
 
   const repo: Stub = {
     findOne: jest
@@ -32,6 +33,10 @@ function makeService(
     save: jest.fn((v: any) => {
       saved.push(v);
       return Promise.resolve(v);
+    }),
+    update: jest.fn((id: string, patch: any) => {
+      updates.push({ id, ...patch });
+      return Promise.resolve();
     }),
     delete: jest.fn((id: string) => {
       deleted.push(id);
@@ -61,7 +66,7 @@ function makeService(
     usersService as any,
   );
 
-  return { service, saved, deleted, createdUsers };
+  return { service, saved, deleted, createdUsers, updates };
 }
 
 const base = {
@@ -95,6 +100,14 @@ describe('EmployeesService.create', () => {
       employeeCode: 'EMP-000007',
       createdBy: 'admin-1',
     });
+  });
+
+  // The employee and their login are one person; the FK is what says so.
+  it('records the link to the login it created', async () => {
+    const { service, updates } = makeService();
+    await service.create({ ...base, password: 'Password123!' });
+
+    expect(updates).toContainEqual({ id: 'emp-new', userId: 'user-new' });
   });
 
   it('does not persist password or roleIds onto the employee row', async () => {

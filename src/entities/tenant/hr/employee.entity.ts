@@ -20,12 +20,17 @@ import { Department } from './department.entity';
 import { Designation } from './designation.entity';
 
 /**
- * An employee of this tenant: an HR record only.
+ * A person working for this tenant.
  *
- * Employees are NOT system users. Logins live in the master database
- * (`tenant_users`) and have no relation to this table — a person may be one,
- * the other, or both, and nothing joins them. Roles and permissions are still
- * granted per tenant, keyed by the master user id.
+ * Every user is an employee: this is the single person record, and a login is
+ * something an employee may additionally hold. `userId` points at that login
+ * when they have one — a real foreign key, so it survives an email change,
+ * unlike the string match it replaced. It is null for staff with no system
+ * access, which is the normal case for most of a workforce.
+ *
+ * The login itself still lives in the master database (`tenant_users`),
+ * mirrored into this tenant's `users` under the same id; roles are granted
+ * per tenant against that id.
  */
 @Entity('hr_employees')
 export class Employee {
@@ -43,6 +48,10 @@ export class Employee {
 
   @Column({ length: 255, nullable: true, unique: true })
   email: string;
+
+  /** The login this person holds, or null if they have no system access. */
+  @Column({ name: 'user_id', type: 'char', length: 36, nullable: true })
+  userId: string | null;
 
   @Column({ length: 50, nullable: true })
   phone: string;

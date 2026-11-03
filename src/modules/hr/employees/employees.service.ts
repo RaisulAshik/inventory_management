@@ -13,9 +13,19 @@ import { RoleWithPermissions } from '@common/interfaces';
 import { getNextSequence } from '@common/utils/sequence.util';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { SetSystemAccessDto } from './dto/set-system-access.dto';
 
-/** An employee plus the roles of the user account sharing their email. */
-export type EmployeeWithRoles = Employee & { roles: RoleWithPermissions[] };
+/**
+ * An employee, plus the login they hold.
+ *
+ * `roles` is empty and `isUserActive` undefined for someone with no system
+ * access — which the UI must distinguish from a suspended login, so the
+ * two cases are not collapsed into a single boolean.
+ */
+export type EmployeeWithRoles = Employee & {
+  roles: RoleWithPermissions[];
+  isUserActive?: boolean;
+};
 
 @Injectable()
 export class EmployeesService {
@@ -100,7 +110,7 @@ export class EmployeesService {
     if (!password) return employee;
 
     try {
-      await this.usersService.create(
+      const user = await this.usersService.create(
         this.tenantConnectionManager.getTenantId()!,
         {
           email: dto.email!,
@@ -112,7 +122,14 @@ export class EmployeesService {
           roleIds,
           createdBy,
         },
+        // The employee already exists — this call must not make a second one.
+        { skipEmployee: true },
       );
+
+      // The link between the two records, written once the login exists so a
+      // failed attempt leaves no dangling reference behind.
+      employee.userId = user.id;
+      await repo.update(employee.id, { userId: user.id });
     } catch (error) {
       // The login could not be created, so undo the employee rather than
       // leave a record the caller did not ask for on its own.
@@ -172,14 +189,13 @@ export class EmployeesService {
   }
 
   /**
-   * Attach each employee's roles, where they also have a login.
+   * Attach each employee's roles, where they hold a login.
    *
-   * Employees and users are unrelated records in different databases, so
-   * there is no relation to load. Email is the only handle they share — it is
-   * what the combined create form sets on both — and an employee without a
-   * matching user simply comes back with an empty list.
+   * Followed through `userId`, a real foreign key, so an employee who has
+   * since changed their email address keeps their roles. This used to match
+   * on the email string, which silently lost them.
    *
-   * Batched into two extra queries for the whole page, not one per row.
+   * One extra query for the whole page, not one per row.
    */
   private async withRoles(employees: Employee[]): Promise<EmployeeWithRoles[]> {
     // Annotated in place rather than spread into a new object: spreading
@@ -187,27 +203,22 @@ export class EmployeesService {
     const result = employees as EmployeeWithRoles[];
     for (const employee of result) employee.roles = [];
 
-    const emails = result.map((e) => e.email).filter(Boolean);
-    if (emails.length === 0) return result;
+    const userIds = result
+      .map((e) => e.userId)
+      .filter((id): id is string => Boolean(id));
+    if (userIds.length === 0) return result;
 
-    const users = await this.usersService.findByEmails(emails);
-    if (users.length === 0) return result;
-
-    const rolesByUser = await this.usersService.getRolesForUsers(
-      users.map((u) => u.id),
-    );
-
-    const rolesByEmail = new Map<string, RoleWithPermissions[]>();
-    for (const user of users) {
-      rolesByEmail.set(
-        user.email.toLowerCase(),
-        rolesByUser.get(user.id) ?? [],
-      );
-    }
+    const [rolesByUser, users] = await Promise.all([
+      this.usersService.getRolesForUsers(userIds),
+      this.usersService.findByIds(userIds),
+    ]);
+    const activeByUser = new Map(users.map((u) => [u.id, u.isActive]));
 
     for (const employee of result) {
-      employee.roles =
-        rolesByEmail.get(employee.email?.toLowerCase() ?? '') ?? [];
+      if (employee.userId) {
+        employee.roles = rolesByUser.get(employee.userId) ?? [];
+        employee.isUserActive = activeByUser.get(employee.userId);
+      }
     }
 
     return result;
@@ -235,6 +246,98 @@ export class EmployeesService {
     const repo = await this.getRepo();
     const employee = await this.findOne(id);
     await repo.softRemove(employee);
+  }
+
+  /**
+   * Give an employee a login, or change the one they already hold.
+   *
+   * Every user is an employee, so this is the only way system access is
+   * granted: there is no standalone create-user path. For an employee who
+   * already has a login it changes roles and suspends or restores access;
+   * for one who does not, a password creates it.
+   */
+  async setSystemAccess(
+    id: string,
+    dto: SetSystemAccessDto,
+    actorId?: string,
+  ): Promise<EmployeeWithRoles> {
+    const repo = await this.getRepo();
+    const employee = await repo.findOne({ where: { id } });
+    if (!employee) throw new NotFoundException(`Employee ${id} not found`);
+
+    if (dto.roleIds?.length) await this.assertRolesExist(dto.roleIds);
+
+    // ── already has a login: change it ──────────────────────────────────
+    if (employee.userId) {
+      if (dto.roleIds) {
+        await this.usersService.assignRoles(
+          employee.userId,
+          dto.roleIds,
+          actorId,
+        );
+      }
+      if (dto.isActive !== undefined) {
+        await (dto.isActive
+          ? this.usersService.activate(employee.userId)
+          : this.usersService.deactivate(employee.userId));
+      }
+      return this.findOne(id);
+    }
+
+    // ── no login yet: create one ────────────────────────────────────────
+    if (dto.isActive !== undefined) {
+      throw new BadRequestException(
+        'This employee has no login to suspend or restore',
+      );
+    }
+    if (!dto.password) {
+      throw new BadRequestException(
+        'A password is required to give this employee system access',
+      );
+    }
+    if (!employee.email) {
+      throw new BadRequestException(
+        'An email address is required to create a login',
+      );
+    }
+    const clash = await this.usersService.findByEmail(employee.email);
+    if (clash) {
+      throw new BadRequestException(
+        `Email ${employee.email} already belongs to a user account`,
+      );
+    }
+
+    const user = await this.usersService.create(
+      this.tenantConnectionManager.getTenantId()!,
+      {
+        email: employee.email,
+        password: dto.password,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        phone: employee.phone,
+        employeeCode: employee.employeeCode,
+        roleIds: dto.roleIds,
+        createdBy: actorId,
+      },
+      // This employee is the record the login belongs to.
+      { skipEmployee: true },
+    );
+    await repo.update(employee.id, { userId: user.id });
+
+    return this.findOne(id);
+  }
+
+  /** Rejects a role id that does not exist, before anything is written. */
+  private async assertRolesExist(roleIds: string[]): Promise<void> {
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+    const found = await dataSource
+      .getRepository(Role)
+      .createQueryBuilder('r')
+      .where('r.id IN (:...ids)', { ids: roleIds })
+      .getCount();
+    if (found !== roleIds.length) {
+      throw new BadRequestException('One or more role IDs are invalid');
+    }
   }
 
   async getLeaveBalance(

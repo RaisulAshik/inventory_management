@@ -18,6 +18,7 @@ import {
 import { EmployeesService } from './employees.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { SetSystemAccessDto } from './dto/set-system-access.dto';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@common/interfaces';
 import { EmploymentStatus } from '@common/enums';
@@ -93,6 +94,23 @@ export class EmployeesController {
     @Body() dto: UpdateEmployeeDto,
   ) {
     return this.service.update(id, dto);
+  }
+
+  @Post(':id/system-access')
+  @Permissions('users.manage-roles')
+  @ApiOperation({
+    summary: 'Give an employee a login, or change the one they hold',
+    description:
+      'Send a password for an employee with no login to create one. For an ' +
+      'employee who already has one, send roleIds to replace their roles or ' +
+      'isActive to suspend or restore their access.',
+  })
+  setSystemAccess(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetSystemAccessDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.setSystemAccess(id, dto, user.sub);
   }
 
   @Delete(':id')

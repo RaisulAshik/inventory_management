@@ -12,6 +12,7 @@ import { TenantUser } from '@entities/master/tenant-user.entity';
 import { User } from '@entities/tenant/user/user.entity';
 import { UserRole } from '@entities/tenant/user/user-role.entity';
 import { Role } from '@entities/tenant/role/role.entity';
+import { Employee } from '@entities/tenant/hr/employee.entity';
 import { Permission } from '@entities/tenant/role/permission.entity';
 import { RolePermission } from '@entities/tenant/role/role-permission.entity';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -20,6 +21,8 @@ import { PaginationDto } from '@common/dto/pagination.dto';
 import { PaginatedResult } from '@common/interfaces';
 import { RoleWithPermissions } from '@common/interfaces';
 import { paginate } from '@common/utils/pagination.util';
+import { getNextSequence } from '@common/utils/sequence.util';
+import { EmploymentStatus } from '@common/enums';
 
 /**
  * Users live in the MASTER database (`tenant_users`), scoped to a tenant by
@@ -52,11 +55,20 @@ export class UsersService {
     return tenantId;
   }
 
+  /**
+   * Create a login, and the employee record that must accompany it.
+   *
+   * Every user is an employee: a login is something a person holds, not a
+   * separate kind of record. `skipEmployee` is for EmployeesService, which
+   * creates the employee first and calls this to add their access — without
+   * it that path would produce two employees for one person.
+   */
   async create(
     tenantId: string,
     createUserDto: CreateUserDto & { createdBy?: string } & {
       passwordHash?: string;
     },
+    options: { skipEmployee?: boolean } = {},
   ): Promise<TenantUser> {
     const email = createUserDto.email.toLowerCase();
 
@@ -68,6 +80,16 @@ export class UsersService {
     });
     if (existingUser) {
       throw new BadRequestException('Email already exists');
+    }
+
+    // Fetched before the first write: if the tenant is unreachable, nothing
+    // has been created yet to undo.
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+
+    // Both records carry the same code, so it is minted once, here.
+    let employeeCode = createUserDto.employeeCode;
+    if (!options.skipEmployee && !employeeCode) {
+      employeeCode = await getNextSequence(dataSource, 'EMPLOYEE');
     }
 
     let passwordHash = createUserDto.passwordHash;
@@ -85,7 +107,7 @@ export class UsersService {
       passwordHash,
       firstName: createUserDto.firstName,
       lastName: createUserDto.lastName,
-      employeeCode: createUserDto.employeeCode,
+      employeeCode,
       phone: createUserDto.phone,
       isAdmin: false,
       isActive: true,
@@ -104,9 +126,11 @@ export class UsersService {
     // fails the master row is removed again rather than left as a login with
     // no tenant record and no roles.
     try {
-      const dataSource = await this.tenantConnectionManager.getDataSource();
       await dataSource.transaction(async (manager) => {
         await this.syncTenantUser(savedUser, manager);
+        if (!options.skipEmployee) {
+          await this.createEmployeeFor(savedUser, employeeCode!, manager);
+        }
         if (createUserDto.roleIds?.length) {
           await this.assignRoles(
             savedUser.id,
@@ -122,6 +146,38 @@ export class UsersService {
     }
 
     return savedUser;
+  }
+
+  /**
+   * The HR record that every login must have.
+   *
+   * Written in the same transaction as the tenant user copy, so a person
+   * can never end up with a login and no employee record. `hireDate` is
+   * today — the only date available when a login is the starting point —
+   * and HR can correct it along with the rest of the detail afterwards.
+   */
+  private async createEmployeeFor(
+    user: TenantUser,
+    employeeCode: string,
+    manager: EntityManager,
+  ): Promise<void> {
+    const repo = manager.getRepository(Employee);
+    const existing = await repo.findOne({ where: { userId: user.id } });
+    if (existing) return;
+
+    await repo.save(
+      repo.create({
+        employeeCode,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        userId: user.id,
+        phone: user.phone,
+        hireDate: new Date(),
+        employmentStatus: EmploymentStatus.ACTIVE,
+        createdBy: user.createdBy,
+      }),
+    );
   }
 
   /**
@@ -169,9 +225,17 @@ export class UsersService {
     }
   }
 
+  /**
+   * A page of users, each carrying the id of their employee record.
+   *
+   * Every user is an employee, and people are managed on the HR screens, so
+   * `employeeId` is what lets a row there link to the record it belongs to.
+   * It is null only for a user whose employee record has not been created
+   * yet — migration 017 backfills those.
+   */
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResult<TenantUser>> {
+  ): Promise<PaginatedResult<TenantUser & { employeeId?: string | null }>> {
     const queryBuilder = this.tenantUserRepository
       .createQueryBuilder('user')
       .where('user.tenantId = :tenantId', { tenantId: this.currentTenantId() });
@@ -187,7 +251,28 @@ export class UsersService {
       paginationDto.sortBy = 'createdAt';
     }
 
-    return paginate(queryBuilder, paginationDto);
+    const page = await paginate(queryBuilder, paginationDto);
+
+    // One extra query for the page, not one per row.
+    const ids = page.data.map((u) => u.id);
+    if (ids.length === 0) return page;
+
+    const dataSource = await this.tenantConnectionManager.getDataSource();
+    const rows: Array<{ id: string; userId: string }> = await dataSource
+      .getRepository(Employee)
+      .createQueryBuilder('e')
+      .select(['e.id AS id', 'e.user_id AS userId'])
+      .where('e.user_id IN (:...ids)', { ids })
+      .andWhere('e.deleted_at IS NULL')
+      .getRawMany();
+
+    const employeeByUser = new Map(rows.map((r) => [r.userId, r.id]));
+    for (const user of page.data) {
+      (user as TenantUser & { employeeId?: string | null }).employeeId =
+        employeeByUser.get(user.id) ?? null;
+    }
+
+    return page;
   }
 
   async findById(id: string): Promise<TenantUser> {
@@ -323,20 +408,20 @@ export class UsersService {
   }
 
   /**
-   * Master users for a set of email addresses, within the current tenant.
+   * Master users for a set of ids, within the current tenant.
    *
-   * Employees and users are unrelated records, so email is the only handle
-   * the two have in common. Used to show a person's roles on the employee
-   * list; it resolves nothing and creates no link.
+   * Employees reference their login by id, so this is how the employee
+   * list resolves whose access is active. It replaced a lookup by email,
+   * which was the old implicit link between the two records.
    */
-  async findByEmails(emails: string[]): Promise<TenantUser[]> {
-    const wanted = emails.filter(Boolean).map((e) => e.toLowerCase());
+  async findByIds(ids: string[]): Promise<TenantUser[]> {
+    const wanted = ids.filter(Boolean);
     if (wanted.length === 0) return [];
 
     return this.tenantUserRepository
       .createQueryBuilder('user')
       .where('user.tenantId = :tenantId', { tenantId: this.currentTenantId() })
-      .andWhere('user.email IN (:...wanted)', { wanted })
+      .andWhere('user.id IN (:...wanted)', { wanted })
       .getMany();
   }
 
